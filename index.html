@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=93" />
+<link rel="stylesheet" href="css/style.css?v=98" />
 </head>
 <body>
 
@@ -351,10 +351,10 @@
     <!-- CHAPTER 03: BEYOND — two full-bleed scenes, not an illustration in a
          box. First, the portrait held in a single spotlight on the same
          dark stage the hero opened on — the toolkit as a thin marquee,
-         the introduction as a pull-quote, not a card. Then a console: a
-         real-feeling product screenshot of the XR work, large and
-         dominant, with each contribution arriving as its own oversized
-         statement while the screen answers it. Driven by js/story.js
+         the introduction as a pull-quote, not a card. Then the HiWi
+         laboratory itself, built in real-time 3D as the visitor scrolls
+         (js/lab/), with each contribution arriving as its own oversized
+         statement while the lab answers it. Driven by js/story.js
          (BEYOND). -->
     <section class="story story--beyond" id="chapter-beyond">
       <span class="scene-anchor" id="beyond" style="--at: 90vh"></span>
@@ -407,99 +407,26 @@
           </div>
         </div>
 
-        <!-- SCENE B — the lab itself, as a real space: a perspective floor
-             receding into the dark, a hologram of the work floating at its
-             centre, and the XR rig using it — the environment doing the
-             telling, not a screenshot of an editor. -->
+        <!-- SCENE B — the lab, as a real-time 3D scene (js/lab/). A miniature
+             university lab is built in front of the visitor, piece by piece, in
+             isometric perspective, as they scroll (Blender) — then its lighting
+             turns from a modelling viewport into a lit scene (Unity) — then the
+             camera walks in and picks out an object (XR interaction). Scrolling
+             back takes it apart again. The canvas is drawn by three.js; the
+             captions and the step rail are ordinary DOM over it, so the story
+             still reads with the 3D unavailable (no WebGL, or the CDN down). -->
         <div class="console">
           <div class="labspace" aria-hidden="true">
-            <div class="lab-perspective">
-              <div class="lab-floor-grid"></div>
-            </div>
-            <div class="lab-beam"></div>
-            <div class="lab-haze lab-haze--l"></div>
-            <div class="lab-haze lab-haze--r"></div>
+            <canvas class="lab-canvas"></canvas>
             <div class="lab-vignette"></div>
           </div>
 
-          <svg class="lab-scene-svg" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-            <defs>
-              <linearGradient id="pillarFace" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stop-color="rgba(232,181,102,0.22)"></stop>
-                <stop offset="100%" stop-color="rgba(232,181,102,0.04)"></stop>
-              </linearGradient>
-              <linearGradient id="pillarFaceR" x1="1" y1="0" x2="0" y2="0">
-                <stop offset="0%" stop-color="rgba(232,181,102,0.22)"></stop>
-                <stop offset="100%" stop-color="rgba(232,181,102,0.04)"></stop>
-              </linearGradient>
-              <linearGradient id="holoTop" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="#fff3da"></stop>
-                <stop offset="100%" stop-color="#e8b566"></stop>
-              </linearGradient>
-              <linearGradient id="holoLeft" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="#c98f45"></stop>
-                <stop offset="100%" stop-color="#7a5023"></stop>
-              </linearGradient>
-              <linearGradient id="holoRight" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="#8fb8ff"></stop>
-                <stop offset="100%" stop-color="#3a5a8f"></stop>
-              </linearGradient>
-              <filter id="labGlow2" x="-100%" y="-100%" width="300%" height="300%">
-                <feGaussianBlur stdDeviation="10" result="b"></feGaussianBlur>
-                <feMerge><feMergeNode in="b"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
-              </filter>
-            </defs>
-
-            <!-- Lab equipment racks, flanking the space, in false depth. -->
-            <g class="lab-pillar lab-pillar--l">
-              <path fill="url(#pillarFace)" d="M70 560L70 160L150 120L150 540Z"></path>
-              <path class="lab-line" pathLength="1" stroke-dasharray="1" stroke-dashoffset="0" d="M70 560L70 160L150 120L150 540Z"></path>
-              <rect class="lab-rack-light" x="92" y="220" width="36" height="10" rx="2"></rect>
-              <rect class="lab-rack-light" x="92" y="270" width="36" height="10" rx="2"></rect>
-              <rect class="lab-rack-light" x="92" y="320" width="36" height="10" rx="2"></rect>
-            </g>
-            <g class="lab-pillar lab-pillar--r">
-              <path fill="url(#pillarFaceR)" d="M930 560L930 160L850 120L850 540Z"></path>
-              <path class="lab-line" pathLength="1" stroke-dasharray="1" stroke-dashoffset="0" d="M930 560L930 160L850 120L850 540Z"></path>
-              <rect class="lab-rack-light" x="872" y="230" width="36" height="10" rx="2"></rect>
-              <rect class="lab-rack-light" x="872" y="280" width="36" height="10" rx="2"></rect>
-            </g>
-
-            <!-- The hologram: the work itself, floating at the vanishing
-                 point — a scanner ring materialises it, facet by facet. -->
-            <g class="lab-holo" transform="translate(500 300)">
-              <ellipse class="holo-base" cx="0" cy="140" rx="150" ry="26"></ellipse>
-              <ellipse class="holo-ring holo-ring--1" cx="0" cy="0" rx="140" ry="140" filter="url(#labGlow2)"></ellipse>
-              <ellipse class="holo-ring holo-ring--2" cx="0" cy="0" rx="105" ry="105"></ellipse>
-              <line class="holo-scan" x1="-140" y1="0" x2="140" y2="0"></line>
-              <g class="holo-object">
-                <ellipse class="holo-object-halo" cx="0" cy="0" rx="48" ry="48" filter="url(#labGlow2)"></ellipse>
-                <path class="holo-facet" fill="url(#holoTop)" d="M0 -74L58 -30L0 4L-58 -30Z"></path>
-                <path class="holo-facet" fill="url(#holoLeft)" d="M-58 -30L0 4L0 78L-78 20Z"></path>
-                <path class="holo-facet" fill="url(#holoRight)" d="M58 -30L0 4L0 78L78 20Z"></path>
-                <path class="holo-edge" d="M0 -74L58 -30L0 4L-58 -30ZM-58 -30L0 4L0 78L-78 20M58 -30L0 4L0 78L78 20"></path>
-              </g>
-            </g>
-
-            <!-- The XR rig: a controller, its ray finding the hologram, and
-                 the teleport arc it throws to the floor. -->
-            <path class="lab-ray" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" filter="url(#labGlow2)" d="M846 512L558 322"></path>
-            <circle class="lab-hit" cx="558" cy="322" r="6"></circle>
-            <path class="lab-arc" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" filter="url(#labGlow2)" d="M838 520Q600 380 300 500"></path>
-            <ellipse class="lab-pad" cx="300" cy="500" rx="46" ry="12"></ellipse>
-            <ellipse class="lab-pad lab-pad--core" cx="300" cy="500" rx="17" ry="4.6"></ellipse>
-            <g class="lab-controller">
-              <ellipse class="lab-controller-glow" cx="852" cy="518" rx="22" ry="22" filter="url(#labGlow2)"></ellipse>
-              <rect x="836" y="500" width="32" height="34" rx="16"></rect>
-              <path d="M858 528L878 560" stroke-width="7" stroke-linecap="round"></path>
-            </g>
-          </svg>
-
           <div class="console-beats">
-            <p class="console-beat" data-beat="1"><b>01</b>Blender-modelled lab, brought into Unity</p>
-            <p class="console-beat" data-beat="2"><b>02</b>Built for the Oculus XR toolkit</p>
+            <p class="console-beat" data-beat="1"><b>01</b><svg class="beat-logo beat-logo--blender" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12.51 13.214c.046-.8.438-1.506 1.03-2.006a3.424 3.424 0 0 1 2.212-.79c.85 0 1.631.3 2.211.79.592.5.983 1.206 1.028 2.005.045.823-.285 1.586-.865 2.153a3.389 3.389 0 0 1-2.374.938 3.393 3.393 0 0 1-2.376-.938c-.58-.567-.91-1.33-.865-2.152M7.35 14.831c.006.314.106.922.256 1.398a7.372 7.372 0 0 0 1.593 2.757 8.227 8.227 0 0 0 2.787 2.001 8.947 8.947 0 0 0 3.66.76 8.964 8.964 0 0 0 3.657-.772 8.285 8.285 0 0 0 2.785-2.01 7.428 7.428 0 0 0 1.592-2.762 6.964 6.964 0 0 0 .25-3.074 7.123 7.123 0 0 0-1.016-2.779 7.764 7.764 0 0 0-1.852-2.043h.002L13.566 2.55l-.02-.015c-.492-.378-1.319-.376-1.86.002-.547.382-.609 1.015-.123 1.415l-.001.001 3.126 2.543-9.53.01h-.013c-.788.001-1.545.518-1.695 1.172-.154.665.38 1.217 1.2 1.22V8.9l4.83-.01-8.62 6.617-.034.025c-.813.622-1.075 1.658-.563 2.313.52.667 1.625.668 2.447.004L7.414 14s-.069.52-.063.831zm12.09 1.741c-.97.988-2.326 1.548-3.795 1.55-1.47.004-2.827-.552-3.797-1.538a4.51 4.51 0 0 1-1.036-1.622 4.282 4.282 0 0 1 .282-3.519 4.702 4.702 0 0 1 1.153-1.371c.942-.768 2.141-1.183 3.396-1.185 1.256-.002 2.455.41 3.398 1.175.48.391.87.854 1.152 1.367a4.28 4.28 0 0 1 .522 1.706 4.236 4.236 0 0 1-.239 1.811 4.54 4.54 0 0 1-1.035 1.626"/></svg> Blender-modelled lab</p>
+            <p class="console-beat" data-beat="2"><b>02</b><svg class="beat-logo beat-logo--unity" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m12.9288 4.2939 3.7997 2.1929c.1366.077.1415.2905 0 .3675l-4.515 2.6076a.4192.4192 0 0 1-.4246 0L7.274 6.8543c-.139-.0745-.1415-.293 0-.3675l3.7972-2.193V0L1.3758 5.5977V16.793l3.7177-2.1456v-4.3858c-.0025-.1565.1813-.2682.318-.1838l4.5148 2.6076a.4252.4252 0 0 1 .2136.3676v5.2127c.0025.1565-.1813.2682-.3179.1838l-3.7996-2.1929-3.7178 2.1457L12 24l9.6954-5.5977-3.7178-2.1457-3.7996 2.1929c-.1341.082-.3229-.0248-.3179-.1838V13.053c0-.1565.087-.2956.2136-.3676l4.5149-2.6076c.134-.082.3228.0224.3179.1838v4.3858l3.7177 2.1456V5.5977L12.9288 0Z"/></svg> Brought into Unity, built for the Oculus XR toolkit</p>
             <p class="console-beat" data-beat="3"><b>03</b>Navigation &amp; object-selection UX</p>
           </div>
+          <ol class="lab-steps" aria-hidden="true"><li></li><li></li><li></li></ol>
         </div>
 
         <p class="console-kicker">University Lab</p>
@@ -870,9 +797,14 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" defer></script>
   <script src="js/chapters.js?v=47" defer></script>
-  <script src="js/story.js?v=19" defer></script>
+  <script src="js/story.js?v=21" defer></script>
   <script src="js/hero-intro.js?v=9" defer></script>
   <script src="js/bmw-smoke.js?v=30" defer></script>
   <script src="js/main.js?v=7" defer></script>
+
+  <!-- The HiWi lab (chapter 03, scene B) is real-time 3D. boot.js is tiny; it
+       loads js/lab/lab.bundle.js (the lab + three.js, one classic script)
+       only once the visitor nears that chapter. -->
+  <script src="js/lab/boot.js?v=8" defer></script>
 </body>
 </html>

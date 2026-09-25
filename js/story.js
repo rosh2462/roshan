@@ -68,11 +68,13 @@
    * the same dark stage the hero opened on, a slow Ken Burns drift, the
    * introduction arriving as a pull-quote rather than a card, the toolkit
    * as a thin marquee at the edge. The stage dims, and a second scene wakes:
-   * a console — one dominant, real-feeling Unity screen — where each
-   * contribution arrives as its own oversized statement while the screen
-   * answers it: the object modelled, then selected by the XR rig's ray,
-   * then a teleport arc thrown to the floor. The console dims to black,
-   * which hands straight to the film reel.
+   * the HiWi laboratory, built in real-time 3D (js/lab/) as the visitor
+   * scrolls — a university computer lab assembled piece by piece (Blender),
+   * lit and switched on (Unity), then walked into and used: the camera moves
+   * to a workstation and selects its monitor (XR interaction). Each contribution arrives as its own
+   * oversized statement while the lab answers it, and scrolling back takes
+   * the lab apart again. The stage dims to black, which hands straight to
+   * the film reel.
    */
   const BEYOND = {
     id: 'chapter-beyond',
@@ -135,96 +137,64 @@
     },
 
     buildConsole(tl, { $, $$, geo }, prevDock) {
-      const beam = $('.lab-beam');
-      const hazeL = $('.lab-haze--l');
-      const hazeR = $('.lab-haze--r');
-      const pillarL = $('.lab-pillar--l');
-      const pillarR = $('.lab-pillar--r');
-      const rackLights = $$('.lab-rack-light');
       const kicker = $('.console-kicker');
       const role = $('.console-role');
       const beats = $$('.console-beat');
+      const steps = $$('.lab-steps li');
+      const stepRail = $('.lab-steps');
+      const consoleRoot = $('.console');
 
-      const holoBase = $('.holo-base');
-      const ring1 = $('.holo-ring--1');
-      const ring2 = $('.holo-ring--2');
-      const scan = $('.holo-scan');
-      const halo = $('.holo-object-halo');
-      const facets = $$('.holo-facet, .holo-edge');
-      const ray = $('.lab-ray');
-      const hit = $('.lab-hit');
-      const arc = $('.lab-arc');
-      const pads = $$('.lab-pad');
-      const controller = $('.lab-controller');
+      // The lab is real-time 3D (js/lab/). All it reads is one number — how
+      // far through its stretch of this timeline we are — and it is written
+      // here, so scrolling forward builds the lab and scrolling back takes
+      // it apart. LAB_FROM..LAB_TO is that stretch; at() places a moment of
+      // the lab (0..1) on the timeline.
+      //
+      // The captions below are timed in the lab's own terms and must stay in
+      // step with SCHEDULE in js/lab/config.js: the room is modelled and
+      // built in Blender by 0.5; its lighting turns from a modelling viewport
+      // into a lit Unity scene (0.53–0.67); then the camera walks in and picks
+      // out an object (0.72 onward).
+      const LAB_FROM = 0.46;
+      const LAB_TO = 0.9;
+      const at = (l) => LAB_FROM + l * (LAB_TO - LAB_FROM);
+      const span = (a, b) => (b - a) * (LAB_TO - LAB_FROM);
+      const lab = (window.HiWiLabState = window.HiWiLabState || { progress: 0 });
+      lab.progress = 0;
 
-      // Note: .lab-pillar--l/r and .holo-* live inside groups that already
-      // carry their own SVG translate() attribute — a GSAP transform tween
-      // on those wrapper groups would silently replace that attribute and
-      // reposition them. Every scale/rotation beat below targets a child
-      // that has no attribute of its own; the wrappers only ever fade.
-      gsap.set([beam, hazeL, hazeR], { opacity: 0 });
-      gsap.set([pillarL, pillarR], { opacity: 0 });
-      gsap.set(rackLights, { opacity: 0 });
       gsap.set([kicker, role], { opacity: 0, y: 12 });
       gsap.set(beats, { opacity: 0, y: 14 });
-      gsap.set(holoBase, { opacity: 0 });
-      gsap.set([ring1, ring2], { opacity: 0, scale: 0.5, svgOrigin: '500 300' });
-      gsap.set(facets, { opacity: 0 });
-      gsap.set(halo, { opacity: 0, scale: 0.6, svgOrigin: '500 300' });
-      gsap.set(scan, { opacity: 0, svgOrigin: '500 300' });
-      gsap.set([ray, arc], drawn(1));
-      gsap.set([ray, hit], { opacity: 0 });
-      gsap.set(pads, { opacity: 0, svgOrigin: '300 500' });
-      gsap.set(controller, { opacity: 0 });
+      gsap.set(stepRail, { opacity: 0 });
+      gsap.set(steps, { '--f': 0 });
 
-      // The console fills the same stage as Scene A underneath it; without
-      // this it would show through — its floor grid and vignette have no
-      // per-element opacity control of their own, they're just always
-      // there, ready for when Scene A dims.
-      const consoleRoot = $('.console');
+      // The console fills the same stage as Scene A underneath it; it stays
+      // hidden until Scene A dims, and hidden also tells the 3D to stop drawing.
       gsap.set(consoleRoot, { autoAlpha: 0 });
       tl.to(consoleRoot, { autoAlpha: 1, duration: 0.05, ease: 'power1.out' }, 0.42);
 
-      // The space wakes: the beam finds it, the racks along the walls
-      // light up, and a scanner ring sweeps the hologram into being.
-      tl.to([beam, hazeL, hazeR], { opacity: 1, duration: 0.06, ease: 'power1.out' }, 0.47)
-        .to([pillarL, pillarR], { opacity: 1, duration: 0.05, stagger: 0.02, ease: 'power1.out' }, 0.49)
-        .to(rackLights, { opacity: 1, duration: 0.03, stagger: 0.015 }, 0.52)
-        .to([kicker, role], { opacity: 1, y: 0, duration: 0.04, stagger: 0.015, ease: 'power2.out' }, 0.52)
-        .to(holoBase, { opacity: 1, duration: 0.03 }, 0.54)
-        .to(ring1, { opacity: 1, scale: 1, duration: 0.04, ease: 'power2.out' }, 0.55)
-        .to(ring2, { opacity: 1, scale: 1, duration: 0.04, ease: 'power2.out' }, 0.565)
-        .fromTo(scan, { opacity: 1, y: -90 }, { y: 90, duration: 0.06, ease: 'power1.inOut', immediateRender: false }, 0.56)
-        .to(scan, { opacity: 0, duration: 0.01 }, 0.62)
-        .to(facets, { opacity: 1, duration: 0.03, stagger: 0.01 }, 0.58)
-        .to(halo, { opacity: 1, scale: 1, duration: 0.04, ease: 'power2.out' }, 0.6)
-        .to(ring1, { rotation: 40, duration: 0.3, ease: 'none', svgOrigin: '500 300' }, 0.56)
-        .to(ring2, { rotation: -55, duration: 0.3, ease: 'none', svgOrigin: '500 300' }, 0.56);
+      tl.fromTo(lab, { progress: 0 }, { progress: 1, duration: LAB_TO - LAB_FROM, ease: 'none', immediateRender: false }, LAB_FROM);
 
-      // Beat 1 — modelled, brought into Unity: the hologram itself is the
-      // proof, already standing in the space.
-      tl.to(beats[0], { opacity: 1, y: 0, duration: 0.03, ease: 'power2.out' }, 0.63)
-        .to(beats[0], { opacity: 0, y: -10, duration: 0.02, ease: 'power1.in' }, 0.68);
+      tl.to([kicker, role], { opacity: 1, y: 0, duration: 0.04, stagger: 0.015, ease: 'power2.out' }, at(0.02))
+        .to(stepRail, { opacity: 1, duration: 0.03, ease: 'power1.out' }, at(0.04));
 
-      // Beat 2 — the XR rig finds it and selects it.
-      tl.to(beats[1], { opacity: 1, y: 0, duration: 0.03, ease: 'power2.out' }, 0.69)
-        .to(controller, { opacity: 1, duration: 0.02 }, 0.69)
-        .to(ray, { opacity: 1, ...drawn(0), duration: 0.03, ease: 'power2.out' }, 0.71)
-        .to(hit, { opacity: 1, duration: 0.01 }, 0.735)
-        .to(halo, { scale: 1.15, duration: 0.03, ease: 'power2.out' }, 0.735)
-        .to([ray, hit], { opacity: 0, duration: 0.02 }, 0.76)
-        .to(halo, { scale: 1, duration: 0.03, ease: 'sine.inOut', repeat: 1, yoyo: true }, 0.765)
-        .to(halo, { scale: 0.75, opacity: 0.45, duration: 0.03, ease: 'power1.out' }, 0.8)
-        .to(beats[1], { opacity: 0, y: -10, duration: 0.02, ease: 'power1.in' }, 0.8);
+      // One caption per stage: it arrives as the stage begins and leaves as
+      // the next one does, while its segment of the rail fills.
+      const stages = [
+        [0.05, 0.5], // 01 — Blender: the lab is modelled and assembled
+        [0.53, 0.7], // 02 — Unity: the same room, lit and running in the engine
+        [0.73, 1], // 03 — XR: the camera walks in; the monitor is selected
+      ];
+      stages.forEach(([a, b], i) => {
+        tl.to(beats[i], { opacity: 1, y: 0, duration: 0.03, ease: 'power2.out' }, at(a));
+        if (i < stages.length - 1) {
+          tl.to(beats[i], { opacity: 0, y: -10, duration: 0.02, ease: 'power1.in' }, at(b) - 0.005);
+        }
+        tl.to(steps[i], { '--f': 1, duration: span(a, b), ease: 'none' }, at(a));
+      });
 
-      // Beat 3 — a teleport arc, thrown to the floor.
-      tl.to(beats[2], { opacity: 1, y: 0, duration: 0.03, ease: 'power2.out' }, 0.81)
-        .to(arc, { opacity: 1, ...drawn(0), duration: 0.03, ease: 'power1.inOut' }, 0.82)
-        .fromTo(pads[1], { opacity: 0, scale: 0.4 }, { opacity: 1, scale: 1, duration: 0.02, ease: 'back.out(2.5)', immediateRender: false }, 0.845)
-        .fromTo(pads[0], { opacity: 0.9, scale: 0.5 }, { opacity: 0, scale: 1.3, duration: 0.05, ease: 'power1.out', immediateRender: false }, 0.845);
-
-      // (to 0.9: held.) The space dims — straight into the film reel.
-      const consoleAll = [$('.console'), kicker, role, $('.console-beats')];
+      // (to 0.92: held on the finished lab.) The stage dims — straight into
+      // the film reel.
+      const consoleAll = [consoleRoot, kicker, role, $('.console-beats'), stepRail];
       tl.to(consoleAll, { opacity: 0, duration: 0.06, ease: 'power1.in' }, 0.92);
       if (prevDock) tl.set(prevDock, { display: 'none' }, 0.92);
     },
