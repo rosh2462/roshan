@@ -1,0 +1,2938 @@
+/* ---------- Tokens ---------- */
+:root {
+  --bg: #08090f;
+  --bg-elev: #0e1019;
+  --surface: rgba(255, 255, 255, 0.04);
+  --surface-border: rgba(255, 255, 255, 0.09);
+  --text: #eef0f6;
+  --text-dim: #9aa0b4;
+  --text-faint: #656b80;
+  /* Warm, cinematic palette — the same family of tones as the hero
+     spotlight (amber core / champagne mid / ember edge) carried through
+     every accent, glow and gradient on the site instead of a separate
+     "tech portfolio" neon set. */
+  --accent-a: #e2a24e;   /* amber */
+  --accent-b: #f4cf8e;   /* champagne */
+  --accent-c: #c9713f;   /* ember */
+  --bmw: #4c93f8;
+  --hiwi: #d1a55c;
+  --grad: linear-gradient(120deg, var(--accent-a), var(--accent-b));
+  --radius: 18px;
+  --ease-fluid: cubic-bezier(0.22, 1, 0.36, 1);
+  --container: 1080px;
+}
+
+* { box-sizing: border-box; }
+
+html {
+  /* Deliberately NOT scroll-behavior: smooth — GSAP's ScrollTrigger drives
+     the pinned chapter sections and needs to read the real, immediate
+     scroll position every frame. Native smooth-scrolling animates toward a
+     target position independently of that, and the two fight each other on
+     scroll-direction reversal: a pinned section can visibly unpin/re-render
+     in the wrong spot for a frame or more (seen as the hero's content
+     reappearing over a chapter while scrolling up quickly). Nav-link clicks
+     get their own scoped smooth scroll in js/main.js instead. */
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, .hero-role, .nav-logo {
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  letter-spacing: -0.02em;
+}
+
+a { color: inherit; text-decoration: none; }
+img { max-width: 100%; display: block; }
+ul { margin: 0; padding: 0; list-style: none; }
+p { margin: 0; }
+
+::selection {
+  background: var(--accent-a);
+  color: #08090f;
+}
+
+/* ---------- The stage light ----------
+   One beam, fixed to the viewport, lighting the hero and the BMW chapter.
+   There used to be two — the hero's own, which scrolled away with it, and
+   this one fading in behind it — and in between they overlapped, offset,
+   as a doubled light. Now the hero is lit by this beam from its first
+   frame (js/hero-intro.js strikes it on), so there is nothing to hand
+   over: the page moves beneath one light that never does.
+
+   Stacking: above the scenes (z 0) and the hero's backdrop (z 1), below
+   every line of text (z 3+), so it lights the pictures but never washes
+   over the words. */
+.persistent-spotlight {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+}
+/* The beam's rig: how the car-to-cabin crane moves the stage light. As
+   the camera starts to rise away from the car, the light sinks with the
+   scene and fades out (--ps-leave, 0 → 1) — only 8vh, just short of where
+   its top would slide into view (.ps-cone starts 8% above the viewport),
+   so it never reads as a cone floating in mid-air. From the cabin on,
+   each chapter brings its own light. */
+/* --ps-hero is the beam's own presence in the landing page: 1 while the
+   hero is on screen, eased to 0 by js/chapters.js (setupHeroExit) as the
+   hero lifts away, so the BMW chapter is lit by the car's own headlamps
+   and never by this. Kept separate from --ps-leave so the two never
+   fight over the same property. */
+.ps-rig {
+  position: absolute;
+  inset: 0;
+  --ps-leave: 0;
+  --ps-hero: 1;
+  opacity: calc((1 - var(--ps-leave)) * var(--ps-hero));
+  translate: 0 calc(var(--ps-leave) * 8vh);
+}
+
+.ps-cone {
+  position: absolute;
+  top: -8%;
+  left: 50%;
+  width: 44vw;
+  max-width: 600px;
+  height: 130%;
+  transform: translateX(-50%);
+  animation: bulb-shimmer 9s ease-in-out infinite;
+}
+.ps-glow {
+  position: absolute;
+  inset: -6% -22% -10% -22%;
+  clip-path: polygon(44% 0%, 56% 0%, 100% 97%, 0% 97%);
+  background: radial-gradient(
+    ellipse 65% 130% at 50% 0%,
+    rgba(255, 233, 195, 0.11) 0%,
+    rgba(255, 233, 195, 0.05) 35%,
+    rgba(255, 233, 195, 0.018) 62%,
+    transparent 88%
+  );
+  filter: blur(24px);
+  mix-blend-mode: screen;
+}
+.ps-core {
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(47.5% 0%, 52.5% 0%, 100% 100%, 0% 100%);
+  background: radial-gradient(
+    ellipse 46% 145% at 50% -2%,
+    rgba(255, 228, 182, 0.58) 0%,
+    rgba(255, 235, 198, 0.26) 24%,
+    rgba(255, 239, 210, 0.1) 48%,
+    rgba(255, 240, 214, 0.04) 70%,
+    rgba(255, 240, 214, 0.015) 88%,
+    transparent 100%
+  );
+  filter: blur(11px);
+  mix-blend-mode: screen;
+}
+
+.cursor-glow {
+  position: fixed;
+  z-index: 2;
+  width: 420px;
+  height: 420px;
+  margin-left: -210px;
+  margin-top: -210px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(226, 162, 78, 0.14), transparent 70%);
+  pointer-events: none;
+  transform: translate3d(-999px, -999px, 0);
+  will-change: transform;
+  transition: opacity 0.6s ease;
+}
+
+/* The glow sits out the cinematic transitions — while a scene's light is
+   arriving or the camera is moving between chapters — so a UI flourish
+   never floats over the film. js/chapters.js sets the class. */
+.is-scene-transition .cursor-glow {
+  opacity: 0;
+}
+
+@media (max-width: 720px), (hover: none) {
+  .cursor-glow { display: none; }
+}
+
+/* ---------- Nav ---------- */
+.nav-wrap {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  padding-top: 18px;
+  pointer-events: none;
+}
+
+.nav {
+  pointer-events: all;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  width: min(92%, 880px);
+  padding: 10px 10px 10px 22px;
+  border-radius: 999px;
+  background: rgba(14, 16, 25, 0.6);
+  border: 1px solid var(--surface-border);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  transition: background 0.4s var(--ease-fluid), box-shadow 0.4s var(--ease-fluid);
+}
+
+.nav-logo {
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+.nav-logo span { color: var(--accent-b); }
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.nav-links a {
+  position: relative;
+  font-size: 0.92rem;
+  color: var(--text-dim);
+  transition: color 0.3s ease;
+}
+.nav-links a:not(.nav-cta)::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -6px;
+  width: 0%;
+  height: 1.5px;
+  background: var(--grad);
+  transition: width 0.35s var(--ease-fluid);
+}
+.nav-links a:hover,
+.nav-links a.active {
+  color: var(--text);
+}
+.nav-links a:not(.nav-cta):hover::after,
+.nav-links a:not(.nav-cta).active::after {
+  width: 100%;
+}
+
+.nav-cta {
+  padding: 9px 20px;
+  border-radius: 999px;
+  background: var(--grad);
+  color: #0a0a12 !important;
+  font-weight: 600;
+}
+
+.nav-toggle {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+}
+.nav-toggle span {
+  width: 20px;
+  height: 2px;
+  background: var(--text);
+  border-radius: 2px;
+  transition: transform 0.3s var(--ease-fluid), opacity 0.3s ease;
+}
+
+/* ---------- Progress rail ---------- */
+.progress-rail {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 60;
+  background: transparent;
+}
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent-c), var(--accent-a), var(--accent-b));
+}
+
+.eyebrow {
+  color: var(--accent-b);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  margin: 0 0 14px;
+}
+
+/* ---------- Hero: a dark stage. A single overhead spotlight switches on,
+   haze drifts through the beam, and the name emerges into the light before
+   the site's own colour and chrome fade in underneath. ---------- */
+/* No z-index of its own, deliberately: its backdrop (z 1) and its words
+   (z 3) have to interleave with the page's fixed stage light (z 2), which
+   a stacking context here would prevent. */
+.hero {
+  position: relative;
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 140px 24px 100px;
+  overflow: hidden;
+}
+
+/* The stage backdrop and everything lighting it. Opaque so nothing behind
+   the page bleeds into the hero at first paint, but it fades out over the
+   hero's last stretch instead of stopping at a hard edge: the hero's own
+   beam, floor glow and vignette all used to end in a straight line right
+   where the next chapter began. Faded out, what shows through at the seam
+   is the page's persistent beam — the same light, continuing. Starts late
+   enough that the pool where the beam lands stays at full strength. */
+.hero-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: var(--bg);
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 82%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 82%, transparent 100%);
+}
+
+/* A soft pool of ambient light the beam appears to be cast onto — static
+   gradient, no per-frame cost. */
+.stage-floor {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 50%;
+  background: linear-gradient(to top, rgba(255, 244, 220, 0.05), transparent);
+  pointer-events: none;
+}
+
+.stage-light {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Drifting haze caught inside the beam — two blurred wisps looping slowly.
+   Blur radius is fixed; only transform/opacity move. The container clips
+   the wisps to the beam's width, so its sides are feathered: clipped
+   square, the wisps ended in a hard vertical edge on either side. */
+.spotlight-haze {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 48vw;
+  max-width: 620px;
+  height: 100%;
+  transform: translateX(-50%);
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 22%, #000 78%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 22%, #000 78%, transparent);
+}
+.haze-wisp {
+  position: absolute;
+  left: 50%;
+  width: 70%;
+  height: 24%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(255, 249, 232, 0.16), transparent 70%);
+  filter: blur(16px);
+  will-change: transform;
+}
+.haze-wisp--a { top: 10%; animation: haze-drift-a 9s ease-in-out infinite; }
+.haze-wisp--b { top: 42%; animation: haze-drift-b 12s ease-in-out infinite 1.4s; }
+@keyframes haze-drift-a {
+  0%, 100% { transform: translate(-56%, 0) scale(1); }
+  50%      { transform: translate(-44%, 5%) scale(1.08); }
+}
+@keyframes haze-drift-b {
+  0%, 100% { transform: translate(-44%, 0) scale(1.06); }
+  50%      { transform: translate(-56%, -4%) scale(0.95); }
+}
+
+/* Where the beam lands on the floor. A dark penumbra ring sits just outside
+   the bright core before fading out — real spotlights read brightest at
+   the centre with the surrounding floor reading darker by contrast, not a
+   flat glow. */
+.spotlight-pool {
+  position: absolute;
+  bottom: 16%;
+  left: 50%;
+  width: 34vw;
+  max-width: 460px;
+  height: 90px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 249, 230, 0.3) 0%,
+    rgba(255, 247, 226, 0.14) 30%,
+    rgba(8, 6, 4, 0.22) 62%,
+    transparent 80%
+  );
+  filter: blur(8px);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Dust caught in the beam: sparse, drifting, twinkling motes. Generated by
+   js/hero-intro.js (randomised per load) inside a container matching the
+   cone's own footprint. Only transform/opacity ever animate — position and
+   blur stay static. */
+.dust-field {
+  position: absolute;
+  top: -8%;
+  left: 50%;
+  width: 44vw;
+  max-width: 600px;
+  height: 130%;
+  transform: translateX(-50%);
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.dust-mote {
+  position: absolute;
+  top: var(--y, 50%);
+  left: var(--x, 50%);
+  width: var(--size, 2px);
+  height: var(--size, 2px);
+  border-radius: 50%;
+  background: rgba(255, 250, 236, 0.95);
+  box-shadow: 0 0 3px rgba(255, 246, 220, 0.7);
+  opacity: 0;
+  animation: dust-drift var(--duration, 9s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+  will-change: transform, opacity;
+}
+@keyframes dust-drift {
+  0%   { transform: translate(0, 0); opacity: 0; }
+  15%  { opacity: var(--peak, 0.6); }
+  50%  { transform: translate(var(--dx, 8px), var(--dy, -26px)); opacity: calc(var(--peak, 0.6) * 0.45); }
+  85%  { opacity: var(--peak, 0.6); }
+  100% { transform: translate(0, calc(var(--dy, -26px) * 1.6)); opacity: 0; }
+}
+
+/* A soft frame that crushes the corners toward black, the way a single
+   overhead spotlight in an otherwise dark room actually falls off — the
+   centre stays clear so nothing beneath it is obscured. */
+.stage-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background: radial-gradient(ellipse at 50% 38%, transparent 32%, rgba(0, 0, 0, 0.55) 100%);
+  pointer-events: none;
+}
+
+.hero-inner { position: relative; z-index: 3; max-width: 720px; }
+
+/* Lit only by the spotlight during the intro: warm, monochrome, no accent
+   gradients. Colour returns once the beam gives way to the site itself. */
+.hero .eyebrow { color: rgba(232, 224, 206, 0.7); }
+.hero-title {
+  font-size: clamp(2.6rem, 7vw, 4.6rem);
+  font-weight: 700;
+  margin: 6px 0;
+  color: #f5efe0;
+  /* A tight dark contact shadow (light falling from directly above casts a
+     faint shadow just beneath each glyph) underneath the warm glow. */
+  text-shadow:
+    0 3px 2px rgba(0, 0, 0, 0.45),
+    0 0 50px rgba(255, 241, 209, 0.3),
+    0 0 10px rgba(255, 251, 240, 0.25);
+}
+.hero-role {
+  font-size: clamp(1.1rem, 2.4vw, 1.5rem);
+  font-weight: 500;
+  color: rgba(232, 227, 213, 0.82);
+  margin: 0 0 20px;
+  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.35);
+}
+.hero-sub {
+  color: rgba(191, 185, 172, 0.65);
+  font-size: 1.05rem;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+/* A tiny sleeping cat that drops onto the "n" of "Roshan" once the spotlight
+   is lit (see js/hero-intro.js), bounces, and settles in to sleep — purely
+   decorative (aria-hidden), sized in em so it scales with the heading at
+   every breakpoint instead of needing its own media queries. Kept small and
+   perched near the top of the letter on purpose so the "n" itself is never
+   covered.
+   .sleeping-cat handles static placement (centring + tilt) via a plain CSS
+   transform; .cat-rig is the separate element GSAP animates (fall / squash /
+   bounce / settle) so the two transforms never fight over the same element. */
+.name-n { position: relative; }
+.sleeping-cat {
+  position: absolute;
+  left: 50%;
+  bottom: 0.7em;
+  width: 0.42em;
+  transform: translateX(-52%) rotate(-4deg);
+  pointer-events: none;
+}
+.cat-rig { display: block; transform-origin: 50% 100%; }
+.cat-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
+}
+/* A soft little puff where the cat lands — quick radial fade, timed by
+   GSAP to flash right on impact. */
+.cat-poof {
+  position: absolute;
+  left: 50%;
+  bottom: -6%;
+  width: 2.2em;
+  height: 2.2em;
+  transform: translate(-50%, 30%) scale(0.3);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 240, 210, 0.55), transparent 72%);
+  opacity: 0;
+  pointer-events: none;
+}
+/* Percentage transform-origins on SVG shapes need fill-box to be measured
+   against the shape's own bounds rather than the SVG viewport. */
+.cat-body, .cat-head, .cat-tail, .cat-paw {
+  transform-box: fill-box;
+}
+.cat-body, .cat-head {
+  transform-origin: 50% 100%;
+  animation: cat-breathe 2.6s ease-in-out infinite;
+}
+.cat-tail {
+  transform-origin: 100% 100%;
+  animation: cat-tail-sway 4.5s ease-in-out infinite;
+}
+.cat-whisker {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.55);
+  stroke-width: 0.7;
+  stroke-linecap: round;
+}
+@keyframes cat-breathe {
+  0%, 100% { transform: scaleY(1); }
+  50%      { transform: scaleY(1.045); }
+}
+@keyframes cat-tail-sway {
+  0%, 100% { transform: rotate(0deg); }
+  50%      { transform: rotate(-4deg); }
+}
+
+.cat-zzz {
+  position: absolute;
+  top: 0.05em;
+  left: 0.08em;
+  pointer-events: none;
+}
+.cat-zzz .z {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  color: rgba(255, 236, 205, 0.85);
+  opacity: 0;
+  animation: cat-zzz-float 3.6s ease-in infinite;
+}
+.cat-zzz .z1 { font-size: 0.24em; animation-delay: 0s; }
+.cat-zzz .z2 { font-size: 0.3em; animation-delay: 1.2s; }
+.cat-zzz .z3 { font-size: 0.36em; animation-delay: 2.4s; }
+@keyframes cat-zzz-float {
+  0%   { opacity: 0; transform: translate(0, 0) scale(0.8); }
+  15%  { opacity: 0.9; }
+  85%  { opacity: 0.15; }
+  100% { opacity: 0; transform: translate(0.22em, -0.4em) scale(1.15); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cat-body, .cat-head, .cat-tail, .cat-zzz .z {
+    animation: none !important;
+  }
+  .cat-zzz .z { opacity: 0 !important; }
+}
+
+/* Elements that stage in during the autoplay reveal (js/hero-intro.js).
+   Hidden by default so there is no flash of fully-lit content before the
+   timeline starts; the reduced-motion block below forces them visible. */
+.stage-text { opacity: 0; }
+
+.scroll-hint {
+  position: absolute;
+  z-index: 3;
+  bottom: 44px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  transition: color 0.3s ease;
+}
+.scroll-hint:hover { color: var(--text); }
+.hint-fade {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.scroll-hint i {
+  font-style: normal;
+  animation: scroll-hint-bob 1.6s ease-in-out infinite;
+}
+@keyframes scroll-hint-bob {
+  0%, 100% { transform: translateY(0); opacity: 0.5; }
+  50%      { transform: translateY(6px); opacity: 1; }
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 860px) {
+  .nav-links {
+    position: fixed;
+    top: 74px;
+    right: 16px;
+    left: 16px;
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+    background: rgba(14, 16, 25, 0.92);
+    border: 1px solid var(--surface-border);
+    border-radius: 20px;
+    padding: 18px;
+    gap: 16px;
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-12px);
+    transition: opacity 0.35s var(--ease-fluid), transform 0.35s var(--ease-fluid), visibility 0.35s;
+  }
+  .nav-links.open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
+  .nav-toggle { display: flex; }
+  .nav-cta { align-self: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .now-dot, .scroll-hint i, .poster-pulse, .poster-rec i {
+    animation: none !important;
+  }
+  .apoc-warning, .loop-hud-swish { display: none; }
+
+  .stage-floor, .spotlight-haze, .spotlight-pool, .dust-field { display: none; }
+  .stage-text { opacity: 1 !important; transform: none !important; }
+  /* That rule also strips the translateX(-50%) the scroll hint is centred
+     with, so centre it without a transform here. */
+  .scroll-hint { left: 0; right: 0; width: max-content; margin: 0 auto; }
+
+  /* A static beam over the hero only, rather than over every section
+     (nothing moves it away here) — the BMW chapter is lit by the car's
+     own headlamps, not by this. */
+  .persistent-spotlight {
+    position: absolute;
+    height: 100vh;
+    opacity: 0.4 !important;
+  }
+
+  /* js/chapters.js never sets up the scenes under reduced motion (the
+     whole file returns early), so the veil's own closed default would
+     otherwise hide the photos permanently. */
+  .reveal-veil, .lamp-lit, .lamp-spill, .badge-lit, .zoom-bg-blur,
+  .twin, .scan-line, .ripples, .strip, .screen-ui, .bmw-smoke-canvas { display: none; }
+  /* The rest of the BMW scene's reduced-motion rules live at the very end
+     of this file: its base rules are defined later than this block, so
+     overrides placed here would simply lose the cascade. */
+}
+
+
+/* ---------- Cinematic Car Zoom Layout ---------- */
+.chapter-container {
+  position: relative;
+  /* The whole BMW chapter plays out in here — reveal, title, approach,
+     role details, a hold to read them, and the darkness closing again —
+     so it needs three screens' worth of scroll to pace that unhurriedly. */
+  height: 400vh;
+  background: var(--bg);
+  /* No overflow:hidden here — it's a well-known way to silently break a
+     position:sticky descendant (an ancestor with overflow other than
+     visible clips/disables sticky's containing-block calculation). That
+     was true even before this reveal sequence existed; it just went
+     unnoticed because nothing had scrolled far enough into the section to
+     expose it. .chapter-zoom-bg now clips the zoomed image itself, so
+     this was never needed for that anyway. */
+}
+
+/* The BMW chapter begins a screen early, underneath the hero: the hero
+   lifts away like a curtain (its backdrop sits above the scene) with the
+   car already pinned below it, so the light finds the car while the name
+   is still rising out of frame — rather than after a screen of empty
+   darkness. Transparent, so it never covers the hero. */
+.chapter-container--opening {
+  margin-top: -100vh;
+  background: none;
+}
+
+/* A link target inside a chapter, placed where that chapter has revealed
+   itself (--at, from the top of its section) — the section's own top is
+   often still dark, or underneath the chapter before it. */
+.scene-anchor {
+  position: absolute;
+  top: var(--at, 0);
+  left: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+/* Each chapter now tells its whole story in place — reveal, slate, the
+   work shown on the scene, and the crane between them — so each gets a
+   longer stretch of scroll to do it unhurriedly. */
+.chapter-container--handoff { height: 560vh; }
+
+/* ...and Bosch picks up exactly where it went dark: pulled up by a screen,
+   so the BMW scene's last frame and this one's first are the same scroll
+   position, with no dead screen of darkness between them. Transparent, so
+   the overlapping screen never covers the end of the BMW push. */
+.chapter-container--continues {
+  height: 520vh;
+  margin-top: -100vh;
+  background: none;
+}
+
+.chapter-zoom-bg {
+  position: sticky;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  /* Stacked beneath the page's persistent beam (z-index 1), not above it.
+     The beam is one fixed element behind the entire page; anything opaque
+     layered over it cuts it off in a straight line wherever that layer's
+     edge happens to be — which is exactly what drew a hard break across the
+     page as this scene scrolled in and out. Below it, the beam simply
+     continues over the scene, and the scene's darkness matches the page's
+     (see .reveal-veil), so its edges are invisible. */
+  z-index: 0;
+  /* Deliberately never given a transform of its own — see .zoom-bg-image. */
+}
+
+/* The camera's frame. The photo and the light blooms attached to it
+   (headlights, badge) live inside it, on .photo-plane, so the GSAP-driven
+   camera-distance scale never touches .chapter-zoom-bg itself. No CSS transition on the scale
+   either — js/chapters.js drives it every frame via a scrubbed GSAP
+   tween, and a competing CSS transition on the same property is exactly
+   what caused the old car-to-logo transition's kink earlier in this
+   project. Its resting scale starts well under 1 (see chapters.js's
+   BASE_SCALE), which is what gives the car open, spacious breathing room.
+
+   Fitted by width rather than `cover`: on a landscape desktop the two are
+   identical (cover is width-bound there anyway), but on a portrait phone
+   cover goes height-bound and crops the headlamps off both sides — the
+   opposite of breathing room. Any leftover space is the photo's own black.
+
+   The edges are feathered out with a mask. Pulled back below full size,
+   the photo's box sits inside the viewport, and its near-pure-black edge
+   against the page's slightly lifted --bg read as a visible rectangle
+   around the car. The car sits well inside the solid region (its outer
+   lamp tips are ~8% in from the sides), so only empty backdrop fades. */
+.zoom-bg-image {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  transform-origin: 50% 50%;
+  will-change: transform;
+  -webkit-mask-image:
+    linear-gradient(to right, transparent 0%, #000 6%, #000 94%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, #000 14%, #000 86%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to right, transparent 0%, #000 6%, #000 94%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, #000 14%, #000 86%, transparent 100%);
+  mask-composite: intersect;
+}
+
+/* The photograph itself, with everything attached to it. js/chapters.js
+   sizes it to the whole photo (fitted by width, placed vertically by the
+   scene's focus) and the frame above crops it; when the camera cranes, it
+   slides this plane behind the frame — a compositor-only transform — so the
+   photo, its lamps and its stacked frames all travel together. Without JS
+   (reduced motion) it simply fills the frame, which the background sizing
+   below then crops exactly as before. */
+.photo-plane {
+  position: absolute;
+  inset: 0;
+  background-size: 100% auto;
+  background-repeat: no-repeat;
+  background-position: center 45%;
+  will-change: transform;
+}
+
+/* Extra frames of the same photo stacked on the base one (e.g. the Bosch
+   display switched on) — sized and positioned identically, so they line up
+   exactly; js/chapters.js clips each to the region it changes. */
+.zoom-bg-layer {
+  position: absolute;
+  inset: 0;
+  background-size: 100% auto;
+  background-repeat: no-repeat;
+  background-position: center 45%;
+  pointer-events: none;
+}
+
+/* Motion blur: the same photo, pre-smeared vertically, faded in only while
+   the camera is craning fast (the lamps become light trails). A static,
+   low-resolution image — it's blurred anyway — rather than an animated
+   filter, which would re-blur a full-screen photo every frame. Generated
+   from the source photos with ffmpeg:
+     -vf "scale=1080:1920:flags=area,avgblur=sizeX=1:sizeY=52,
+          avgblur=sizeX=1:sizeY=28,curves=all='0/0 0.04/0.05 0.18/0.5 0.5/0.9 1/1'"
+     -q:v 2
+   (bosch-cockpit-motion.jpg, from bosch-cockpit-off.png: 940:1670, sizeY
+   44 then 24, curves '0/0 0.06/0.07 0.3/0.5 1/1'). Half resolution is
+   plenty for a blur, but not much less: blocky compression shows once
+   it's stretched across a large screen. Regenerate if a photo is
+   replaced. */
+.zoom-bg-blur {
+  opacity: 0;
+}
+
+/* On a phone the photo is only a screen tall (see fitScale in
+   js/chapters.js), so the crane slides its edges into view. The smear's
+   blacks are lifted, unlike the photo's own, so its top and bottom would
+   show as a hard-edged panel: feather them away. (Not on a desktop, where
+   the photo runs far past the frame and the edge is never seen.) */
+@media (max-width: 720px) {
+  .zoom-bg-blur {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 16%, #000 84%, transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0%, #000 16%, #000 84%, transparent 100%);
+  }
+}
+
+/* Matches the photo's black point to the page's. The photo's backdrop is
+   pure black but the page's --bg is very slightly lifted, so even with
+   feathered edges the photo read as a faintly darker panel behind the car.
+   Screen-blending --bg over it lifts true black to exactly --bg while
+   leaving anything already lit essentially unchanged. An ::after, painted
+   over any stacked frames too — otherwise a lit screen's blacks would sit
+   deeper than the cabin around them. */
+.zoom-bg-image::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+/* The dark veil the car emerges from: a spotlight-shaped hole (its own
+   radial-gradient mask, swept and grown by js/chapters.js via the --rx/
+   --ry/--rr custom properties) opens over the car, revealing it the same
+   way the hero's own beam reveals the name — mask/opacity only, so this
+   never re-triggers the "never animate blur radius" cost. A sibling of
+   .zoom-bg-image, not a child: this is the scene's own darkness, fixed to
+   the full viewport regardless of how near or far the camera has pushed
+   the car. Exactly the page's own --bg, so where the veil is closed the
+   scene is indistinguishable from the page around it. */
+.reveal-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: var(--bg);
+  pointer-events: none;
+  --rx: 50%;
+  --ry: 8%;
+  --rr: -42%; /* fully closed — see VEIL_CLOSED in js/chapters.js */
+  -webkit-mask-image: radial-gradient(circle at var(--rx) var(--ry), transparent 0%, transparent var(--rr), black calc(var(--rr) + 42%));
+  mask-image: radial-gradient(circle at var(--rx) var(--ry), transparent 0%, transparent var(--rr), black calc(var(--rr) + 42%));
+}
+
+/* BMW's veil, lit by the car itself instead of a beam from above. Instead
+   of one hole travelling down from the top of the frame, there are two
+   light sources — the headlamps — and the veil is only as dark as the
+   light they've failed to reach:
+     --li  how brightly the lamps are on, 0 to 1. At 0 the veil is solid;
+           as it rises the lamps' own outlines show first, because the
+           veil is thinnest right at each lamp.
+     --lr  how far their light carries, as a percentage of the distance
+           to the frame's far corner. It grows after --li does, so the
+           grille and bonnet are found by the light, not simply uncovered.
+   Each lamp is its own gradient, multiplied together, so where their
+   light overlaps between them the veil is thinner than either alone —
+   light adding up. js/chapters.js (BMW_SCENE.intro, .render) drives all
+   of these; the lamp positions are re-measured every frame, since the
+   camera pushes in while the light arrives. Bosch's veil is untouched. */
+.reveal-veil--lamps {
+  --li: 0;
+  --lr: 9;
+  --l1x: 30%;
+  --l1y: 56%;
+  --l2x: 70%;
+  --l2y: 56%;
+  -webkit-mask-image:
+    radial-gradient(circle at var(--l1x) var(--l1y),
+      rgba(0, 0, 0, calc(1 - var(--li))) 0%,
+      rgba(0, 0, 0, calc(1 - var(--li) * 0.82)) calc(var(--lr) * 0.22%),
+      rgba(0, 0, 0, calc(1 - var(--li) * 0.42)) calc(var(--lr) * 0.55%),
+      rgb(0, 0, 0) calc(var(--lr) * 1%)),
+    radial-gradient(circle at var(--l2x) var(--l2y),
+      rgba(0, 0, 0, calc(1 - var(--li))) 0%,
+      rgba(0, 0, 0, calc(1 - var(--li) * 0.82)) calc(var(--lr) * 0.22%),
+      rgba(0, 0, 0, calc(1 - var(--li) * 0.42)) calc(var(--lr) * 0.55%),
+      rgb(0, 0, 0) calc(var(--lr) * 1%));
+  -webkit-mask-composite: source-in;
+  mask-image:
+    radial-gradient(circle at var(--l1x) var(--l1y),
+      rgba(0, 0, 0, calc(1 - var(--li))) 0%,
+      rgba(0, 0, 0, calc(1 - var(--li) * 0.82)) calc(var(--lr) * 0.22%),
+      rgba(0, 0, 0, calc(1 - var(--li) * 0.42)) calc(var(--lr) * 0.55%),
+      rgb(0, 0, 0) calc(var(--lr) * 1%)),
+    radial-gradient(circle at var(--l2x) var(--l2y),
+      rgba(0, 0, 0, calc(1 - var(--li))) 0%,
+      rgba(0, 0, 0, calc(1 - var(--li) * 0.82)) calc(var(--lr) * 0.22%),
+      rgba(0, 0, 0, calc(1 - var(--li) * 0.42)) calc(var(--lr) * 0.55%),
+      rgb(0, 0, 0) calc(var(--lr) * 1%));
+  mask-composite: intersect;
+}
+
+/* Smoke ahead of the veil (z 3, the veil is z 2): a WebGL canvas
+   (js/bmw-smoke.js) rendering real turbulent noise rather than a shape
+   drawn in CSS, so it has genuine irregular structure and keeps evolving
+   on its own instead of just fading a fixed form in and out. Plain
+   full-bleed positioning only — everything about what it looks like lives
+   in the shader. */
+.bmw-smoke-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+}
+
+/* ---- Illumination by brightening, never by painting ----
+   These two rules light the car by amplifying the pixels the photograph
+   ALREADY contains (backdrop-filter), instead of drawing glowing shapes
+   on top of it. That matters for three reasons: the emblem keeps its
+   exact shape, perspective, lettering and colours; the black bezel around
+   it stays black (brightening near-black is still near-black, so nothing
+   blooms outward into a halo); and because these elements paint nothing
+   of their own, they cannot introduce a second badge or a second pair of
+   lamps no matter how they are positioned.
+
+   Their size and position are set from js/chapters.js, measured off
+   assets/bmw.jpg itself — background-size:cover crops width-bound on a
+   landscape desktop but height-bound on a portrait phone, so no fixed
+   percentage can stay aligned to a feature across both. */
+.lamp-lit,
+.badge-lit {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0;
+  will-change: opacity;
+}
+
+/* A restrained lift: the corona rings are already bright in the photo, so
+   this only has to make them read as energised — pushing harder just
+   blows them out to white and loses the ice-blue. */
+.lamp-lit {
+  z-index: 2;
+  -webkit-backdrop-filter: brightness(1.55) saturate(1.2);
+  backdrop-filter: brightness(1.55) saturate(1.2);
+  -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 0%, #000 70%, transparent 100%);
+  mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 0%, #000 70%, transparent 100%);
+}
+
+/* The emblem sits in shadow in the photo, so it takes a stronger lift to
+   read as backlit — the blue becomes a deeper, brighter blue and the
+   white panels brighten, each only where that colour already is. */
+.badge-lit {
+  z-index: 3;
+  /* Saturation stays low deliberately: pushing it harder amplifies the
+     warm cast already in the cream panels and turns them gold. */
+  -webkit-backdrop-filter: brightness(1.95) saturate(1.18);
+  backdrop-filter: brightness(1.95) saturate(1.18);
+  -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 0%, #000 60%, transparent 100%);
+  mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 0%, #000 60%, transparent 100%);
+}
+
+/* The one additive layer: a faint wash of light falling on the bodywork
+   around each lamp, which is what light physically does. Kept well below
+   the lamps' own brightness so it reads as spill, never as a halo pasted
+   over them. */
+.lamp-spill {
+  position: absolute;
+  z-index: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(198, 222, 255, 0.16) 0%, rgba(198, 222, 255, 0.06) 45%, rgba(198, 222, 255, 0) 78%);
+  mix-blend-mode: screen;
+  opacity: 0;
+  pointer-events: none;
+  filter: blur(24px);
+}
+
+/* The display itself sits above its own spill. The spill is meant to
+   light the dashboard around the screen; layered over the glass it lifted
+   the screen's blacks to a maroon haze and flattened the boot screen. */
+.screen-on {
+  z-index: 2;
+}
+
+/* The light a switched-on display casts on the dashboard around it:
+   faint, warm-red from the boot screen's accent, and well below the
+   screen's own brightness so it reads as spill, not a halo. */
+.screen-spill {
+  position: absolute;
+  z-index: 1;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(255, 92, 76, 0.13) 0%, rgba(255, 92, 76, 0.05) 45%, rgba(255, 92, 76, 0) 76%);
+  mix-blend-mode: screen;
+  opacity: 0;
+  pointer-events: none;
+  filter: blur(22px);
+}
+
+.chapter-content {
+  position: sticky;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  margin-top: -100vh;
+  display: flex;
+  flex-direction: column;
+  /* Top-aligned into the open dark space above the car. Vertically
+     centred, the title landed directly across the bonnet and hid the
+     emblem — the very detail the reveal is building up to. */
+  justify-content: flex-start;
+  align-items: center;
+  text-align: center;
+  padding: clamp(96px, 14vh, 180px) 32px 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+/* ---------- Scene storytelling ----------
+   The chapters don't caption the photographs; they show the work on them.
+   Shared grammar: a slate (the chapter's title card — company, role, one
+   line) that docks into the corner for the rest of the chapter, so where
+   and what are always on screen; then the contributions, placed in the
+   scene itself. Each chapter carries its own accent: BMW a cool technical
+   blue, Bosch the warm red of its own display. */
+.scene-story {
+  display: block;
+  padding: 0;
+  text-align: left;
+}
+.scene-story--bmw { --accent: #6db2ff; --accent-rgb: 109, 178, 255; }
+.scene-story--bosch { --accent: #ff5a4e; --accent-rgb: 255, 90, 78; }
+
+.slate {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: clamp(92px, 13vh, 160px);
+  width: min(92%, 680px);
+  margin: 0 auto;
+  text-align: center;
+  /* The beam passes directly behind the slate; a soft dark halo keeps the
+     smaller lines legible against its brightest part. */
+  text-shadow: 0 2px 16px rgba(8, 9, 15, 0.85), 0 0 2px rgba(8, 9, 15, 0.6);
+}
+.slate-index {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.slate-org {
+  margin: 10px 0 0;
+  font-size: clamp(3rem, 7vw, 5.5rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.slate-role {
+  margin: 12px 0 0;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: clamp(1.15rem, 1.9vw, 1.45rem);
+  font-weight: 600;
+  color: var(--accent);
+}
+.slate-lede {
+  max-width: 540px;
+  margin: 14px auto 0;
+  font-size: clamp(0.92rem, 1.1vw, 1.02rem);
+  line-height: 1.55;
+  color: var(--text-dim);
+}
+
+/* The slate, docked: company and role, held in the corner while the
+   contributions play out. */
+.slate-dock {
+  position: absolute;
+  top: clamp(84px, 11vh, 104px);
+  left: clamp(20px, 4.5vw, 64px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text);
+  text-shadow: 0 2px 10px rgba(8, 9, 15, 0.9);
+}
+.slate-dock b {
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+.slate-dock span {
+  padding-left: 10px;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+  font-weight: 500;
+  color: var(--text-dim);
+}
+
+/* ---- BMW: the VR viewport and its annotations ---- */
+.scene-story--bmw {
+  --hud-top: max(150px, 19vh);
+  --hud-side: 6vw;
+  --hud-bottom: 9vh;
+}
+.hud {
+  position: absolute;
+  top: var(--hud-top);
+  right: var(--hud-side);
+  bottom: var(--hud-bottom);
+  left: var(--hud-side);
+}
+.hud-corner {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  border: 0 solid rgba(var(--accent-rgb), 0.7);
+}
+.hud-corner--tl { top: 0; left: 0; border-top-width: 1px; border-left-width: 1px; transform-origin: 0 0; }
+.hud-corner--tr { top: 0; right: 0; border-top-width: 1px; border-right-width: 1px; transform-origin: 100% 0; }
+.hud-corner--bl { bottom: 0; left: 0; border-bottom-width: 1px; border-left-width: 1px; transform-origin: 0 100%; }
+.hud-corner--br { bottom: 0; right: 0; border-bottom-width: 1px; border-right-width: 1px; transform-origin: 100% 100%; }
+
+.hud-caption {
+  position: absolute;
+  top: calc(var(--hud-top) + 16px);
+  right: calc(var(--hud-side) + 20px);
+  max-width: 300px;
+  margin: 0;
+  text-align: right;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  color: var(--text);
+  text-shadow: 0 2px 12px rgba(8, 9, 15, 0.9);
+}
+.hud-caption span {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* Leaders from each pin to its label, drawn in viewport pixels. */
+.callout-leaders {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+/* Drawn on by animating their stroke-dashoffset attribute (1 → 0, with
+   pathLength 1), set in the markup rather than here: a stylesheet value
+   would override the attribute. */
+.callout-leaders path {
+  fill: none;
+  stroke: rgba(var(--accent-rgb), 0.75);
+  stroke-width: 1;
+}
+
+/* The pins, on the car. Numbered on narrow screens, where the labels move
+   into a list beneath the car instead of around it. */
+.callout-dots i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.18), 0 0 14px rgba(var(--accent-rgb), 0.8);
+  font-size: 0;
+  font-style: normal;
+}
+
+.callouts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.callout {
+  position: absolute;
+  left: 0;
+  top: 0;
+  max-width: 270px;
+  text-shadow: 0 2px 12px rgba(8, 9, 15, 0.9);
+}
+.callout-kicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.callout-kicker b {
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+}
+.callout-text {
+  display: block;
+  margin-top: 4px;
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--text);
+}
+/* Performance isn't a place on the car — it's the viewport itself, so it
+   sits in the viewport's corner with its own frame-time trace. */
+.callout--perf {
+  top: auto;
+  left: calc(var(--hud-side) + 20px);
+  bottom: calc(var(--hud-bottom) + 18px);
+  max-width: 300px;
+}
+.perf-trace {
+  display: block;
+  width: 180px;
+  height: 34px;
+  margin-bottom: 8px;
+  overflow: visible;
+}
+.perf-budget {
+  stroke: rgba(255, 255, 255, 0.2);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+.perf-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+@media (max-width: 720px) {
+  .scene-story--bmw {
+    --hud-top: 24vh;
+    --hud-side: 16px;
+    --hud-bottom: 38vh;
+  }
+  .hud-caption {
+    right: auto;
+    left: calc(var(--hud-side) + 14px);
+    max-width: 240px;
+    text-align: left;
+    font-size: 0.85rem;
+  }
+  .callout-leaders { display: none; }
+  .callout-dots i {
+    width: 18px;
+    height: 18px;
+    margin: -9px 0 0 -9px;
+    display: grid;
+    place-items: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--bg);
+  }
+  .callouts {
+    position: absolute;
+    left: 20px;
+    right: 20px;
+    bottom: max(24px, 4vh);
+    display: grid;
+    gap: 12px;
+  }
+  .callout,
+  .callout--perf {
+    position: relative;
+    left: auto !important;
+    top: auto !important;
+    bottom: auto;
+    max-width: none;
+  }
+  .callout-text { font-size: 0.92rem; margin-top: 2px; }
+  .perf-trace { display: none; }
+}
+
+/* The virtual prototype and its render sweep, on the photo plane. --scan
+   is where the sweep has reached, as a percentage of the photo's width. */
+.photo-plane { --scan: -2%; }
+.twin {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(var(--scan) - 0.4%), transparent calc(var(--scan) + 0.4%));
+  mask-image: linear-gradient(to right, #000 calc(var(--scan) - 0.4%), transparent calc(var(--scan) + 0.4%));
+}
+.scan-line {
+  position: absolute;
+  z-index: 1;
+  left: var(--scan);
+  width: 2px;
+  margin-left: -1px;
+  background: linear-gradient(to bottom, transparent, rgba(200, 228, 255, 0.95) 28%, rgba(200, 228, 255, 0.95) 72%, transparent);
+  box-shadow: 0 0 18px 4px rgba(109, 178, 255, 0.5);
+  pointer-events: none;
+}
+/* Sound spreading over the ground in front of the car — flattened rings,
+   since they travel along the floor, not up the screen. */
+.ripples {
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+}
+/* Each ring is driven by one value, --r (0 → 1 as it travels out):
+   growing throughout, arriving quickly and fading as it spreads — and
+   invisible at both ends, so it can be rewound or repeated anywhere. */
+.ripples i {
+  --r: 0;
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgba(150, 200, 255, 0.95);
+  border-radius: 50%;
+  box-shadow: 0 0 12px rgba(109, 178, 255, 0.35);
+  opacity: calc((1 - var(--r)) * min(1, var(--r) * 6));
+  scale: calc(0.3 + var(--r) * 0.7);
+}
+
+/* ---- Bosch: the display, and the data in the cabin's light strips ---- */
+.strip {
+  position: absolute;
+  z-index: 1;
+  height: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+/* Faint at either end and brightest mid-way, so a pulse emerges from the
+   strip and dissolves back into it rather than popping on and off. */
+.pulse {
+  position: absolute;
+  top: 0;
+  left: calc(var(--t, 0) * 100%);
+  width: var(--pulse-w, 40px);
+  height: var(--pulse-h, 7px);
+  margin: calc(var(--pulse-h, 7px) / -2) 0 0 calc(var(--pulse-w, 40px) / -2);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(255, 238, 232, 0.95) 0%, rgba(255, 86, 70, 0.75) 38%, rgba(255, 60, 48, 0) 72%);
+  mix-blend-mode: screen;
+  opacity: sin(calc(var(--t, 0) * 180deg));
+}
+
+/* The display's interface, laid onto the glass in perspective by
+   js/chapters.js (a matrix3d from this 640×344 box to the glass's four
+   corners on screen). Drawn in screen space, outside the zooming frame, so
+   its type is rasterised at the size it's seen. */
+.screen-ui {
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  top: 0;
+  width: 640px;
+  height: 344px;
+  overflow: hidden;
+  border-radius: 6px;
+  transform-origin: 0 0;
+  background:
+    radial-gradient(120% 90% at 50% 115%, rgba(255, 60, 48, 0.16), transparent 60%),
+    linear-gradient(180deg, #0c0d12, #050608);
+  color: #f3f4f7;
+  font-family: 'Inter', system-ui, sans-serif;
+  pointer-events: none;
+  visibility: hidden;
+}
+/* A faint sheen across the glass. */
+.screen-ui::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, rgba(255, 255, 255, 0.06) 0%, transparent 36%);
+  pointer-events: none;
+}
+.sui-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 34px;
+  padding: 0 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+.sui-dots { display: flex; gap: 6px; }
+.sui-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+}
+.sui-page {
+  position: absolute;
+  inset: 34px 0 0;
+  display: flex;
+  flex-direction: column;
+  padding: 26px 30px 24px;
+}
+.sui-kicker {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #ff5a4e;
+}
+.sui-title {
+  margin: 8px 0 0;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.12;
+  color: #fff;
+}
+
+/* Page 1: an interface assembling itself — a home screen: three tiles for
+   the things a driver reaches for, and two controls beneath. Anchored to the
+   foot of the glass, so the page as a whole spans its height. */
+.sui-mock {
+  position: absolute;
+  right: 30px;
+  bottom: 24px;
+  left: 30px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: 16px 98px 16px 24px;
+  gap: 12px 10px;
+}
+.sui-mock-bar {
+  grid-column: 1 / -1;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+}
+.sui-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.03));
+}
+.sui-tile em {
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+.sui-tile strong {
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1;
+  color: #fff;
+}
+.sui-tile::after {
+  content: '';
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 9px;
+  height: 2px;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.12);
+}
+.sui-tile:nth-of-type(2) {
+  border-color: rgba(255, 90, 78, 0.5);
+  background: linear-gradient(160deg, rgba(255, 90, 78, 0.35), rgba(255, 90, 78, 0.06));
+}
+.sui-tile:nth-of-type(2)::after { background: #ff5a4e; }
+.sui-tile:nth-of-type(2) em { color: rgba(255, 214, 208, 0.85); }
+.sui-cap {
+  align-self: center;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.6);
+}
+.sui-cap--vol { grid-column: 1; grid-row: 3; }
+.sui-cap--eco { grid-column: 1 / 3; grid-row: 4; }
+.sui-slider {
+  position: relative;
+  grid-column: 2 / -1;
+  grid-row: 3;
+  align-self: center;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.1);
+}
+.sui-slider b {
+  position: absolute;
+  inset: 0;
+  border-radius: 2px;
+  background: #ff5a4e;
+  transform-origin: 0 50%;
+}
+.sui-toggle {
+  position: relative;
+  grid-column: 3;
+  grid-row: 4;
+  justify-self: end;
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.12);
+}
+.sui-toggle b {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+/* Page 2: configure → test → validate, each ticked off in turn, with the
+   call each one makes; the request log beneath fills in as they finish. */
+.sui-steps {
+  --progress: 0;
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.sui-steps::before,
+.sui-steps::after {
+  content: '';
+  position: absolute;
+  top: 21px;
+  left: 60px;
+  height: 2px;
+}
+.sui-steps::before { right: 60px; background: rgba(255, 255, 255, 0.1); }
+.sui-steps::after { width: calc((100% - 120px) * var(--progress)); background: #ff5a4e; }
+.sui-steps li {
+  --done: 0;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 120px;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.72);
+}
+.sui-steps small {
+  margin-top: -6px;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0;
+  color: rgba(255, 255, 255, calc(0.28 + 0.36 * var(--done)));
+}
+.sui-steps i {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+  background: #0b0c11;
+}
+.sui-steps i::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border: 2px solid #ff5a4e;
+  border-radius: 50%;
+  background: rgba(255, 90, 78, 0.16);
+  box-shadow: 0 0 16px rgba(255, 90, 78, 0.5);
+  opacity: var(--done);
+}
+.sui-steps i::after {
+  content: '';
+  width: 14px;
+  height: 8px;
+  border-bottom: 2.5px solid #fff;
+  border-left: 2.5px solid #fff;
+  transform: translateY(-2px) rotate(-45deg);
+  opacity: var(--done);
+}
+
+/* A request log: method, path, result. Anchored to the foot of the glass. */
+.sui-log {
+  margin: auto 0 0;
+  padding: 10px 14px;
+  list-style: none;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.78);
+}
+.sui-log li {
+  display: grid;
+  grid-template-columns: 58px 1fr auto;
+  gap: 10px;
+}
+.sui-log b { font-weight: 600; color: #ff5a4e; }
+.sui-log em { font-style: normal; color: #6fdc9b; }
+
+/* Page 3: the two sides joined, with traffic both ways. */
+.sui-pipe {
+  display: flex;
+  align-items: center;
+  margin: 16px 0 12px;
+}
+.sui-pipe span {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 148px;
+  padding: 10px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+}
+.sui-pipe span b {
+  margin-bottom: 3px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.sui-pipe span em {
+  font-style: normal;
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.58);
+}
+.sui-wire {
+  position: relative;
+  flex: 1;
+  height: 2px;
+  margin: 0 14px;
+  background: linear-gradient(90deg, rgba(255, 90, 78, 0.25), rgba(255, 90, 78, 0.6), rgba(255, 90, 78, 0.25));
+}
+.sui-wire b {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--t, 0) * 100%);
+  width: 28px;
+  height: 6px;
+  margin: -3px 0 0 -14px;
+  border-radius: 3px;
+  background: radial-gradient(ellipse, #fff 0%, #ff5a4e 45%, transparent 75%);
+  opacity: sin(calc(var(--t, 0) * 180deg));
+}
+
+/* On a phone the pushed-in display is ~350px wide, a little over half this
+   interface's design size — so its type is set larger to land readable. What
+   the glass can hold at that size is less than on a desktop: the request
+   logs and the secondary controls give way, and what remains is set larger
+   and anchored to the foot of the glass, so each page still fills it. */
+@media (max-width: 720px) {
+  .sui-bar { height: 44px; font-size: 16px; }
+  .sui-page {
+    inset: 44px 0 0;
+    padding: 22px 30px 24px;
+  }
+  .sui-kicker { font-size: 18px; }
+  .sui-title { font-size: 38px; }
+  .sui-mock {
+    bottom: 24px;
+    grid-template-rows: 144px;
+    gap: 12px;
+  }
+  .sui-mock-bar,
+  .sui-cap,
+  .sui-slider,
+  .sui-toggle { display: none; }
+  .sui-tile { padding: 16px 16px 20px; }
+  .sui-tile em { font-size: 16px; }
+  .sui-tile strong { font-size: 34px; }
+  .sui-tile::after { left: 16px; right: 16px; bottom: 12px; height: 3px; }
+  .sui-steps { margin-top: auto; }
+  .sui-steps li { font-size: 22px; gap: 6px; }
+  .sui-steps small { margin-top: -3px; font-size: 15px; }
+  .sui-log { display: none; }
+  .sui-pipe { margin: auto 0 0; }
+  .sui-pipe span { min-width: 0; padding: 12px 16px; gap: 2px; }
+  .sui-pipe span em:nth-of-type(3) { display: none; }
+  .sui-pipe span b { margin-bottom: 4px; font-size: 22px; }
+  .sui-pipe span em { font-size: 16px; line-height: 1.32; }
+}
+
+/* The Bosch contributions as text, for assistive tech; shown on the
+   display, so visually hidden here (and shown plainly under reduced
+   motion). */
+.contrib-list {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- Story chapters: 03 Beyond · 04 Works · 05 Education · 06 Contact ----------
+   Full-bleed scenes, in the same grammar BMW and Bosch open with: one real
+   photograph, or one dominant, confidently lit surface, fills the entire
+   frame; the camera moves through it (pan, scale, cut); the words are set
+   as title cards over it. Never a small illustration boxed on empty ground.
+
+   Every rule here describes a chapter's finished, fully visible state, laid
+   out as an ordinary page. The pinned, camera-driven version is switched on
+   by .has-story (js/story.js, only once it's actually running), so reduced
+   motion — or the animation library failing to load — still gets every
+   word, link and picture, just without the moves. */
+.story {
+  position: relative;
+  --accent: var(--accent-a);
+  --accent-rgb: 226, 162, 78;
+}
+.story-stage {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg);
+}
+.story .slate {
+  position: static;
+  margin: 0 auto 48px;
+  padding: 0 24px;
+}
+.story .slate-dock { display: none; }
+
+.has-story .story { margin-top: -100vh; }
+.has-story .story--beyond { height: 620vh; }
+.has-story .story--works { height: 540vh; }
+.has-story .story--education { height: 300vh; }
+.has-story .story--contact { height: 260vh; }
+.has-story .story-stage {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  padding: 0;
+}
+.has-story .story .slate {
+  position: absolute;
+  margin: 0 auto;
+  padding: 0;
+}
+.has-story .story .slate-dock { display: flex; }
+
+/* ================= 03 · Beyond ================= */
+.story--beyond { --accent: #e8b566; --accent-rgb: 232, 181, 102; }
+
+/* ---- Scene A: a cinematic light reveal — two real photographs of the
+   same pose, one barely lit and one fully lit, cross-dissolving with
+   scroll. No synthetic spotlight is added; the light is already in the
+   photographs. ---- */
+.reveal {
+  position: relative;
+  z-index: 0;
+  padding: 120px 24px 40px;
+}
+.has-story .reveal { position: absolute; inset: 0; padding: 0; }
+
+/* A soft, blurred echo of the lit photo itself, sitting behind the frame
+   and spilling past its edges — so the frame's boundary reads as light
+   bleeding into the room rather than a picture rectangle laid over the
+   page. Brightens in sync with the photo (see js/story.js). */
+.reveal-glow {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  filter: blur(70px) saturate(1.15);
+  transform: scale(1.14);
+  pointer-events: none;
+}
+.has-story .reveal-glow {
+  left: 50%;
+  top: 50%;
+  inset: auto;
+  transform: translate(-50%, -50%) scale(1.14);
+  width: min(88vw, 1480px);
+  max-height: min(76vh, 820px);
+  aspect-ratio: 1672 / 941;
+}
+
+/* The frame holds the photo at its own aspect ratio (1672:941), so the
+   negative space it was shot with — where the introduction lands — always
+   falls in the same place relative to the frame, at any viewport size,
+   with no crop of either image. */
+.reveal-frame {
+  position: relative;
+  z-index: 1;
+  margin: 0 auto;
+  width: min(90%, 1180px);
+  aspect-ratio: 1672 / 941;
+  /* Feathered deeply on every edge, so the photo dissolves gradually into
+     the dark stage rather than sitting on it as a hard-edged rectangle. */
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 20%, #000 80%, transparent),
+    linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to right, transparent, #000 20%, #000 80%, transparent),
+    linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent);
+  mask-composite: intersect;
+}
+.has-story .reveal-frame {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(88vw, 1480px);
+  max-height: min(76vh, 820px);
+}
+
+/* Both frames share one position, size and fit, pixel-for-pixel — the only
+   thing that changes between them is the light. */
+.reveal-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+.reveal-photo--before { display: none; }
+.reveal-photo--after { opacity: 1; }
+.has-story .reveal-photo--before { display: block; opacity: 1; }
+.has-story .reveal-photo--after { opacity: 0; }
+
+/* The dark it opens on: near-opaque at rest (a faint silhouette is all
+   that should read), lifted by JS as the light arrives. Invisible in the
+   static/no-JS page, where the fully-lit frame is shown outright. */
+.reveal-shade {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: var(--bg);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---- The introduction: waits in the negative space the photo's own
+   composition leaves beside him, never over his face or shoulders ---- */
+.reveal-copy {
+  position: relative;
+  z-index: 1;
+  max-width: 480px;
+  margin: 28px auto 0;
+  padding: 0 24px;
+  text-align: center;
+}
+.has-story .reveal-copy {
+  position: absolute;
+  left: 54%;
+  right: clamp(24px, 5vw, 64px);
+  top: 50%;
+  transform: translateY(-50%);
+  max-width: 560px;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+/* The headline: not his name (the hero already carries that) but what
+   the work is for — the one line doing the most visual work in the
+   scene, so it needs real presence next to the portrait. */
+.intro-pull {
+  margin: 0;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: clamp(1.9rem, 4.2vw, 3.4rem);
+  font-weight: 700;
+  line-height: 1.14;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  text-shadow: 0 4px 28px rgba(8, 9, 15, 0.75);
+}
+.intro-support {
+  max-width: 500px;
+  margin: 22px auto 0;
+  font-size: clamp(1rem, 1.25vw, 1.15rem);
+  line-height: 1.55;
+  color: var(--text-dim);
+  text-shadow: 0 2px 14px rgba(8, 9, 15, 0.8);
+}
+.intro-now {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 24px auto 0;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  text-shadow: 0 2px 14px rgba(8, 9, 15, 0.8);
+}
+.intro-now strong { color: var(--text); }
+.now-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.18);
+  transform: translateY(-1px);
+  animation: now-pulse 2.4s ease-in-out infinite;
+}
+@keyframes now-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+/* ---- The toolkit: a thin marquee, like end-credits, not a card grid ---- */
+.toolkit-marquee {
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  margin-top: 32px;
+  padding: 14px 0;
+  border-top: 1px solid rgba(var(--accent-rgb), 0.18);
+  border-bottom: 1px solid rgba(var(--accent-rgb), 0.18);
+}
+.has-story .toolkit-marquee {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0;
+}
+.toolkit-track {
+  display: flex;
+  gap: 48px;
+  width: max-content;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  white-space: nowrap;
+  animation: toolkit-scroll 26s linear infinite;
+}
+@keyframes toolkit-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+/* ---- Scene B: the console — one dominant, real-feeling screen ---- */
+.console {
+  position: relative;
+  padding: 120px 24px 40px;
+}
+.has-story .console { position: absolute; inset: 0; padding: 0; }
+
+/* ---- Scene B: the lab, as a real space ----
+   A genuine perspective floor (a CSS 3D plane, not a hand-drawn
+   approximation) receding into the dark under an overhead beam, flanked by
+   two equipment racks; a hologram of the work floats at the vanishing
+   point, and the XR rig finds and uses it, live, in the space itself —
+   the environment does the telling, not a screenshot of an editor. */
+.labspace {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  perspective: 900px;
+  perspective-origin: 50% 30%;
+}
+.lab-perspective {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+.lab-floor-grid {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: 2600px;
+  height: 2600px;
+  margin-left: -1300px;
+  transform-origin: 50% 0%;
+  transform: rotateX(82deg);
+  background-image:
+    repeating-linear-gradient(90deg, rgba(232, 181, 102, 0.22) 0 1.5px, transparent 1.5px 130px),
+    repeating-linear-gradient(0deg, rgba(232, 181, 102, 0.22) 0 1.5px, transparent 1.5px 130px);
+  -webkit-mask-image: radial-gradient(ellipse 46% 60% at 50% 0%, #000 0%, transparent 78%);
+  mask-image: radial-gradient(ellipse 46% 60% at 50% 0%, #000 0%, transparent 78%);
+}
+.lab-beam {
+  position: absolute;
+  top: -16%;
+  left: 50%;
+  width: 40vw;
+  max-width: 560px;
+  height: 100%;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse 55% 100% at 50% 0%, rgba(232, 181, 102, 0.2), transparent 74%);
+}
+.lab-haze {
+  position: absolute;
+  top: 0;
+  width: 30%;
+  height: 100%;
+  background: radial-gradient(ellipse 90% 60% at 50% 60%, rgba(8, 9, 15, 0.75), transparent 65%);
+}
+.lab-haze--l { left: 0; }
+.lab-haze--r { right: 0; }
+.lab-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 46%, transparent 30%, rgba(0, 0, 0, 0.6) 100%);
+}
+
+.lab-scene-svg {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.lab-line {
+  fill: none;
+  stroke: rgba(var(--accent-rgb), 0.7);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+}
+.lab-pillar { opacity: 0.9; }
+.lab-rack-light {
+  fill: rgba(143, 184, 255, 0.7);
+  filter: drop-shadow(0 0 4px rgba(143, 184, 255, 0.8));
+}
+
+/* The hologram: a scanner ring materialises the object, facet by facet. */
+.holo-base { fill: rgba(var(--accent-rgb), 0.14); }
+.holo-ring {
+  fill: none;
+  stroke: rgba(var(--accent-rgb), 0.55);
+  stroke-width: 1.4;
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+}
+.holo-ring--2 { stroke-dasharray: 2 6; }
+.holo-scan {
+  stroke: rgba(255, 238, 210, 0.9);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 8px rgba(255, 224, 170, 0.8));
+}
+.holo-object-halo { fill: rgba(255, 224, 170, 0.16); }
+.holo-facet { stroke: none; }
+.holo-edge {
+  fill: none;
+  stroke: rgba(8, 9, 15, 0.5);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+}
+
+.lab-ray {
+  fill: none;
+  stroke: #dcebff;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+.lab-hit { fill: #dcebff; }
+.lab-arc {
+  fill: none;
+  stroke: rgba(143, 184, 255, 0.95);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+.lab-pad {
+  fill: rgba(143, 184, 255, 0.12);
+  stroke: rgba(143, 184, 255, 0.85);
+  stroke-width: 1.6;
+}
+.lab-pad--core { fill: rgba(143, 184, 255, 0.5); stroke: none; }
+.lab-controller-glow { fill: rgba(143, 184, 255, 0.4); }
+.lab-controller rect { fill: rgba(20, 16, 24, 0.92); stroke: rgba(143, 184, 255, 0.6); stroke-width: 1.4; }
+.lab-controller path { stroke: rgba(143, 184, 255, 0.6); }
+
+.console-kicker {
+  position: relative;
+  z-index: 1;
+  margin: 28px 0 0;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.has-story .console-kicker {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 12%;
+  margin: 0;
+}
+.console-role {
+  position: relative;
+  z-index: 1;
+  margin: 8px 0 0;
+  text-align: center;
+  font-size: clamp(1.6rem, 3.4vw, 2.6rem);
+  font-weight: 600;
+  color: var(--text);
+}
+.has-story .console-role {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(12% + 30px);
+  margin: 0;
+}
+
+.console-beats {
+  position: relative;
+  z-index: 1;
+  max-width: 640px;
+  margin: 32px auto 0;
+  text-align: center;
+}
+.has-story .console-beats {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 9%;
+  margin: 0;
+}
+.console-beat {
+  margin: 0;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: clamp(1.15rem, 2.1vw, 1.6rem);
+  font-weight: 600;
+  color: var(--text);
+  text-shadow: 0 4px 20px rgba(8, 9, 15, 0.7);
+}
+.has-story .console-beat { position: absolute; inset: 0; }
+.console-beat b {
+  margin-right: 10px;
+  font-size: 0.62em;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  vertical-align: middle;
+}
+
+/* ================= 04 · Creative works ================= */
+.story--works { --accent: var(--accent-b); --accent-rgb: 244, 207, 142; }
+.reel-rail { display: none; }
+.has-story .reel-rail {
+  display: block;
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 22px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background-image: repeating-linear-gradient(90deg, transparent 0 14px, rgba(255, 255, 255, 0.1) 14px 30px, transparent 30px 44px);
+  background-size: 44px 10px;
+  background-repeat: repeat-x;
+  background-position: 0 50%;
+  pointer-events: none;
+  z-index: 3;
+}
+.has-story .reel-rail--top { top: 0; }
+.has-story .reel-rail--bottom { bottom: 0; }
+
+.reel-track {
+  display: grid;
+  gap: 0;
+}
+.has-story .reel-track {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  width: 300vw;
+}
+.poster {
+  position: relative;
+  min-height: 88vh;
+  overflow: hidden;
+}
+.has-story .poster {
+  flex: none;
+  width: 100vw;
+  height: 100%;
+  min-height: 0;
+}
+.poster-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #08070a;
+}
+.poster-scene { position: absolute; inset: 0; width: 100%; height: 100%; }
+.poster-scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to top, rgba(4, 4, 8, 0.78) 0%, rgba(4, 4, 8, 0.2) 34%, transparent 62%),
+    linear-gradient(to right, rgba(4, 4, 8, 0.72) 0%, rgba(4, 4, 8, 0.28) 30%, transparent 52%);
+}
+.poster-content {
+  position: relative;
+  z-index: 2;
+  max-width: 640px;
+  padding: 120px 24px 60px clamp(24px, 6vw, 88px);
+}
+.has-story .poster-content {
+  position: absolute;
+  left: 0;
+  bottom: clamp(56px, 10vh, 110px);
+  padding: 0 clamp(24px, 6vw, 88px);
+}
+.poster-eyebrow {
+  display: flex;
+  gap: 14px;
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.poster-eyebrow span { color: rgba(255, 255, 255, 0.55); }
+.poster-title {
+  margin: 14px 0 0;
+  font-size: clamp(3rem, 7.5vw, 6.4rem);
+  font-weight: 700;
+  line-height: 0.96;
+  letter-spacing: -0.03em;
+  color: #fff;
+  text-shadow: 0 12px 50px rgba(0, 0, 0, 0.6);
+}
+.poster-desc {
+  max-width: 480px;
+  margin: 20px 0 0;
+  font-size: clamp(0.98rem, 1.2vw, 1.1rem);
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.78);
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.6);
+}
+.poster-tags {
+  margin: 16px 0 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+.poster-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 26px;
+  padding: 13px 24px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(8px);
+  font-size: 0.94rem;
+  font-weight: 600;
+  color: #fff;
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+.poster-cta:hover { background: rgba(255, 255, 255, 0.14); border-color: rgba(255, 255, 255, 0.6); }
+.poster-cta i { font-style: normal; transition: transform 0.35s var(--ease-fluid); }
+.poster-cta:hover i { transform: translateX(4px); }
+
+/* ---- 01 · NeuroMaze: the real capture, full-bleed ---- */
+.poster-capture {
+  position: absolute;
+  inset: -3%;
+  background: url('../assets/neuromaze-capture.webp') center / cover no-repeat;
+}
+.poster-grade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(8, 3, 4, 0.35) 0%, transparent 26%, transparent 60%, rgba(8, 3, 4, 0.7) 100%);
+  box-shadow: inset 0 0 200px 40px rgba(0, 0, 0, 0.65);
+}
+.poster-scanlines {
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.16) 0, rgba(0, 0, 0, 0.16) 1px, transparent 1px, transparent 3px);
+  mix-blend-mode: multiply;
+  opacity: 0.4;
+}
+.poster-pulse {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 50%, rgba(255, 20, 40, 0.26) 100%);
+  opacity: 0;
+  mix-blend-mode: screen;
+  animation: poster-heartbeat 2.6s ease-in-out infinite;
+}
+@keyframes poster-heartbeat {
+  0%, 100% { opacity: 0; }
+  8% { opacity: 0.8; }
+  16% { opacity: 0.12; }
+  22% { opacity: 0.55; }
+  32% { opacity: 0; }
+}
+.poster-chrome {
+  position: absolute;
+  z-index: 2;
+  top: 20px;
+  left: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 235, 235, 0.85);
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.9);
+}
+.poster-rec { display: inline-flex; align-items: center; gap: 6px; }
+.poster-rec i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ff3355;
+  box-shadow: 0 0 7px #ff3355;
+  animation: poster-rec-blink 1.1s step-start infinite;
+}
+@keyframes poster-rec-blink { 50% { opacity: 0.15; } }
+.poster-quote {
+  position: absolute;
+  z-index: 2;
+  right: clamp(24px, 6vw, 88px);
+  bottom: clamp(56px, 10vh, 110px);
+  max-width: 320px;
+  margin: 0;
+  font-size: 0.85rem;
+  font-style: italic;
+  line-height: 1.5;
+  color: rgba(255, 240, 240, 0.65);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
+  text-align: right;
+}
+.poster-title--neuromaze {
+  color: #fff3f3;
+  text-shadow: 0 0 40px rgba(255, 51, 85, 0.6), 0 12px 50px rgba(0, 0, 0, 0.6);
+}
+
+/* ---- 02 · The Apocalypse: a wide, cinematic alien horizon ---- */
+.poster--apocalypse .apoc-stars circle { fill: #fff; }
+.poster--apocalypse .apoc-moon--near { filter: drop-shadow(0 0 20px rgba(255, 200, 140, 0.5)); }
+
+/* The astronaut: filled, shaded limbs (not outline icons) so the figure
+   reads as a body at this size — helmet visor, suit panels, a tank that
+   visibly drains as the oxygen HUD counts down. */
+.apoc-runner { filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.5)); }
+.apoc-tank-level { transform-box: fill-box; transform-origin: 50% 100%; }
+.apoc-tank-label {
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  fill: rgba(255, 200, 150, 0.85);
+  text-anchor: middle;
+}
+.apoc-chest-light {
+  fill: rgba(143, 184, 255, 0.4);
+  stroke: rgba(143, 184, 255, 0.7);
+  stroke-width: 1;
+}
+.apoc-leg, .apoc-arm { transform-box: fill-box; }
+.apoc-leg--back { transform-origin: 50% 0%; }
+.apoc-leg--front { transform-origin: 50% 0%; }
+.apoc-arm--back { transform-origin: 20% 10%; }
+.apoc-arm--front { transform-origin: 20% 10%; }
+
+.poster-hud { position: absolute; z-index: 2; top: clamp(84px, 13vh, 120px); right: clamp(24px, 5vw, 64px); }
+.apoc-hud { width: 78px; height: 78px; overflow: visible; }
+.apoc-hud-track { fill: none; stroke: rgba(255, 255, 255, 0.14); stroke-width: 7; }
+.apoc-hud-level {
+  fill: none;
+  stroke: var(--accent-c, #c9713f);
+  stroke-width: 7;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-box: fill-box;
+  transform-origin: center;
+  filter: drop-shadow(0 0 6px rgba(226, 102, 47, 0.7));
+}
+.apoc-hud-label { font-family: 'Space Grotesk', 'Inter', sans-serif; font-size: 17px; font-weight: 700; fill: #fff; text-anchor: middle; }
+.apoc-hud-pct { font-size: 11px; font-weight: 600; fill: rgba(255, 255, 255, 0.7); text-anchor: middle; }
+.apoc-warning {
+  position: absolute;
+  z-index: 2;
+  top: calc(clamp(84px, 13vh, 120px) + 90px);
+  right: clamp(24px, 5vw, 64px);
+  margin: 0;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 90, 60, 0.55);
+  border-radius: 3px;
+  background: rgba(255, 60, 40, 0.16);
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #ffb199;
+  opacity: 0;
+}
+
+/* ---- 03 · LoopShoot VR: a wide arena, the shot live ---- */
+/* ---- 03 · LoopShoot VR: a real perspective court, seen first-person ---- */
+.courtspace {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  perspective: 1000px;
+  perspective-origin: 50% 24%;
+}
+.court-perspective {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+.court-floor-grid {
+  position: absolute;
+  left: 50%;
+  top: 30%;
+  width: 3000px;
+  height: 3000px;
+  margin-left: -1500px;
+  transform-origin: 50% 0%;
+  transform: rotateX(80deg);
+  background-image:
+    repeating-linear-gradient(90deg, rgba(164, 139, 255, 0.26) 0 1.5px, transparent 1.5px 150px),
+    repeating-linear-gradient(0deg, rgba(164, 139, 255, 0.2) 0 1.5px, transparent 1.5px 150px);
+  -webkit-mask-image: radial-gradient(ellipse 44% 62% at 50% 0%, #000 0%, transparent 80%);
+  mask-image: radial-gradient(ellipse 44% 62% at 50% 0%, #000 0%, transparent 80%);
+}
+.court-glow {
+  position: absolute;
+  top: -6%;
+  width: 34%;
+  height: 60%;
+  background: radial-gradient(ellipse 80% 80% at 50% 0%, rgba(164, 139, 255, 0.16), transparent 70%);
+  filter: blur(4px);
+}
+.court-glow--l { left: 4%; }
+.court-glow--r { right: 4%; }
+.court-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 40%, transparent 26%, rgba(0, 0, 0, 0.6) 100%);
+}
+
+.loop-backboard { fill: rgba(30, 26, 48, 0.9); stroke: rgba(164, 139, 255, 0.5); stroke-width: 1.6; }
+.loop-backboard-square { fill: none; stroke: rgba(164, 139, 255, 0.6); stroke-width: 1.8; }
+.loop-rim { fill: none; stroke: #ff8a4c; stroke-width: 5; filter: drop-shadow(0 0 8px rgba(255, 138, 76, 0.85)); }
+.loop-net { stroke: rgba(255, 255, 255, 0.5); }
+.loop-arc { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round; filter: drop-shadow(0 0 8px rgba(var(--accent-rgb), 0.75)); }
+.loop-remote { opacity: 0.6; }
+.loop-remote > path:first-of-type { fill: rgba(255, 255, 255, 0.08); stroke: rgba(var(--accent-rgb), 0.5); stroke-width: 2; }
+.loop-remote circle { fill: rgba(255, 255, 255, 0.1); stroke: rgba(var(--accent-rgb), 0.55); stroke-width: 2; }
+.loop-remote path:last-of-type { stroke: rgba(164, 139, 255, 0.6); fill: none; }
+.loop-sync { fill: none; stroke: rgba(164, 139, 255, 0.6); stroke-width: 2; }
+
+.loop-trail-dot { fill: var(--accent); opacity: 0; }
+
+/* The player's own hands, large in the foreground — first person, not a
+   court seen from outside. */
+.loop-line { fill: none; stroke: rgba(164, 139, 255, 0.6); stroke-width: 1.6; }
+.loop-forearm { opacity: 0.96; }
+.loop-glove-glow { fill: rgba(255, 210, 170, 0.85); }
+.loop-glove-button { fill: rgba(255, 138, 76, 0.9); filter: drop-shadow(0 0 4px rgba(255, 138, 76, 0.8)); }
+.loop-controller-ring {
+  fill: none;
+}
+.loop-controller-ring ellipse {
+  fill: none;
+  stroke: rgba(var(--accent-rgb), 0.55);
+  stroke-width: 1.6;
+  stroke-dasharray: 2 8;
+}
+.loop-ray {
+  fill: none;
+  stroke: #ffe4c2;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.loop-hud {
+  position: absolute;
+  z-index: 2;
+  top: clamp(84px, 13vh, 120px);
+  left: clamp(24px, 5vw, 64px);
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 16px;
+  border: 1px solid rgba(var(--accent-rgb), 0.35);
+  border-radius: 8px;
+  background: rgba(20, 16, 36, 0.55);
+  backdrop-filter: blur(8px);
+}
+.loop-hud-label { font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); }
+.loop-hud-value { font-family: 'Space Grotesk', 'Inter', sans-serif; font-size: 18px; font-weight: 700; color: var(--accent); }
+.loop-hud-swish { margin-left: 6px; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: #ffd27a; opacity: 0; }
+
+/* ================= 05 · Education ================= */
+.story--education { --accent: #e8b566; --accent-rgb: 232, 181, 102; }
+.grad-hall {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.grad-seats {
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    to bottom, transparent 0, transparent 46px,
+    rgba(232, 181, 102, 0.05) 46px, rgba(232, 181, 102, 0.05) 48px
+  );
+  background-position: 0 38%;
+  -webkit-mask-image: radial-gradient(ellipse 70% 55% at 50% 90%, #000 0%, transparent 72%);
+  mask-image: radial-gradient(ellipse 70% 55% at 50% 90%, #000 0%, transparent 72%);
+}
+.grad-beam {
+  position: absolute;
+  top: -12%;
+  left: 50%;
+  width: 46vw;
+  max-width: 620px;
+  height: 108%;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse 60% 110% at 50% 0%, rgba(232, 181, 102, 0.17), transparent 74%);
+}
+.grad-dust { top: -12%; left: 50%; width: 46vw; max-width: 620px; height: 108%; }
+.grad-floor-glow {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 42%;
+  background: radial-gradient(ellipse 55% 100% at 50% 100%, rgba(232, 181, 102, 0.14), transparent 75%);
+}
+.grad-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 42%, transparent 30%, rgba(0, 0, 0, 0.6) 100%);
+}
+
+.degree-block {
+  position: relative;
+  z-index: 1;
+  max-width: 900px;
+  margin: 140px auto 0;
+  padding: 0 24px;
+  text-align: center;
+}
+.has-story .degree-block {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  margin: 0 auto;
+  transform: translateY(-56%);
+  padding: 0 24px;
+}
+.degree-title {
+  margin: 0;
+  font-size: clamp(2.4rem, 6.2vw, 5rem);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+}
+/* The foil sweep: a bright band travelling across the type, like foil
+   stamping catching the light. Driven by js/story.js (--foil-x). */
+.foil {
+  --foil-x: -40%;
+  background-image: linear-gradient(
+    100deg,
+    var(--text) 30%,
+    #fff7e0 calc(var(--foil-x) + 45%),
+    #ffe9b8 calc(var(--foil-x) + 50%),
+    var(--text) calc(var(--foil-x) + 65%)
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.degree-institution {
+  margin: 22px 0 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+.degree-focus {
+  max-width: 560px;
+  margin: 14px auto 0;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+
+.credential-strip {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  max-width: 720px;
+  margin: 44px auto 0;
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
+  border-radius: 10px;
+  background: rgba(232, 181, 102, 0.04);
+  backdrop-filter: blur(6px);
+}
+.has-story .credential-strip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: clamp(28px, 6vh, 64px);
+  max-width: 720px;
+  margin: 0 auto;
+}
+.credential-strip p {
+  margin: 0;
+  padding: 14px 22px;
+  border-right: 1px solid rgba(var(--accent-rgb), 0.2);
+  font-size: 0.86rem;
+  color: var(--text);
+}
+.credential-strip p i {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.6rem;
+  font-style: normal;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.credential-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  padding: 14px 26px;
+  background: var(--accent);
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--bg);
+  border-radius: 0 9px 9px 0;
+  transition: background 0.3s ease;
+}
+.credential-link:hover { background: #fff; }
+.credential-link i { font-style: normal; }
+
+/* ================= 06 · Contact ================= */
+.story--contact { --accent: #f4cf8e; --accent-rgb: 244, 207, 142; --horizon: 78%; }
+.dawn { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.dawn i { position: absolute; }
+.dawn-sky {
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 0%, rgba(62, 46, 96, 0.22) 52%, rgba(214, 124, 92, 0.3) var(--horizon), transparent calc(var(--horizon) + 0.1%));
+}
+.dawn-sun {
+  left: 50%;
+  top: var(--horizon);
+  width: 140vw;
+  height: 100vh;
+  margin: -50vh 0 0 -70vw;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255, 206, 140, 0.6), rgba(246, 146, 96, 0.26) 38%, rgba(130, 74, 128, 0.1) 68%, transparent);
+}
+.dawn::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--horizon);
+  bottom: 0;
+  background: linear-gradient(to bottom, rgba(255, 190, 120, 0.08), rgba(8, 9, 15, 0.96) 20%, var(--bg));
+}
+.dawn-horizon {
+  left: 0;
+  right: 0;
+  top: var(--horizon);
+  z-index: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 214, 160, 0.85) 28%, #fff1dc 50%, rgba(255, 214, 160, 0.85) 72%, transparent);
+  box-shadow: 0 0 18px 2px rgba(255, 190, 120, 0.45);
+}
+.finale {
+  position: relative;
+  z-index: 1;
+  max-width: 900px;
+  margin: 0 auto;
+  text-align: center;
+}
+.has-story .finale {
+  position: absolute;
+  top: max(104px, 13vh);
+  left: 0;
+  right: 0;
+  padding: 0 24px;
+}
+.finale-index {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.finale-title {
+  margin: 14px 0 0;
+  font-size: clamp(2.4rem, 6vw, 5.4rem);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.finale-lede {
+  max-width: 600px;
+  margin: 22px auto 0;
+  font-size: clamp(0.95rem, 1.1vw, 1.05rem);
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+.credits {
+  display: grid;
+  max-width: 560px;
+  margin: 34px auto 0;
+  padding: 0;
+  list-style: none;
+}
+.credits li {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  align-items: baseline;
+  gap: 22px;
+  padding: 12px 0;
+  border-top: 1px solid rgba(var(--accent-rgb), 0.18);
+  text-align: left;
+}
+.credits li:last-child { border-bottom: 1px solid rgba(var(--accent-rgb), 0.18); }
+.credits span {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-align: right;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.credits a {
+  justify-self: start;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: clamp(1.1rem, 1.8vw, 1.45rem);
+  font-weight: 600;
+  color: var(--text);
+  transition: color 0.3s ease;
+}
+.credits a:hover { color: var(--accent); }
+.finale-footer {
+  position: relative;
+  z-index: 1;
+  margin-top: 56px;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-faint);
+}
+.finale-footer p { margin: 0; }
+.has-story .finale-footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 18px;
+  margin: 0;
+}
+
+/* ================= Responsive ================= */
+@media (max-width: 860px) {
+  /* The reveal becomes a stack: the photo above, the words below — still
+     never overlapping, just in one column instead of side by side.
+     The photo is landscape, with him in its left half and the empty
+     stage beside him; laid whole into a phone's width he shrinks to a
+     small figure with a wide dark gap under it. So here the frame is
+     cropped to him instead (cover, weighted to the left where he
+     stands), tall enough to read as a portrait, and the words start a
+     fixed step beneath it rather than at the foot of the screen. */
+  .has-story .reveal-frame,
+  .has-story .reveal-glow {
+    left: 50%;
+    top: calc(102px + 1vh);
+    transform: translateX(-50%);
+    width: min(94vw, 480px);
+    height: clamp(230px, 36vh, 400px);
+    max-height: none;
+    aspect-ratio: auto;
+  }
+  .has-story .reveal-glow {
+    transform: translateX(-50%) scale(1.1);
+    background-size: cover;
+    background-position: 20% 0;
+  }
+  .has-story .reveal-photo {
+    object-fit: cover;
+    object-position: 20% 0;
+  }
+  .has-story .reveal-frame {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 14%, #000 86%, transparent),
+      linear-gradient(to bottom, transparent, #000 6%, #000 76%, transparent);
+    mask-image: linear-gradient(to right, transparent, #000 14%, #000 86%, transparent),
+      linear-gradient(to bottom, transparent, #000 6%, #000 76%, transparent);
+  }
+  .has-story .reveal-copy {
+    left: 24px;
+    right: 24px;
+    top: calc(102px + 1vh + clamp(230px, 36vh, 400px) + 6px);
+    bottom: auto;
+    transform: none;
+    max-width: none;
+    text-align: center;
+  }
+  .intro-now { justify-content: center; }
+}
+@media (max-width: 720px) {
+  .intro-pull { font-size: 1.7rem; line-height: 1.2; }
+
+  .lab-scene-svg { transform: scale(1.15); transform-origin: 50% 58%; }
+  .has-story .console-kicker { top: 8%; }
+  .has-story .console-role { top: calc(8% + 26px); font-size: 1.5rem; }
+  .has-story .console-beats { bottom: 6%; }
+  .console-beat { font-size: 1.05rem; }
+
+  .poster-title { font-size: clamp(2.4rem, 10vw, 3.4rem); }
+  .poster-desc { font-size: 0.92rem; }
+  .has-story .poster-content { bottom: clamp(40px, 8vh, 72px); }
+  .poster-quote { display: none; }
+  .poster-hud, .loop-hud { transform: scale(0.82); transform-origin: top right; }
+  .loop-hud { transform-origin: top left; }
+
+  .has-story .degree-block { top: 40%; transform: translateY(-52%); }
+  .degree-title { font-size: clamp(2rem, 9vw, 3rem); }
+  /* The three-line title plus this paragraph left no headroom above the
+     credential strip on a phone; the strip's own "Focus" cell already
+     carries the same fact in fewer words. */
+  .degree-focus { display: none; }
+  .credential-strip { flex-direction: column; }
+  .credential-strip p { width: 100%; border-right: 0; border-bottom: 1px solid rgba(var(--accent-rgb), 0.2); text-align: center; }
+  .credential-link { margin: 0; width: 100%; border-radius: 0 0 9px 9px; justify-content: center; }
+
+  .credits li { grid-template-columns: 1fr; gap: 2px; text-align: center; }
+  .credits span { text-align: center; }
+  .credits a { justify-self: center; }
+}
+
+/* Must come after the scene's base rules above, or they win the cascade.
+   Nothing animates here, so don't make people scroll through four screens
+   of the same still frame — and with no timeline to swap the two title
+   cards, let all the text simply follow the photo instead of stacking
+   both cards over it in the same spot. */
+@media (prefers-reduced-motion: reduce) {
+  .chapter-container { height: auto; }
+  .chapter-container--continues,
+  .chapter-container--opening { margin-top: 0; }
+  .scene-anchor { top: 0; }
+  .chapter-zoom-bg { position: relative; }
+  .chapter-content { position: static; height: auto; margin-top: 0; padding: 40px 32px 96px; }
+  /* The slate, then the contributions as a plain list beneath it. */
+  .slate { position: static; }
+  .slate-dock, .hud, .callout-leaders, .callout-dots, .perf-trace { display: none; }
+  .hud-caption {
+    position: static;
+    max-width: 560px;
+    margin: 32px auto 0;
+    text-align: center;
+  }
+  .callouts,
+  .contrib-list {
+    position: static;
+    display: grid;
+    gap: 14px;
+    width: min(92%, 560px);
+    height: auto;
+    margin: 36px auto 0;
+    padding: 0;
+    clip-path: none;
+    white-space: normal;
+    list-style: none;
+  }
+  .callout,
+  .callout--perf { position: static; max-width: none; }
+  .contrib-list li { color: var(--text); padding-left: 14px; border-left: 2px solid var(--accent); }
+  /* With no JS to clip it, the "display on" frame simply shows whole —
+     the static end state, screen lit. */
+  .screen-spill { display: none; }
+}

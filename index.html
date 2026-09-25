@@ -1,0 +1,878 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Roshan M — Software Visualization Engineer</title>
+<meta name="description" content="Roshan M — Software Visualization Engineer specializing in immersive systems, real-time 3D interaction, and VR/AR development." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css?v=93" />
+</head>
+<body>
+
+
+  <!-- The stage light: one beam, fixed to the viewport, from the hero's
+       first frame through the BMW chapter. js/hero-intro.js strikes it on;
+       it never moves while the page scrolls beneath it, so the hero lifts
+       away and the car slides in under the very same light. The camera
+       leaves it behind on the crane into the Bosch cabin (see .ps-rig), and
+       the chapters after that bring their own light. Sits above the scenes
+       and the hero's backdrop, below all text. -->
+  <div class="persistent-spotlight" id="persistentSpotlight" aria-hidden="true">
+    <div class="ps-rig">
+      <div class="ps-cone">
+        <span class="ps-glow"></span>
+        <span class="ps-core"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="cursor-glow" aria-hidden="true"></div>
+
+  <div class="progress-rail" aria-hidden="true"><div class="progress-fill" id="pageProgress"></div></div>
+
+  <header class="nav-wrap" id="navWrap">
+    <nav class="nav">
+      <a href="#top" class="nav-logo">RM<span>.</span></a>
+      <button class="nav-toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="#journey" data-nav>Journey</a></li>
+        <li><a href="#beyond" data-nav>Beyond</a></li>
+        <li><a href="#work" data-nav>Work</a></li>
+        <li><a href="#education" data-nav>Education</a></li>
+        <li><a href="#contact" data-nav class="nav-cta">Contact</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main id="top">
+
+    <!-- HERO: a dark theatrical stage. A single overhead spotlight switches
+         on, hazes drift through the beam, and the name emerges into the
+         light — no color, no tech chrome, just light and shadow. -->
+    <section class="hero" id="hero">
+      <!-- The stage itself — backdrop, beam, haze, dust and vignette — lives
+           in one layer so it can fade out toward the hero's bottom edge as a
+           unit, without also fading the text and scroll hint above it. -->
+      <div class="hero-stage" aria-hidden="true">
+        <div class="stage-floor"></div>
+        <!-- What the beam catches on this stage: haze, dust (added by
+             js/hero-intro.js) and the pool where it lands. The beam itself
+             is the page's one stage light (#persistentSpotlight). These fade
+             as the hero lifts away, so nothing of the stage is left
+             floating in the light when the car arrives beneath it. -->
+        <div class="stage-light">
+          <div class="spotlight-haze">
+            <span class="haze-wisp haze-wisp--a"></span>
+            <span class="haze-wisp haze-wisp--b"></span>
+          </div>
+          <div class="spotlight-pool"></div>
+        </div>
+        <div class="stage-vignette"></div>
+      </div>
+
+      <div class="hero-inner">
+        <p class="eyebrow stage-text">Hello, I'm</p>
+        <h1 class="hero-title stage-text">Rosha<span class="name-n">n<span class="sleeping-cat" aria-hidden="true">
+              <span class="cat-poof"></span>
+              <span class="cat-rig">
+                <svg class="cat-svg" viewBox="0 0 64 44">
+                  <path class="cat-tail" d="M46,31 C55,28 54,14 42,11" fill="none" stroke="#d9a86a" stroke-width="4" stroke-linecap="round"/>
+                  <ellipse class="cat-body" cx="30" cy="27" rx="19" ry="13" fill="#f0c699"/>
+                  <ellipse class="cat-paw" cx="19" cy="33" rx="7" ry="4" fill="#f9ddb4"/>
+                  <circle class="cat-head" cx="15" cy="18" r="13" fill="#f0c699"/>
+                  <path class="cat-ear" d="M5,10 L2,0 L14,8 Z" fill="#f0c699"/>
+                  <path class="cat-ear" d="M23,8 L29,-1 L30,11 Z" fill="#f0c699"/>
+                  <path d="M5.5,7.5 L4,2 L10,6.5 Z" fill="#d9a86a"/>
+                  <path d="M23.5,7 L27,1 L27.5,7.5 Z" fill="#d9a86a"/>
+                  <path class="cat-whisker" d="M5,21 L-3,19.5 M5,24 L-4,24 M5,27 L-3,28.5"/>
+                  <path class="cat-whisker" d="M25,21 L33,19.5 M25,24 L34,24 M25,27 L33,28.5"/>
+                  <circle class="cat-blush" cx="6.5" cy="21.5" r="2.1" fill="#f4a97e" opacity="0.55"/>
+                  <circle class="cat-blush" cx="23.5" cy="21.5" r="2.1" fill="#f4a97e" opacity="0.55"/>
+                  <path class="cat-eye" d="M7,18 Q11,21.6 15,18" fill="none" stroke="#7a5636" stroke-width="1.7" stroke-linecap="round"/>
+                  <path class="cat-eye" d="M15,18 Q19,21.6 23,18" fill="none" stroke="#7a5636" stroke-width="1.7" stroke-linecap="round"/>
+                  <path d="M15,22 L13.2,24.3 L16.8,24.3 Z" fill="#d9a86a"/>
+                  <path d="M15,24.3 Q12.2,26.6 9.2,25" fill="none" stroke="#7a5636" stroke-width="1" stroke-linecap="round"/>
+                  <path d="M15,24.3 Q17.8,26.6 20.8,25" fill="none" stroke="#7a5636" stroke-width="1" stroke-linecap="round"/>
+                  <ellipse class="cat-shine" cx="10.5" cy="12.5" rx="3.2" ry="1.8" fill="#fff6e6" opacity="0.55" transform="rotate(-28 10.5 12.5)"/>
+                </svg>
+                <span class="cat-zzz" aria-hidden="true">
+                  <span class="z z1">z</span>
+                  <span class="z z2">z</span>
+                  <span class="z z3">z</span>
+                </span>
+              </span>
+            </span></span> M</h1>
+        <p class="hero-role stage-text">Software&nbsp;Visualization&nbsp;Engineer</p>
+        <p class="hero-sub stage-text">
+          Crafting immersive, real-time 3D experiences at the edge of VR, AR, and interactive design —
+          with an MSc in Computer Science for Digital Media.
+        </p>
+      </div>
+      <a href="#journey" class="scroll-hint stage-text" aria-label="Scroll to begin the journey">
+        <span class="hint-fade">Scroll to begin the journey<i>↓</i></span>
+      </a>
+    </section>
+
+    <!-- CHAPTER 01: BMW — VR Developer. The work is shown on the car
+         itself: the real car is revealed in darkness and the chapter slate
+         names the company and role; then a render sweep turns the car into
+         its virtual prototype — "the vehicle before it exists" — inside a VR
+         viewport, and each contribution is pinned to the part of the scene
+         it shaped. The sweep returns the real car, and the camera cranes up
+         and away into the next chapter. Driven by js/chapters.js
+         (BMW_SCENE). -->
+<section class="chapter-container chapter-container--handoff chapter-container--opening" id="bmw-chapter">
+  <!-- Where "the journey" starts for links: the car lit, the hero gone.
+       The section itself begins a screen earlier, underneath the hero. -->
+  <span class="scene-anchor" id="journey" style="--at: 100vh"></span>
+  <div class="chapter-zoom-bg">
+    <!-- The GSAP-scaled "approach zoom" transform lives on this inner
+         element, never on .chapter-zoom-bg itself: a transform on a
+         position:sticky element breaks its native sticky pinning in
+         Chromium (confirmed — the section stopped pinning and scrolled
+         away mid-sequence once the zoom tween started). Keeping the
+         sticky element itself transform-free avoids that entirely. -->
+    <div class="zoom-bg-image">
+      <!-- The whole photograph, and everything that belongs to it. This
+           window (.zoom-bg-image) is the camera's frame; the plane slides
+           behind it when the camera cranes. -->
+      <div class="photo-plane" style="background-image: url('assets/bmw.jpg');">
+        <!-- The same photo, pre-smeared vertically: faded in at the fastest
+             moment of the crane as motion blur, which turns the lamps into
+             light trails. Generated from bmw.jpg (see .zoom-bg-blur). -->
+        <div class="zoom-bg-layer zoom-bg-blur" style="background-image: url('assets/bmw-motion.jpg');" aria-hidden="true"></div>
+        <!-- The virtual prototype: the same photo traced into its edges and
+             surface contours, like a CAD surface view. The render sweep
+             (.scan-line) reveals it across the car and later takes it back.
+             Generated from bmw.jpg (see .twin). -->
+        <div class="zoom-bg-layer twin" style="background-image: url('assets/bmw-twin.jpg');" aria-hidden="true"></div>
+        <div class="scan-line" aria-hidden="true"></div>
+        <!-- Sound spreading from the front of the car: the acoustics
+             contribution, pinned where it happens. -->
+        <div class="ripples" aria-hidden="true"><i></i><i></i><i></i></div>
+        <!-- Light lives on the car, so it scales/moves with it. These draw
+             nothing of their own — they only brighten the photograph's own
+             pixels (see the .lamp-lit / .badge-lit rules), so the car keeps
+             exactly one emblem and one pair of lamps: its real ones. Their
+             positions are measured off the source image and placed by
+             js/chapters.js. -->
+        <div class="lamp-spill lamp-spill--left" aria-hidden="true"></div>
+        <div class="lamp-spill lamp-spill--right" aria-hidden="true"></div>
+        <div class="lamp-lit lamp-lit--left" aria-hidden="true"></div>
+        <div class="lamp-lit lamp-lit--right" aria-hidden="true"></div>
+        <div class="badge-lit" aria-hidden="true"></div>
+      </div>
+    </div>
+    <!-- The veil is a sibling, not a child, of .zoom-bg-image: the stage's
+         darkness and the spotlight sweep belong to the scene, not to the
+         car — it should always cover the full viewport, never shrink or
+         grow as the camera moves the car nearer or farther. -->
+    <div class="reveal-veil reveal-veil--lamps" aria-hidden="true"></div>
+    <!-- Smoke, in front of the veil and the car: a WebGL canvas showing a
+         live fluid simulation (velocity, pressure and a smoke density
+         carried along by them — not a gradient or a noise pattern), fed in
+         low along the ground and from the sides, so it really rolls,
+         curls and parts around the cursor. It's what the visitor sees
+         emerge from the dark first, thickest low across the frame while
+         the veil is still mostly closed, then thinning as the veil opens
+         and the lamps wake underneath it — so the headlights are seen
+         igniting through it, not after it. Driven entirely by
+         js/bmw-smoke.js, reading #bmw-chapter's own scroll progress;
+         touches nothing else in the scene. -->
+    <canvas class="bmw-smoke-canvas" aria-hidden="true"></canvas>
+  </div>
+
+  <!-- The scene's words. The slate names the company and the role as a
+       title card, then docks into the corner for the rest of the chapter.
+       The contributions aren't captions: each is pinned to the part of the
+       virtual car it shaped (positioned by js/chapters.js), and together
+       they read as the annotated VR scene the job produced. -->
+  <div class="chapter-content scene-story scene-story--bmw">
+    <header class="slate">
+      <p class="slate-index">Chapter 01</p>
+      <h2 class="slate-org">BMW</h2>
+      <p class="slate-role">VR Developer</p>
+      <p class="slate-lede">Real-time 3D visuals built to help engineers make decisions inside the vehicle before it exists.</p>
+    </header>
+    <p class="slate-dock" aria-hidden="true"><b>01</b>BMW<span>VR Developer</span></p>
+
+    <!-- The VR viewport the virtual car is shown in. -->
+    <div class="hud" aria-hidden="true">
+      <i class="hud-corner hud-corner--tl"></i>
+      <i class="hud-corner hud-corner--tr"></i>
+      <i class="hud-corner hud-corner--bl"></i>
+      <i class="hud-corner hud-corner--br"></i>
+    </div>
+    <p class="hud-caption"><span>VR viewport · Real time</span>Real-time VR visuals for decision-making</p>
+
+    <svg class="callout-leaders" aria-hidden="true">
+      <path pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" data-pin="lamp"></path>
+      <path pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" data-pin="body"></path>
+      <path pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" data-pin="intake"></path>
+    </svg>
+    <div class="callout-dots" aria-hidden="true">
+      <i data-pin="lamp">1</i>
+      <i data-pin="body">2</i>
+      <i data-pin="intake">3</i>
+    </div>
+    <ol class="callouts">
+      <li class="callout" data-pin="lamp">
+        <span class="callout-kicker"><b>01</b>Shading</span>
+        <span class="callout-text">Custom shaders</span>
+      </li>
+      <li class="callout" data-pin="body">
+        <span class="callout-kicker"><b>02</b>Assets</span>
+        <span class="callout-text">Optimized Blender assets</span>
+      </li>
+      <li class="callout callout--below" data-pin="intake">
+        <span class="callout-kicker"><b>03</b>Acoustics</span>
+        <span class="callout-text">Realistic in-VR acoustic behavior</span>
+      </li>
+      <li class="callout callout--perf">
+        <!-- A steady frame-time trace under its budget line: illustrative,
+             not a measurement. -->
+        <svg class="perf-trace" viewBox="0 0 200 40" preserveAspectRatio="none" aria-hidden="true">
+          <line class="perf-budget" x1="0" y1="12" x2="200" y2="12"></line>
+          <polyline class="perf-line" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" points="0,26 12,25 24,27 36,24 48,26 60,25 72,27 84,23 96,26 108,25 120,26 132,24 144,26 156,25 168,27 180,25 192,26 200,25"></polyline>
+        </svg>
+        <span class="callout-kicker"><b>04</b>Performance</span>
+        <span class="callout-text">Embedded automotive rendering performance</span>
+      </li>
+    </ol>
+  </div>
+</section>
+
+    <!-- CHAPTER 02: BOSCH — UI/UX Developer. A direct continuation of the
+         BMW crane: the camera rises through a cabin at night and settles on
+         the dashboard, the display boots to the Bosch mark, and the slate
+         names the role. Then the camera leans into the display and the work
+         is shown on it — one interface page per contribution — while the
+         cabin's ambient light strips carry data between the screen and the
+         car: the frontend-backend pipeline, made visible. Driven by
+         js/chapters.js (BMW_SCENE.outro, BOSCH_SCENE). -->
+    <section class="chapter-container chapter-container--continues" id="chapter-bosch">
+      <div class="chapter-zoom-bg">
+        <div class="zoom-bg-image">
+          <!-- The cockpit frames are served as 2× Lanczos upscales of the
+               941px originals (bosch-cockpit-*.png, kept as the sources) with
+               light sharpening — much crisper than the browser's own upscale
+               on large and high-density screens. Regenerate them if the
+               originals change:
+                 ffmpeg -i bosch-cockpit-off.png -vf "scale=1882:3344:flags=lanczos,unsharp=5:5:0.8:5:5:0"
+                        -c:v libwebp -quality 92 -compression_level 6 bosch-cockpit-off@2x.webp -->
+          <div class="photo-plane" style="background-image: url('assets/bosch-cockpit-off@2x.webp');">
+            <div class="zoom-bg-layer zoom-bg-blur" style="background-image: url('assets/bosch-cockpit-motion.jpg');" aria-hidden="true"></div>
+            <div class="screen-spill" aria-hidden="true"></div>
+            <!-- The same photo with the display on. Clipped to the display's
+                 glass by js/chapters.js, so only the screen ever changes. -->
+            <div class="zoom-bg-layer screen-on" style="background-image: url('assets/bosch-cockpit-on@2x.webp');" aria-hidden="true"></div>
+            <!-- Data pulses riding the cabin's own red ambient strips, laid
+                 along them by js/chapters.js: out from the display to the
+                 car, back again, and in from the driver's side. -->
+            <div class="strip strip--out" aria-hidden="true"><i class="pulse"></i><i class="pulse"></i></div>
+            <div class="strip strip--back" aria-hidden="true"><i class="pulse"></i><i class="pulse"></i></div>
+            <div class="strip strip--in" aria-hidden="true"><i class="pulse"></i></div>
+          </div>
+        </div>
+        <div class="reveal-veil" aria-hidden="true"></div>
+        <!-- What the display shows once the camera leans in: the work, as
+             the interface pages it was. Laid onto the display's glass in
+             perspective by js/chapters.js. A visual duplicate of the list in
+             .contrib-list below, so it's hidden from assistive tech. -->
+        <div class="screen-ui" aria-hidden="true">
+          <div class="sui-bar"><span>UI/UX Developer</span><span class="sui-dots"><i></i><i></i><i></i></span></div>
+          <div class="sui-page sui-page--1">
+            <p class="sui-kicker">01 · Frontend</p>
+            <p class="sui-title">Dynamic frontend interfaces</p>
+            <div class="sui-mock">
+              <i class="sui-mock-bar"></i>
+              <i class="sui-tile"><em>Climate</em><strong>21.0°</strong></i>
+              <i class="sui-tile"><em>Media</em><strong>Playing</strong></i>
+              <i class="sui-tile"><em>Navigation</em><strong>Route</strong></i>
+              <span class="sui-cap sui-cap--vol">Volume</span>
+              <i class="sui-slider"><b></b></i>
+              <span class="sui-cap sui-cap--eco">Adaptive brightness</span>
+              <i class="sui-toggle"><b></b></i>
+            </div>
+          </div>
+          <div class="sui-page sui-page--2">
+            <p class="sui-kicker">02 · APIs</p>
+            <p class="sui-title">API configuration, testing &amp; validation</p>
+            <ol class="sui-steps">
+              <li><i></i>Configure<small>POST /config</small></li>
+              <li><i></i>Test<small>GET /status</small></li>
+              <li><i></i>Validate<small>Schema check</small></li>
+            </ol>
+            <ul class="sui-log">
+              <li><b>POST</b><span>/api/config</span><em>200 OK</em></li>
+              <li><b>GET</b><span>/api/status</span><em>200 OK</em></li>
+              <li><b>CHECK</b><span>Response schema</span><em>Passed</em></li>
+            </ul>
+          </div>
+          <div class="sui-page sui-page--3">
+            <p class="sui-kicker">03 · Integration</p>
+            <p class="sui-title">Frontend ↔ backend integration</p>
+            <div class="sui-pipe">
+              <span><b>Frontend</b><em>Components</em><em>State</em><em>Requests</em></span>
+              <i class="sui-wire"><b></b><b></b><b></b></i>
+              <span><b>Backend</b><em>Services</em><em>Data</em><em>Auth</em></span>
+            </div>
+            <ul class="sui-log">
+              <li><b>→</b><span>Request</span><em>GET /api/state</em></li>
+              <li><b>←</b><span>Response</span><em>200 OK · JSON</em></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="chapter-content scene-story scene-story--bosch">
+        <header class="slate">
+          <p class="slate-index">Chapter 02</p>
+          <h2 class="slate-org">Bosch</h2>
+          <p class="slate-role">UI/UX Developer</p>
+          <p class="slate-lede">Bridging frontend interfaces and backend systems into one dependable, tested pipeline.</p>
+        </header>
+        <p class="slate-dock" aria-hidden="true"><b>02</b>Bosch<span>UI/UX Developer</span></p>
+        <!-- The contributions as text, for assistive tech and reduced motion;
+             on screen they're shown on the car's display (.screen-ui). -->
+        <ol class="contrib-list">
+          <li>Dynamic frontend interfaces</li>
+          <li>API configuration, testing &amp; validation</li>
+          <li>Frontend ↔ backend integration</li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- CHAPTER 03: BEYOND — two full-bleed scenes, not an illustration in a
+         box. First, the portrait held in a single spotlight on the same
+         dark stage the hero opened on — the toolkit as a thin marquee,
+         the introduction as a pull-quote, not a card. Then a console: a
+         real-feeling product screenshot of the XR work, large and
+         dominant, with each contribution arriving as its own oversized
+         statement while the screen answers it. Driven by js/story.js
+         (BEYOND). -->
+    <section class="story story--beyond" id="chapter-beyond">
+      <span class="scene-anchor" id="beyond" style="--at: 90vh"></span>
+      <div class="story-stage">
+
+        <!-- SCENE A — a cinematic character reveal. Two frames of the same
+             portrait, pixel-identical in position and size (see the ffmpeg
+             note below): a barely-lit frame beneath, a fully-lit frame above
+             it, cross-dissolving as the visitor scrolls, under a black shade
+             that starts almost fully closed (a faint silhouette, nothing
+             more) and lifts as the light arrives — the same "light reveals
+             the subject" idea as the BMW headlights, but as a scroll-scrubbed
+             cross-dissolve of two real photographs rather than a synthetic
+             spotlight, since the lighting is already baked into the images
+             themselves. His name and title are already the hero's own
+             headline, so this chapter doesn't repeat them — it introduces
+             what drives the work instead, in the negative space the photo's
+             own composition leaves beside him. No big title card sits over
+             him — chapter identification stays in the small corner dock,
+             same as every other chapter. -->
+        <div class="reveal">
+          <div class="reveal-glow" style="background-image: url('assets/roshan-reveal-after.webp');" aria-hidden="true"></div>
+          <div class="reveal-frame">
+            <!-- Sources kept as My_picture_before_reveal.png /
+                 My_picture_after_reveal.png; served as WebP with no resize
+                 or resample, just re-encoded for weight:
+                   ffmpeg -i My_picture_before_reveal.png -c:v libwebp -quality 92 -compression_level 6 roshan-reveal-before.webp -->
+            <img class="reveal-photo reveal-photo--before" src="assets/roshan-reveal-before.webp" width="1672" height="941" alt="" aria-hidden="true" />
+            <img class="reveal-photo reveal-photo--after" src="assets/roshan-reveal-after.webp" width="1672" height="941" alt="Portrait of Roshan M" />
+            <div class="reveal-shade" aria-hidden="true"></div>
+          </div>
+          <div class="reveal-copy">
+            <h2 class="intro-pull">I turn real-time 3D pipelines into experiences people can step into.</h2>
+            <p class="intro-support">VR pulled me in early, and it never really let go. Every project since has chased the same thing — a real-time scene that stops feeling like a screen.</p>
+            <p class="intro-now"><span class="now-dot" aria-hidden="true"></span><span><strong>Currently</strong> — eagerly exploring new opportunities in VR/AR. Let's build something immersive together.</span></p>
+          </div>
+        </div>
+
+        <header class="slate">
+          <p class="slate-index">Chapter 03</p>
+          <h2 class="slate-org slate-org--long">Beyond the corporate world</h2>
+          <p class="slate-role">The person &amp; the foundations behind it.</p>
+        </header>
+        <p class="slate-dock" aria-hidden="true"><b>03</b>Beyond<span>The person</span></p>
+
+        <div class="toolkit-marquee" aria-label="Toolkit">
+          <div class="toolkit-track">
+            <span>Unreal Engine</span><span>Unity</span><span>Blender</span><span>VR / AR</span><span>Real-Time 3D</span><span>XR Interaction</span><span>Shader Development</span><span>UI / UX</span><span>Multi-User Systems</span>
+            <span>Unreal Engine</span><span>Unity</span><span>Blender</span><span>VR / AR</span><span>Real-Time 3D</span><span>XR Interaction</span><span>Shader Development</span><span>UI / UX</span><span>Multi-User Systems</span>
+          </div>
+        </div>
+
+        <!-- SCENE B — the lab itself, as a real space: a perspective floor
+             receding into the dark, a hologram of the work floating at its
+             centre, and the XR rig using it — the environment doing the
+             telling, not a screenshot of an editor. -->
+        <div class="console">
+          <div class="labspace" aria-hidden="true">
+            <div class="lab-perspective">
+              <div class="lab-floor-grid"></div>
+            </div>
+            <div class="lab-beam"></div>
+            <div class="lab-haze lab-haze--l"></div>
+            <div class="lab-haze lab-haze--r"></div>
+            <div class="lab-vignette"></div>
+          </div>
+
+          <svg class="lab-scene-svg" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <defs>
+              <linearGradient id="pillarFace" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stop-color="rgba(232,181,102,0.22)"></stop>
+                <stop offset="100%" stop-color="rgba(232,181,102,0.04)"></stop>
+              </linearGradient>
+              <linearGradient id="pillarFaceR" x1="1" y1="0" x2="0" y2="0">
+                <stop offset="0%" stop-color="rgba(232,181,102,0.22)"></stop>
+                <stop offset="100%" stop-color="rgba(232,181,102,0.04)"></stop>
+              </linearGradient>
+              <linearGradient id="holoTop" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#fff3da"></stop>
+                <stop offset="100%" stop-color="#e8b566"></stop>
+              </linearGradient>
+              <linearGradient id="holoLeft" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#c98f45"></stop>
+                <stop offset="100%" stop-color="#7a5023"></stop>
+              </linearGradient>
+              <linearGradient id="holoRight" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#8fb8ff"></stop>
+                <stop offset="100%" stop-color="#3a5a8f"></stop>
+              </linearGradient>
+              <filter id="labGlow2" x="-100%" y="-100%" width="300%" height="300%">
+                <feGaussianBlur stdDeviation="10" result="b"></feGaussianBlur>
+                <feMerge><feMergeNode in="b"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
+              </filter>
+            </defs>
+
+            <!-- Lab equipment racks, flanking the space, in false depth. -->
+            <g class="lab-pillar lab-pillar--l">
+              <path fill="url(#pillarFace)" d="M70 560L70 160L150 120L150 540Z"></path>
+              <path class="lab-line" pathLength="1" stroke-dasharray="1" stroke-dashoffset="0" d="M70 560L70 160L150 120L150 540Z"></path>
+              <rect class="lab-rack-light" x="92" y="220" width="36" height="10" rx="2"></rect>
+              <rect class="lab-rack-light" x="92" y="270" width="36" height="10" rx="2"></rect>
+              <rect class="lab-rack-light" x="92" y="320" width="36" height="10" rx="2"></rect>
+            </g>
+            <g class="lab-pillar lab-pillar--r">
+              <path fill="url(#pillarFaceR)" d="M930 560L930 160L850 120L850 540Z"></path>
+              <path class="lab-line" pathLength="1" stroke-dasharray="1" stroke-dashoffset="0" d="M930 560L930 160L850 120L850 540Z"></path>
+              <rect class="lab-rack-light" x="872" y="230" width="36" height="10" rx="2"></rect>
+              <rect class="lab-rack-light" x="872" y="280" width="36" height="10" rx="2"></rect>
+            </g>
+
+            <!-- The hologram: the work itself, floating at the vanishing
+                 point — a scanner ring materialises it, facet by facet. -->
+            <g class="lab-holo" transform="translate(500 300)">
+              <ellipse class="holo-base" cx="0" cy="140" rx="150" ry="26"></ellipse>
+              <ellipse class="holo-ring holo-ring--1" cx="0" cy="0" rx="140" ry="140" filter="url(#labGlow2)"></ellipse>
+              <ellipse class="holo-ring holo-ring--2" cx="0" cy="0" rx="105" ry="105"></ellipse>
+              <line class="holo-scan" x1="-140" y1="0" x2="140" y2="0"></line>
+              <g class="holo-object">
+                <ellipse class="holo-object-halo" cx="0" cy="0" rx="48" ry="48" filter="url(#labGlow2)"></ellipse>
+                <path class="holo-facet" fill="url(#holoTop)" d="M0 -74L58 -30L0 4L-58 -30Z"></path>
+                <path class="holo-facet" fill="url(#holoLeft)" d="M-58 -30L0 4L0 78L-78 20Z"></path>
+                <path class="holo-facet" fill="url(#holoRight)" d="M58 -30L0 4L0 78L78 20Z"></path>
+                <path class="holo-edge" d="M0 -74L58 -30L0 4L-58 -30ZM-58 -30L0 4L0 78L-78 20M58 -30L0 4L0 78L78 20"></path>
+              </g>
+            </g>
+
+            <!-- The XR rig: a controller, its ray finding the hologram, and
+                 the teleport arc it throws to the floor. -->
+            <path class="lab-ray" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" filter="url(#labGlow2)" d="M846 512L558 322"></path>
+            <circle class="lab-hit" cx="558" cy="322" r="6"></circle>
+            <path class="lab-arc" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" filter="url(#labGlow2)" d="M838 520Q600 380 300 500"></path>
+            <ellipse class="lab-pad" cx="300" cy="500" rx="46" ry="12"></ellipse>
+            <ellipse class="lab-pad lab-pad--core" cx="300" cy="500" rx="17" ry="4.6"></ellipse>
+            <g class="lab-controller">
+              <ellipse class="lab-controller-glow" cx="852" cy="518" rx="22" ry="22" filter="url(#labGlow2)"></ellipse>
+              <rect x="836" y="500" width="32" height="34" rx="16"></rect>
+              <path d="M858 528L878 560" stroke-width="7" stroke-linecap="round"></path>
+            </g>
+          </svg>
+
+          <div class="console-beats">
+            <p class="console-beat" data-beat="1"><b>01</b>Blender-modelled lab, brought into Unity</p>
+            <p class="console-beat" data-beat="2"><b>02</b>Built for the Oculus XR toolkit</p>
+            <p class="console-beat" data-beat="3"><b>03</b>Navigation &amp; object-selection UX</p>
+          </div>
+        </div>
+
+        <p class="console-kicker">University Lab</p>
+        <h3 class="console-role">HiWi — Unity XR Developer</h3>
+      </div>
+    </section>
+
+    <!-- CHAPTER 04: CREATIVE WORKS — three full-bleed posters, one per work,
+         each filling the entire frame the way BMW and Bosch do: a real
+         capture or a large atmospheric scene behind, a grade for legibility,
+         massive title type low and left. The camera cuts sideways between
+         them; nothing is boxed. Driven by js/story.js (WORKS). -->
+    <section class="story story--works" id="chapter-work">
+      <span class="scene-anchor" id="work" style="--at: 105vh"></span>
+      <div class="story-stage">
+        <div class="reel-rail reel-rail--top" aria-hidden="true"></div>
+        <div class="reel-rail reel-rail--bottom" aria-hidden="true"></div>
+
+        <header class="slate">
+          <p class="slate-index">Chapter 04</p>
+          <h2 class="slate-org">Creative works</h2>
+          <p class="slate-role">Things I've built.</p>
+        </header>
+        <p class="slate-dock" aria-hidden="true"><b>04</b>Creative works<span>Things I've built</span></p>
+
+        <div class="reel-track">
+          <!-- 01 · NeuroMaze: the real capture, full-bleed, tuning in like
+               a monitor switching on. Roshan is one of its four credited
+               developers (micapigment.itch.io/neuromaze). -->
+          <article class="poster poster--neuromaze">
+            <div class="poster-bg">
+              <div class="poster-capture"></div>
+              <div class="poster-grade" aria-hidden="true"></div>
+              <div class="poster-scanlines" aria-hidden="true"></div>
+              <div class="poster-pulse" aria-hidden="true"></div>
+            </div>
+            <div class="poster-chrome" aria-hidden="true">
+              <span class="poster-rec"><i></i>REC</span>
+              <span class="poster-tag">GAMEPLAY CAPTURE — NEUROMAZE.EXE</span>
+            </div>
+            <div class="poster-content">
+              <p class="poster-eyebrow"><span>01 / 03</span>Unity · 3D Horror</p>
+              <h3 class="poster-title poster-title--neuromaze">NeuroMaze</h3>
+              <p class="poster-desc">A mad scientist's experiment on his own robot goes wrong — and the only way out is through its brain. A first-person descent through nerve-lit corridors, monsters and traps across three levels, racing the clock and your own health to reach daylight again.</p>
+              <p class="poster-tags">Unity · 3D · Horror · 4-person team</p>
+              <a class="poster-cta magnetic" href="https://micapigment.itch.io/neuromaze" target="_blank" rel="noopener noreferrer">Play on itch.io <i aria-hidden="true">→</i></a>
+            </div>
+            <p class="poster-quote">&ldquo;Nooo, now these monsters are gone&hellip; I almost died last time.&rdquo;</p>
+          </article>
+
+                    <!-- 02 · The Apocalypse: a wide, cinematic alien horizon — the
+               astronaut is the central character, running full-figure
+               through the middle of the frame, an oxygen gauge glowing on
+               the pack itself as it drains. -->
+          <article class="poster poster--apocalypse">
+            <div class="poster-bg">
+              <svg class="poster-scene" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+                <defs>
+                  <radialGradient id="apocSky" cx="38%" cy="78%" r="95%">
+                    <stop offset="0%" stop-color="#4a2030"></stop>
+                    <stop offset="45%" stop-color="#241429"></stop>
+                    <stop offset="100%" stop-color="#08090f"></stop>
+                  </radialGradient>
+                  <radialGradient id="apocMoon" cx="36%" cy="34%" r="65%">
+                    <stop offset="0%" stop-color="#fff6e8"></stop>
+                    <stop offset="55%" stop-color="#ffd19a"></stop>
+                    <stop offset="100%" stop-color="#c96a3f"></stop>
+                  </radialGradient>
+                  <linearGradient id="apocGround" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#5c2a24"></stop>
+                    <stop offset="100%" stop-color="#140a0b"></stop>
+                  </linearGradient>
+                  <radialGradient id="apocVisor" cx="35%" cy="30%" r="80%">
+                    <stop offset="0%" stop-color="#bfe6ff"></stop>
+                    <stop offset="45%" stop-color="#4f7aa8"></stop>
+                    <stop offset="100%" stop-color="#182a3c"></stop>
+                  </radialGradient>
+                  <linearGradient id="apocSuit" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#eef2f5"></stop>
+                    <stop offset="100%" stop-color="#a7b0ba"></stop>
+                  </linearGradient>
+                  <linearGradient id="apocSuitShade" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#c7ced5"></stop>
+                    <stop offset="100%" stop-color="#7f8892"></stop>
+                  </linearGradient>
+                  <linearGradient id="apocTank" x1="0" y1="1" x2="0" y2="0">
+                    <stop offset="0%" stop-color="#ff8a4c"></stop>
+                    <stop offset="100%" stop-color="#ffd7a8"></stop>
+                  </linearGradient>
+                  <filter id="apocGlow" x="-80%" y="-80%" width="260%" height="260%">
+                    <feGaussianBlur stdDeviation="6" result="b"></feGaussianBlur>
+                    <feMerge><feMergeNode in="b"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
+                  </filter>
+                </defs>
+                <rect x="0" y="0" width="1600" height="900" fill="url(#apocSky)"></rect>
+                <g class="apoc-stars"></g>
+                <circle class="apoc-moon apoc-moon--far" cx="1180" cy="220" r="30" fill="#8a5a7a" opacity="0.55"></circle>
+                <circle class="apoc-moon apoc-moon--near" cx="1330" cy="170" r="88" fill="url(#apocMoon)"></circle>
+                <g class="apoc-ridge apoc-ridge--back" fill="#241422">
+                  <path d="M-40 560l150-100 160 66 190-110 200 100 190-88 220 96 260-58 300 44v612H-40Z"></path>
+                </g>
+                <g class="apoc-ridge apoc-ridge--mid" fill="#3a1f2c">
+                  <path d="M-40 660l190-100 200 76 230-104 250 90 260-70 300 60v588H-40Z"></path>
+                </g>
+                <path class="apoc-ground" fill="url(#apocGround)" d="M-40 740l220-42 260 30 290-46 300 34 320-40 260 24v680H-40Z"></path>
+                <path class="apoc-crack" d="M220 780l58-46-16-52M1180 758l-34-52 24-56" stroke="#1a0c0d" stroke-width="3" fill="none"></path>
+
+                <!-- The astronaut: large, centred, mid-stride — the frame's
+                     one character, not a detail in it. Built at 2× the
+                     scale of the earlier pass and moved clear of the text
+                     scrim, so the whole figure — helmet, tank, stride — is
+                     always plainly legible. -->
+                <g class="apoc-runner" transform="translate(740 360)">
+                  <path class="apoc-motion-line" d="M-40 40h100M-64 86h96M-36 132h84" stroke="rgba(255,180,120,0.3)" stroke-width="6" stroke-linecap="round" fill="none"></path>
+
+                  <ellipse cx="60" cy="330" rx="72" ry="20" fill="rgba(0,0,0,0.4)"></ellipse>
+
+                  <!-- Back leg, trailing. -->
+                  <g class="apoc-leg apoc-leg--back">
+                    <path d="M46 210 L18 268 L34 316 L58 314 L46 262 Z" fill="url(#apocSuitShade)"></path>
+                    <path d="M22 306 L48 302 L58 322 L18 326 Z" fill="#3a3f46"></path>
+                  </g>
+
+                  <!-- Front leg, driving forward. -->
+                  <g class="apoc-leg apoc-leg--front">
+                    <path d="M78 214 L108 258 L100 318 L74 320 L68 264 Z" fill="url(#apocSuit)"></path>
+                    <path d="M74 310 L102 308 L110 330 L70 332 Z" fill="#454a52"></path>
+                  </g>
+
+                  <!-- Backpack, the tank's glow set into it. -->
+                  <g class="apoc-pack">
+                    <rect x="18" y="96" width="60" height="104" rx="14" fill="#7d848d"></rect>
+                    <rect x="26" y="106" width="44" height="10" rx="3" fill="#565c63"></rect>
+                    <rect class="apoc-tank-track" x="30" y="122" width="12" height="66" rx="5" fill="rgba(0,0,0,0.35)"></rect>
+                    <rect class="apoc-tank-level" x="30" y="122" width="12" height="66" rx="5" fill="url(#apocTank)" filter="url(#apocGlow)"></rect>
+                    <rect x="50" y="122" width="12" height="66" rx="5" fill="#565c63"></rect>
+                  </g>
+
+                  <!-- Torso, arms swinging. -->
+                  <path d="M32 108 Q60 92 88 108 L94 216 Q60 236 26 216 Z" fill="url(#apocSuit)"></path>
+                  <rect class="apoc-chest-light" x="48" y="140" width="24" height="16" rx="3"></rect>
+
+                  <g class="apoc-arm apoc-arm--back">
+                    <path d="M36 118 Q6 140 4 190" stroke="url(#apocSuitShade)" stroke-width="22" stroke-linecap="round" fill="none"></path>
+                    <circle cx="4" cy="192" r="12" fill="#c7ced5"></circle>
+                  </g>
+                  <g class="apoc-arm apoc-arm--front">
+                    <path d="M84 118 Q118 132 128 176" stroke="url(#apocSuit)" stroke-width="22" stroke-linecap="round" fill="none"></path>
+                    <circle cx="130" cy="178" r="12" fill="#eef2f5"></circle>
+                  </g>
+
+                  <!-- Helmet, the visor catching a highlight. -->
+                  <circle cx="60" cy="56" r="52" fill="#e4e9ee"></circle>
+                  <circle cx="64" cy="58" r="40" fill="url(#apocVisor)"></circle>
+                  <path d="M40 40a34 34 0 0 1 52-10" stroke="rgba(255,255,255,0.6)" stroke-width="6" fill="none" stroke-linecap="round"></path>
+                  <path d="M28 30l-14 -18M92 30l14 -18" stroke="#c3ccd6" stroke-width="6" stroke-linecap="round"></path>
+                </g>
+
+                <!-- The oxygen it's played against, glowing on the pack. -->
+                <text class="apoc-tank-label" x="806" y="454">O₂</text>
+              </svg>
+            </div>
+            <div class="poster-scrim" aria-hidden="true"></div>
+            <div class="poster-content">
+              <p class="poster-eyebrow"><span>02 / 03</span>2D Game</p>
+              <h3 class="poster-title">The Apocalypse</h3>
+              <p class="poster-desc">An endless runner across a dying alien world: an astronaut stranded far from home, sprinting the horizon while a hand-drawn oxygen gauge — worn right on the pack — counts down the only resource that matters.</p>
+              <p class="poster-tags">Hand-drawn Sprites · 2D · Survival</p>
+            </div>
+            <svg class="poster-hud apoc-hud" viewBox="0 0 120 120" aria-hidden="true">
+              <circle class="apoc-hud-track" cx="60" cy="60" r="46"></circle>
+              <circle class="apoc-hud-level" cx="60" cy="60" r="46" pathLength="1" stroke-dasharray="1" stroke-dashoffset="0"></circle>
+              <text class="apoc-hud-label" x="60" y="56">O₂</text>
+              <text class="apoc-hud-pct" x="60" y="76">100%</text>
+            </svg>
+            <p class="apoc-warning">O₂ CRITICAL</p>
+          </article>
+
+                    <!-- 03 · LoopShoot VR: a first-person view inside the headset —
+               a real perspective floor receding to a distant, lit hoop, the
+               player's own hands large in the foreground, the ball arcing
+               away from camera with a genuine comet trail. -->
+          <article class="poster poster--loopshoot">
+            <div class="poster-bg">
+              <div class="courtspace" aria-hidden="true">
+                <div class="court-perspective">
+                  <div class="court-floor-grid"></div>
+                </div>
+                <div class="court-glow court-glow--l"></div>
+                <div class="court-glow court-glow--r"></div>
+                <div class="court-vignette"></div>
+              </div>
+
+              <svg class="poster-scene" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <defs>
+                  <radialGradient id="loopBall" cx="35%" cy="30%" r="75%">
+                    <stop offset="0%" stop-color="#fff0da"></stop>
+                    <stop offset="55%" stop-color="#e8934a"></stop>
+                    <stop offset="100%" stop-color="#a4551f"></stop>
+                  </radialGradient>
+                  <linearGradient id="loopHandGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#2c2740"></stop>
+                    <stop offset="100%" stop-color="#0f0d1a"></stop>
+                  </linearGradient>
+                  <filter id="loopGlow" x="-80%" y="-80%" width="260%" height="260%">
+                    <feGaussianBlur stdDeviation="7" result="b"></feGaussianBlur>
+                    <feMerge><feMergeNode in="b"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
+                  </filter>
+                </defs>
+
+                <!-- The hoop, distant and small — real depth, not a diagram
+                     at arm's length. -->
+                <g class="loop-hoop" transform="translate(870 150) scale(0.62)">
+                  <rect x="0" y="0" width="200" height="90" rx="4" class="loop-backboard"></rect>
+                  <rect x="64" y="90" width="72" height="20" class="loop-backboard-square"></rect>
+                  <ellipse class="loop-rim" cx="100" cy="128" rx="54" ry="15" filter="url(#loopGlow)"></ellipse>
+                  <path class="loop-net" d="M60 132l14 68M78 135l10 70M100 136l0 72M122 135l-10 70M140 132l-14 68" stroke-width="2.4" fill="none"></path>
+                </g>
+
+                <!-- The remote player, far across the court — small, so the
+                     floor's perspective reads as real. -->
+                <g class="loop-remote" transform="translate(1220 300) scale(0.5)">
+                  <ellipse cx="60" cy="160" rx="52" ry="15" fill="rgba(0,0,0,0.25)"></ellipse>
+                  <path d="M28 160C22 92 38 40 62 40C86 40 102 92 96 160Z"></path>
+                  <circle cx="62" cy="14" r="26"></circle>
+                  <path d="M42 160Q62 132 82 160" fill="none" stroke-width="3"></path>
+                </g>
+                <path class="loop-sync" pathLength="1" stroke-dasharray="0.02 0.035" d="M420 760Q820 620 1240 340"></path>
+
+                <!-- The shot's own arc, glowing — traced once as the ball
+                     leaves the hand, roughly the path js/story.js's place()
+                     actually sends the ball along. -->
+                <path class="loop-arc" pathLength="1" stroke-dasharray="1" stroke-dashoffset="0" filter="url(#loopGlow)" d="M915 600Q680 140 932 229"></path>
+
+                <!-- The comet trail: fading echoes behind the ball, placed
+                     each frame by js/story.js. -->
+                <g class="loop-trail">
+                  <circle class="loop-trail-dot" r="10"></circle>
+                  <circle class="loop-trail-dot" r="10"></circle>
+                  <circle class="loop-trail-dot" r="10"></circle>
+                  <circle class="loop-trail-dot" r="10"></circle>
+                  <circle class="loop-trail-dot" r="10"></circle>
+                </g>
+                <g class="loop-ball">
+                  <circle r="26" fill="url(#loopBall)"></circle>
+                  <path d="M-26 0H26M0 -26V26M-18 -18Q0 0 -18 18M18 -18Q0 0 18 18" stroke="rgba(60,30,10,0.55)" stroke-width="2" fill="none"></path>
+                </g>
+
+                <!-- The player's own hands and controllers, large in the
+                     foreground — this is what makes it read as first person
+                     rather than a court seen from outside. -->
+                <g class="loop-hands">
+                  <path class="loop-forearm" d="M780 900C760 760 800 660 900 606C1000 552 1140 546 1260 600L1240 690C1140 648 1030 654 950 700C870 746 840 820 850 900Z" fill="url(#loopHandGrad)"></path>
+                  <path class="loop-line" pathLength="1" stroke-dasharray="1" stroke-dashoffset="0" d="M780 900C760 760 800 660 900 606C1000 552 1140 546 1260 600"></path>
+                  <g class="loop-glove">
+                    <ellipse cx="915" cy="612" rx="86" ry="62" fill="#241f38"></ellipse>
+                    <path class="loop-line" pathLength="1" stroke-dasharray="1" stroke-dashoffset="0" d="M845 588Q915 552 985 588Q1000 630 960 664Q915 686 866 664Q832 632 845 588Z"></path>
+                    <ellipse class="loop-glove-glow" cx="915" cy="600" rx="30" ry="16" filter="url(#loopGlow)"></ellipse>
+                    <circle class="loop-glove-button" cx="960" cy="596" r="9"></circle>
+                  </g>
+                  <g class="loop-controller-ring">
+                    <ellipse cx="915" cy="612" rx="118" ry="82" filter="url(#loopGlow)"></ellipse>
+                  </g>
+                </g>
+
+                <!-- The release ray: the HOMER ray from the hand to the
+                     ball, live for the instant the shot leaves. -->
+                <path class="loop-ray" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" filter="url(#loopGlow)" d="M915 600L845 500"></path>
+              </svg>
+            </div>
+            <div class="poster-scrim" aria-hidden="true"></div>
+            <div class="poster-content">
+              <p class="poster-eyebrow"><span>03 / 03</span>Unity · VR</p>
+              <h3 class="poster-title">LoopShoot VR</h3>
+              <p class="poster-desc">A hyper-realistic VR basketball game: HOMER navigation puts the ball naturally in your hand, every arc lands with weight, and Photon keeps a second player shooting alongside you in real time.</p>
+              <p class="poster-tags">Unity · VR · Multiplayer</p>
+            </div>
+            <div class="poster-hud loop-hud">
+              <span class="loop-hud-label">Combo</span>
+              <span class="loop-hud-value"><b class="loop-combo-n">2</b>×</span>
+              <span class="loop-hud-swish">SWISH!</span>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHAPTER 05: EDUCATION — the same full-bleed stage the hero opened
+         on (the throughline made explicit): one beam, drifting dust, and
+         the degree set in massive, foil-stamped type rather than an
+         illustrated diploma. A thin credential strip holds the details and
+         the one link out. Driven by js/story.js (EDUCATION). -->
+    <section class="story story--education" id="chapter-education">
+      <span class="scene-anchor" id="education" style="--at: 110vh"></span>
+      <div class="story-stage">
+        <div class="grad-hall" aria-hidden="true">
+          <div class="grad-seats"></div>
+          <div class="grad-beam"></div>
+          <div class="dust-field grad-dust">
+            <span class="dust-mote" style="--size:1.6px; --x:44%; --y:20%; --duration:10.5s; --delay:-3.2s; --dx:9px; --dy:-24px; --peak:0.55;"></span>
+            <span class="dust-mote" style="--size:1.2px; --x:56%; --y:32%; --duration:8.4s; --delay:-1.1s; --dx:-11px; --dy:-20px; --peak:0.5;"></span>
+            <span class="dust-mote" style="--size:1.8px; --x:50%; --y:46%; --duration:12.2s; --delay:-6.5s; --dx:6px; --dy:-30px; --peak:0.6;"></span>
+            <span class="dust-mote" style="--size:1.3px; --x:38%; --y:38%; --duration:9.6s; --delay:-4.4s; --dx:-8px; --dy:-22px; --peak:0.45;"></span>
+            <span class="dust-mote" style="--size:1.5px; --x:60%; --y:58%; --duration:11s; --delay:-2.6s; --dx:10px; --dy:-26px; --peak:0.5;"></span>
+            <span class="dust-mote" style="--size:1.1px; --x:46%; --y:64%; --duration:8.9s; --delay:-5.8s; --dx:-6px; --dy:-18px; --peak:0.4;"></span>
+            <span class="dust-mote" style="--size:1.7px; --x:53%; --y:26%; --duration:13.1s; --delay:-0.6s; --dx:7px; --dy:-28px; --peak:0.55;"></span>
+          </div>
+          <div class="grad-floor-glow"></div>
+          <div class="grad-vignette"></div>
+        </div>
+
+        <header class="slate">
+          <p class="slate-index">Chapter 05</p>
+          <h2 class="slate-org">Education</h2>
+          <p class="slate-role">The foundation the journey stands on.</p>
+        </header>
+        <p class="slate-dock" aria-hidden="true"><b>05</b>Education<span>The foundation</span></p>
+
+        <div class="degree-block">
+          <h3 class="degree-title"><span class="foil">MSc, Computer Science<br>for Digital Media</span></h3>
+          <p class="degree-institution">Amrita Vishwa Vidyapeetham · Mysuru Campus</p>
+          <p class="degree-focus">Specialization in immersive systems and real-time 3D interaction — the graduate research that pointed straight at every chapter before this one.</p>
+        </div>
+
+        <div class="credential-strip">
+          <p><i>Year</i>2022</p>
+          <p><i>Degree</i>MSc</p>
+          <p><i>Focus</i>Real-time 3D &amp; Immersive Systems</p>
+          <a class="credential-link magnetic" href="https://amritamysurucampus.blog/2022/04/23/graduation-day-celebrated-at-amrita-vishwa-vidyapeetham-mysuru-campus/" target="_blank" rel="noopener noreferrer">Graduation day <i aria-hidden="true">→</i></a>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHAPTER 06: CONTACT — the end of the journey, at daybreak: a
+         horizon draws across the dark and the first natural light of the
+         whole site rises behind the closing lines, set like end credits.
+         Driven by js/story.js (CONTACT). -->
+    <section class="story story--contact" id="chapter-contact">
+      <span class="scene-anchor" id="contact" style="--at: 160vh"></span>
+      <div class="story-stage">
+        <div class="dawn" aria-hidden="true">
+          <i class="dawn-sky"></i>
+          <i class="dawn-sun"></i>
+          <i class="dawn-horizon"></i>
+        </div>
+        <div class="finale">
+          <p class="finale-index">Chapter 06 · Contact</p>
+          <h2 class="finale-title">Let's build something immersive together.</h2>
+          <p class="finale-lede">
+            I'm actively looking for new opportunities in VR/AR and real-time 3D. Feel free to reach out —
+            I'd welcome the chance to discuss how my background and enthusiasm make me a strong fit.
+          </p>
+          <ul class="credits">
+            <li><span>Email</span><a class="magnetic" href="mailto:rosh2462@gmail.com">rosh2462@gmail.com</a></li>
+            <li><span>LinkedIn</span><a class="magnetic" href="https://www.linkedin.com/in/roshan-m-5635021b7/" target="_blank" rel="noopener noreferrer">Connect on LinkedIn</a></li>
+            <li><span>Phone</span><a class="magnetic" href="tel:+4917687978492">+49 176 8797 8492</a></li>
+          </ul>
+        </div>
+        <footer class="finale-footer">
+          <p>&copy; <span id="year"></span> Roshan M. Designed &amp; built with fluid intent.</p>
+        </footer>
+      </div>
+    </section>
+
+  </main>
+
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" defer></script>
+  <script src="js/chapters.js?v=47" defer></script>
+  <script src="js/story.js?v=19" defer></script>
+  <script src="js/hero-intro.js?v=9" defer></script>
+  <script src="js/bmw-smoke.js?v=30" defer></script>
+  <script src="js/main.js?v=7" defer></script>
+</body>
+</html>
