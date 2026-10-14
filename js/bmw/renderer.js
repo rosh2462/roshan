@@ -142,6 +142,7 @@ const vertexShader = /* glsl */ `
   uniform vec4 uTarget;
   uniform vec4 uSourceFrame;
   uniform vec4 uTargetFrame;
+  uniform vec4 uReveal;
   varying vec3 vColor;
   varying float vAlpha;
   varying float vSettled;
@@ -172,7 +173,7 @@ const vertexShader = /* glsl */ `
     // The camera cranes up between the shots, as the photographs do: the car
     // sinks out of the frame while the cockpit settles in from above.
     float sink = smoothstep(0.33, 0.72, uProgress);
-    float settle = clamp((uProgress - 0.30) / 0.54, 0.0, 1.0);
+    float settle = clamp((uProgress - 0.30) / 0.40, 0.0, 1.0);
     settle = 1.0 - (1.0 - settle) * (1.0 - settle) * (1.0 - settle);
     vec2 from = source - vec2(0.0, uViewport.y * 0.32 * sink);
     vec2 to = target + vec2(0.0, uViewport.y * 0.28 * (1.0 - settle));
@@ -210,7 +211,20 @@ const vertexShader = /* glsl */ `
     formed += (outward * 0.8 + vec2(-outward.y, outward.x) * 0.35) * 14.0 * touch;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(formed, 0.0, 1.0);
 
-    float size = uPointSize * swoop * (1.0 + 0.25 * arc);
+    // The photograph materialises outward from the Bosch display, a front
+    // the owner moves (uReveal: centre, radius and feather, in page pixels).
+    // Points behind the front give way to the real pixels; points on it glow
+    // as a soft seam, and points ahead of it twinkle faintly, so a paused
+    // frame reads as the cockpit powering on rather than as a still grain.
+    vec2 landedAt = vec2(to.x + uViewport.x * 0.5, uViewport.y * 0.5 - to.y);
+    float front = length(landedAt - uReveal.xy);
+    float opened = step(0.5, uReveal.z);
+    float revealed = opened * (1.0 - smoothstep(uReveal.z - uReveal.w, uReveal.z - uReveal.w * 0.25, front));
+    float seam = opened * smoothstep(uReveal.z - uReveal.w, uReveal.z - uReveal.w * 0.4, front)
+      * (1.0 - smoothstep(uReveal.z - uReveal.w * 0.4, uReveal.z + uReveal.w * 0.35, front));
+    float waiting = gathering * (1.0 - revealed) * (1.0 - seam);
+
+    float size = uPointSize * swoop * (1.0 + 0.25 * arc) * (1.0 + 0.45 * seam);
     gl_PointSize = min(uPointLimit, max(1.2, size) * uPixelRatio);
 
     vec3 coolWhite = vec3(0.72, 0.84, 1.0);
@@ -227,9 +241,10 @@ const vertexShader = /* glsl */ `
     // Each point glints as it lands, so the cockpit twinkles on from the
     // display outward; it is back to its photo colour once at rest.
     float glint = smoothstep(0.75, 0.92, m) * (1.0 - smoothstep(0.92, 1.0, m));
-    vColor *= 1.0 + glint * 0.9 + touch * 0.5;
+    float twinkle = sin(uTime * 1.9 + aSeed.y * 37.0 + aSeed.z * 11.0);
+    vColor *= 1.0 + glint * 0.9 + touch * 0.5 + seam * 1.3 + twinkle * 0.22 * waiting;
 
-    vAlpha = release * (1.0 - smoothstep(0.85, 0.95, uProgress));
+    vAlpha = release * (1.0 - revealed) * (1.0 - smoothstep(0.92, 0.95, uProgress));
     // Match the native photographs' scaled frames and exact edge feathering,
     // particularly where the portrait viewport crops the steering wheel.
     vAlpha *= mix(frameAlpha(from, uSourceFrame), 1.0, smoothstep(0.0, 0.2, m));
@@ -238,7 +253,7 @@ const vertexShader = /* glsl */ `
     vec2 edge = uViewport * 0.5 - abs(formed);
     vAlpha *= smoothstep(0.0, extent * 0.03, min(edge.x, edge.y));
     // Settled points cover like the photographs; in flight they partly add up as light.
-    vSettled = 1.0 - arc * 0.7;
+    vSettled = (1.0 - arc * 0.7) * (1.0 - seam * 0.6);
   }
 `;
 
@@ -305,6 +320,7 @@ export function startBMWBridge({ canvas, state, data, onError, settle }) {
     uViewport: { value: new THREE.Vector2(1, 1) }, uPointer: { value: new THREE.Vector2() },
     uSource: { value: new THREE.Vector4() }, uTarget: { value: new THREE.Vector4() },
     uSourceFrame: { value: new THREE.Vector4() }, uTargetFrame: { value: new THREE.Vector4() },
+    uReveal: { value: new THREE.Vector4() },
     uOpacity: { value: 0 },
   };
   const material = new THREE.ShaderMaterial({ uniforms, vertexShader, fragmentShader,
@@ -354,7 +370,7 @@ export function startBMWBridge({ canvas, state, data, onError, settle }) {
   function available() { return prepared && !disposed && !contextLost && onScreen && !document.hidden; }
   function progress() { return clamp01(state.progress); }
   function active() { return available() && enabled && state.visible && progress() > 0.10 && progress() < 0.95; }
-  function animated() { return active() && motionEnabled && progress() > 0.11 && progress() < 0.85; }
+  function animated() { return active() && motionEnabled && progress() > 0.11 && progress() < 0.93; }
   function releasePointer() { pointerActive = false; pointerExpires = 0; }
   function resetClock() {
     lastTick = 0; previousTick = 0; nextAmbientTick = 0;
@@ -476,6 +492,8 @@ export function startBMWBridge({ canvas, state, data, onError, settle }) {
     const validTarget = setRect(uniforms.uTarget, state.target);
     setRect(uniforms.uSourceFrame, state.sourceFrame || { x: 0, y: 0, width, height });
     setRect(uniforms.uTargetFrame, state.targetFrame || { x: 0, y: 0, width, height });
+    const reveal = state.reveal;
+    uniforms.uReveal.value.set(reveal?.x || 0, reveal?.y || 0, reveal?.radius || 0, reveal?.feather || 1);
     const start = performance.now();
     clearCanvas();
     if (!validSource || !validTarget) { dirty = false; return; }

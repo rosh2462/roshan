@@ -32,7 +32,7 @@ portrait/lab loaders for this feature are their cache-version literals.
 | 0–.10 | Original car, restrained headlight lift |
 | .10–.40 | Distance-delayed release from both headlamps through the body; points lift away in the same wave, so the car comes apart outward from its lamps |
 | .16–.68 | Light streams: points leave in the headlamp wave and each lamp's stream swings out and up like a wing before folding into the cockpit. Pairing is by timing, so the first points to leave (the lamps) land first, on the Bosch display, and the cabin fills in from the display outward; each point glints as it lands. The camera cranes up as the photographs do: the car sinks while the cockpit settles in from above |
-| .85–.95 | Settled dots resolve into the unchanged sharp photo |
+| .64–.90 | Materialise: the sharp photo appears outward from the Bosch display behind a soft radial front; points behind it give way to the real pixels, points on it glow as a seam, and points still ahead twinkle faintly, so a paused frame reads as the cockpit powering on. Particle and CSS masks share one front (`state.reveal`) |
 | .95–1 | Native dashboard presentation, no particle draws |
 
 Photo points use the native scene's settled projection and scaled frame masks,

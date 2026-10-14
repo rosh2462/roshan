@@ -18,7 +18,7 @@
   let sourceFrame, targetFrame, sourceVeil, targetVeil;
   let targetScreen, targetSpill;
   let lastProgress = -1, layoutKey = '', deferEntry = false, fadeUntil = 0;
-  let lastSourceMask = null;
+  let lastSourceMask = null, lastTargetMask = null;
   // A late entry crossfades over the native scenes instead of being skipped,
   // as long as the points have not yet scattered far from the car.
   const LATE_ENTRY_LIMIT = .45, LATE_FADE_MS = 350;
@@ -136,6 +136,7 @@
     targetSpill = targetFrame.querySelector('.screen-spill');
     lastProgress = -1;
     lastSourceMask = null;
+    lastTargetMask = null;
     experience?.resize();
   }
 
@@ -152,6 +153,19 @@
       });
       return `radial-gradient(circle at ${rect.x + u * rect.width}px ${rect.y + v * rect.height}px,${stops.join(',')},black)`;
     }).join(',');
+  }
+
+  // The display's centre on the Bosch photograph, as in chapters.js.
+  const DISPLAY_UV = [522 / 941, 806 / 1672];
+  function revealFront(p) {
+    const rect = state.target, frame = state.targetFrame || { x: 0, y: 0, ...state.viewport };
+    const x = rect.x + DISPLAY_UV[0] * rect.width;
+    const y = rect.y + DISPLAY_UV[1] * rect.height;
+    const feather = Math.max(60, Math.min(state.viewport.width, state.viewport.height) * .14);
+    const full = Math.max(...[[frame.x, frame.y], [frame.x + frame.width, frame.y],
+      [frame.x, frame.y + frame.height], [frame.x + frame.width, frame.y + frame.height]]
+      .map(([cx, cy]) => Math.hypot(cx - x, cy - y))) + feather;
+    return { x, y, feather, full, radius: full * smooth(.64, .9, p) };
   }
 
   function sync() {
@@ -190,9 +204,19 @@
       // through a hidden ancestor and leave this fixed clone over the page.
       style(source, 'visibility', p < .34 ? 'inherit' : 'hidden');
       cssVar(source, '--bridge-lamp', String(1.55 + .28 * smooth(0, .1, p)));
-      // Geometry is already settled before the sharp photo arrives. This
-      // final resolve replaces individual points with their original pixels.
-      style(target, 'opacity', String(smooth(.85, .95, p)));
+      // The sharp photo materialises outward from the Bosch display once the
+      // points have landed, behind a soft front the particles glow along.
+      // The shader reads the same front from state.reveal.
+      const reveal = revealFront(p);
+      state.reveal = reveal;
+      const mask = reveal.radius <= 0 ? null : reveal.radius >= reveal.full ? 'none'
+        : `radial-gradient(circle at ${reveal.x.toFixed(1)}px ${reveal.y.toFixed(1)}px, black ${Math.max(0, reveal.radius - reveal.feather).toFixed(1)}px, transparent ${reveal.radius.toFixed(1)}px)`;
+      style(target, 'opacity', mask ? '1' : '0');
+      if (mask && mask !== lastTargetMask) {
+        lastTargetMask = mask;
+        target.style.maskImage = mask;
+        target.style.webkitMaskImage = mask;
+      }
       // Preserve Bosch's existing boot exactly; only its presentation is
       // carried by the temporary frame until the original scene takes over.
       style(targetScreen, 'opacity', originalScreen.style.opacity);
