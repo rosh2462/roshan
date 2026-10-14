@@ -14,7 +14,7 @@ import { seg, smooth, easeOutCubic } from '../timeline.js';
  * point, highlight, select — and nothing decorative.
  *
  * Every value is a function of L, so scrolling back un-selects it. */
-export function createInteraction({ workstation, stage }) {
+export function createInteraction({ workstation, stage, onChange = () => {}, isAvailable = () => true }) {
   const t = workstation.target;
   const b = t.bezel;
   const group = new THREE.Group();
@@ -45,13 +45,31 @@ export function createInteraction({ workstation, stage }) {
   group.add(ray, dot);
 
   // ---- the label: DOM, in the site's own type ----------------------------
-  const tag = document.createElement('div');
+  const tag = document.createElement('button');
   tag.className = 'lab-tag';
-  tag.setAttribute('aria-hidden', 'true');
+  tag.type = 'button';
+  tag.disabled = true;
+  tag.tabIndex = -1;
+  tag.setAttribute('aria-label', 'Select monitor');
+  tag.setAttribute('aria-pressed', 'false');
   tag.innerHTML =
     '<span class="lab-tag__box"><i class="lab-tag__dot"></i><span class="lab-tag__name">Monitor</span><span class="lab-tag__state">Selected</span></span>';
-  stage.appendChild(tag);
+  // Keep the keyboard control outside the decorative aria-hidden canvas.
+  stage.parentElement.appendChild(tag);
   const box = tag.firstElementChild;
+  const stateLabel = box.querySelector('.lab-tag__state');
+  let disposed = false;
+  let labelWidth = box.offsetWidth || 190;
+  const measureLabel = () => {
+    if (disposed) return;
+    const width = box.offsetWidth || 190;
+    if (width !== labelWidth) { labelWidth = width; onChange(); }
+  };
+  const labelObserver = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measureLabel) : null;
+  labelObserver?.observe(box);
+  if (!labelObserver) window.addEventListener('resize', measureLabel, { passive: true });
+  document.fonts?.ready.then(measureLabel);
+  document.fonts?.addEventListener('loadingdone', measureLabel);
 
   const origin = new THREE.Vector3();
   const dir = new THREE.Vector3();
@@ -60,10 +78,134 @@ export function createInteraction({ workstation, stage }) {
   const upv = new THREE.Vector3();
   const fwd = new THREE.Vector3();
   let lastFocus = -1;
+  let labelVisible = false;
+  let lastProgress = NaN;
+  let realProgress = NaN;
+  let lastWidth = -1;
+  let lastHeight = -1;
+  let lastLabelWidth = -1;
+  let lastAvailable = false;
+  let inputRevision = 0;
+  let posedInputRevision = -1;
+  let manualHover = null;
+  let manualSelect = null;
+  let selected = false;
+  let pointerDown = null;
+  let labelClickAllowed = false;
+  let pointerFrame = 0;
+  let pointer = null;
+  let currentCamera = null;
+  // Decorative layers can receive the hit above the pointer-transparent
+  // canvas/console. Delegate within this chapter so the monitor still responds.
+  const surface = stage.closest?.('.story') || stage.parentElement;
+  const raycaster = new THREE.Raycaster();
+  const pointerNdc = new THREE.Vector2();
 
-  function update(L, camera, size) {
-    const hover = smooth(seg(L, ...SCHEDULE.hover));
-    const select = smooth(seg(L, ...SCHEDULE.select));
+  const available = () => !disposed && currentCamera && isAvailable() && realProgress >= SCHEDULE.hover[0];
+  const changeInput = () => { inputRevision++; onChange(); };
+  const toggleSelection = () => {
+    if (!available()) return;
+    manualSelect = !selected;
+    manualHover = true;
+    changeInput();
+  };
+  function hitTest(event) {
+    if (!available()) return false;
+    const bounds = stage.getBoundingClientRect();
+    if (!bounds.width || !bounds.height) return false;
+    pointerNdc.set((event.clientX - bounds.left) / bounds.width * 2 - 1,
+      -(event.clientY - bounds.top) / bounds.height * 2 + 1);
+    if (Math.abs(pointerNdc.x) > 1 || Math.abs(pointerNdc.y) > 1) return false;
+    raycaster.setFromCamera(pointerNdc, currentCamera);
+    return raycaster.intersectObject(t.group, true).some((hit) => hit.object.visible && hit.object !== hull);
+  }
+  function movePointer(event) {
+    if (pointerDown && Math.hypot(event.clientX - pointerDown.x, event.clientY - pointerDown.y) > 8) {
+      pointerDown = null;
+    }
+    // A touch gesture scrolls the page normally. Hover is only meaningful for
+    // a mouse/pen, and its hit test runs at most once per animation frame.
+    if (event.pointerType === 'touch' || !available()) return;
+    pointer = { clientX: event.clientX, clientY: event.clientY };
+    if (pointerFrame) return;
+    pointerFrame = requestAnimationFrame(() => {
+      pointerFrame = 0;
+      if (!pointer || !available()) return;
+      const hover = hitTest(pointer);
+      if (hover !== manualHover) { manualHover = hover; changeInput(); }
+    });
+  }
+  function leavePointer() {
+    pointer = null;
+    if (manualHover !== null) { manualHover = null; changeInput(); }
+  }
+  function beginPointer(event) {
+    labelClickAllowed = false;
+    const label = tag.contains(event.target);
+    if (event.isPrimary === false || (event.pointerType !== 'touch' && event.button !== 0) ||
+        !available() || (!label && !hitTest(event))) return;
+    pointerDown = { id: event.pointerId, x: event.clientX, y: event.clientY,
+      at: performance.now(), progress: realProgress, label };
+  }
+  function endPointer(event) {
+    const down = pointerDown;
+    pointerDown = null;
+    if (!down || event.pointerId !== down.id || realProgress !== down.progress ||
+        performance.now() - down.at > 500 || Math.hypot(event.clientX - down.x, event.clientY - down.y) > 8 ||
+        !(down.label ? tag.contains(event.target) : hitTest(event))) return;
+    if (down.label) { labelClickAllowed = true; return; }
+    toggleSelection();
+  }
+  const cancelPointer = () => { pointerDown = null; labelClickAllowed = false; };
+  const clickLabel = (event) => {
+    if (event.detail > 0 && 'PointerEvent' in window && !labelClickAllowed) return;
+    labelClickAllowed = false;
+    toggleSelection();
+  };
+  const delegate = (handler) => (event) => { if (!tag.contains(event.target)) handler(event); };
+  const delegatedMove = delegate(movePointer);
+  const delegatedDown = delegate(beginPointer);
+  const delegatedUp = delegate(endPointer);
+  const delegatedCancel = delegate(cancelPointer);
+  tag.addEventListener('click', clickLabel);
+  if ('PointerEvent' in window) {
+    surface.addEventListener('pointermove', delegatedMove, { passive: true });
+    surface.addEventListener('pointerleave', leavePointer, { passive: true });
+    surface.addEventListener('pointerdown', delegatedDown, { passive: true });
+    surface.addEventListener('pointerup', delegatedUp, { passive: true });
+    surface.addEventListener('pointercancel', delegatedCancel, { passive: true });
+    tag.addEventListener('pointermove', movePointer, { passive: true });
+    tag.addEventListener('pointerdown', beginPointer, { passive: true });
+    tag.addEventListener('pointerup', endPointer, { passive: true });
+    tag.addEventListener('pointercancel', cancelPointer, { passive: true });
+  }
+
+  function update(L, camera, size, preview = false) {
+    currentCamera = camera;
+    const inputAvailable = isAvailable();
+    if (!preview && L !== realProgress) {
+      realProgress = L;
+      pointerDown = null;
+      labelClickAllowed = false;
+      // Scroll is the author of the story. A forward/reverse gesture clears
+      // visitor input so the original construction/selection stays reversible.
+      if (manualHover !== null || manualSelect !== null) {
+        manualHover = manualSelect = null;
+        inputRevision++;
+      }
+    }
+    if (L === lastProgress && size.w === lastWidth && size.h === lastHeight &&
+        labelWidth === lastLabelWidth && inputAvailable === lastAvailable && inputRevision === posedInputRevision) return false;
+    lastProgress = L;
+    lastWidth = size.w;
+    lastHeight = size.h;
+    lastLabelWidth = labelWidth;
+    lastAvailable = inputAvailable;
+    posedInputRevision = inputRevision;
+    const activeInput = L >= SCHEDULE.hover[0];
+    const select = activeInput && manualSelect !== null ? Number(manualSelect) : smooth(seg(L, ...SCHEDULE.select));
+    const hover = Math.max(select, activeInput && manualHover !== null ? Number(manualHover) : smooth(seg(L, ...SCHEDULE.hover)));
+    selected = select >= 0.5;
 
     // outline: fine on hover, firm on select
     const th = 0.005 + 0.009 * select;
@@ -94,17 +236,27 @@ export function createInteraction({ workstation, stage }) {
     dot.scale.setScalar(1 - 0.35 * select);
 
     // label, pinned beside the monitor's upper-right corner
-    tag.style.opacity = String(select);
-    if (select > 0.001) {
+    const labelOpacity = activeInput && manualSelect !== null ? 1 : select;
+    tag.style.opacity = String(labelOpacity);
+    const controlAvailable = inputAvailable && activeInput && labelOpacity > 0.001;
+    tag.disabled = !controlAvailable;
+    tag.tabIndex = controlAvailable ? 0 : -1;
+    tag.classList.toggle('is-interactive', controlAvailable);
+    tag.setAttribute('aria-pressed', String(selected));
+    tag.setAttribute('aria-label', selected ? 'Deselect monitor' : 'Select monitor');
+    stateLabel.textContent = selected ? 'Selected' : 'Select';
+    if (labelOpacity > 0.001) {
+      if (!labelVisible) measureLabel();
       anchor.set(t.x + b.w / 2, b.cy + b.h / 2 + t.group.position.y, b.z).project(camera);
       const x = (anchor.x * 0.5 + 0.5) * size.w;
       const y = Math.max(96, (-anchor.y * 0.5 + 0.5) * size.h);
       // On a narrow screen there may be no room to the right of the monitor:
       // then the label sits to its left instead.
-      const room = size.w - x - 30 - (box.offsetWidth || 190) - 12;
+      const room = size.w - x - 30 - labelWidth - 12;
       tag.classList.toggle('is-left', room < 0 && x > size.w / 2);
-      tag.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+      tag.style.transform = `translate(${(x + (size.x || 0)).toFixed(1)}px, ${(y + (size.y || 0)).toFixed(1)}px)`;
     }
+    labelVisible = labelOpacity > 0.001;
 
     // the rest of the frame falls back a little (a CSS vignette in the stage)
     const focus = Math.round(select * 100) / 100;
@@ -112,7 +264,30 @@ export function createInteraction({ workstation, stage }) {
       lastFocus = focus;
       stage.style.setProperty('--lab-focus', String(focus));
     }
+    return true;
   }
 
-  return { group, update };
+  return {
+    group, update,
+    stats: () => ({ manualHover, manualSelect }),
+    dispose() {
+      disposed = true;
+      labelObserver?.disconnect();
+      window.removeEventListener('resize', measureLabel);
+      document.fonts?.removeEventListener('loadingdone', measureLabel);
+      cancelAnimationFrame(pointerFrame);
+      surface.removeEventListener('pointermove', delegatedMove);
+      surface.removeEventListener('pointerleave', leavePointer);
+      surface.removeEventListener('pointerdown', delegatedDown);
+      surface.removeEventListener('pointerup', delegatedUp);
+      surface.removeEventListener('pointercancel', delegatedCancel);
+      tag.removeEventListener('pointermove', movePointer);
+      tag.removeEventListener('pointerdown', beginPointer);
+      tag.removeEventListener('pointerup', endPointer);
+      tag.removeEventListener('pointercancel', cancelPointer);
+      tag.removeEventListener('click', clickLabel);
+      tag.remove();
+      stage.style.removeProperty('--lab-focus');
+    },
+  };
 }

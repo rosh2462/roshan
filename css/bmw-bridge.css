@@ -1,0 +1,49 @@
+/* An enhancement of the BMW outro / Bosch entrance only. Native scenes are
+   retained underneath for loading failure, reduced motion and lost context. */
+.bmw-bridge {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: var(--stage-h);
+  z-index: 6;
+  overflow: hidden;
+  background: var(--bg);
+  pointer-events: none;
+  visibility: hidden;
+  /* Opacity gates the entire subtree: an explicitly visible descendant must
+     never escape the inactive fixed overlay during a reverse or fast exit. */
+  opacity: 0;
+  contain: layout paint style;
+}
+.bmw-bridge.is-active { visibility: visible; opacity: 1; }
+.bmw-bridge__source,
+.bmw-bridge__target,
+.bmw-bridge__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.bmw-bridge__source { z-index: 1; mask-composite: intersect; -webkit-mask-composite: source-in; }
+.bmw-bridge__target { z-index: 2; opacity: 0; }
+.bmw-bridge__canvas { z-index: 3; display: block; }
+.bmw-bridge .zoom-bg-image { will-change: auto; }
+.bmw-bridge .photo-plane { will-change: auto; }
+.bmw-bridge.is-active :is(.zoom-bg-image, .photo-plane) { will-change: transform; }
+.bmw-bridge :is(.zoom-bg-blur, .twin, .ripples, .scan-line, .strip) { display: none; }
+.bmw-bridge__source .lamp-lit {
+  -webkit-backdrop-filter: brightness(var(--bridge-lamp, 1.55)) saturate(1.2);
+  backdrop-filter: brightness(var(--bridge-lamp, 1.55)) saturate(1.2);
+}
+/* This gate cannot be overwritten by either chapter's GSAP opacity tween. */
+.is-bmw-particle-bridge :is(#bmw-chapter, #chapter-bosch) > :is(.chapter-zoom-bg, .chapter-content) {
+  visibility: hidden !important;
+}
+.is-bmw-particle-bridge .cursor-glow { opacity: 0 !important; }
+@media (prefers-reduced-motion: reduce) {
+  .bmw-bridge { display: none; }
+  .is-bmw-particle-bridge :is(#bmw-chapter, #chapter-bosch) > :is(.chapter-zoom-bg, .chapter-content) {
+    visibility: visible !important;
+  }
+}

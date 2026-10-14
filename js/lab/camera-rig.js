@@ -70,7 +70,7 @@ export function createCameraRig() {
     // While walking, a trace of the way a head moves — a fraction of a
     // hand-span, gone before the camera stops.
     const walk = smooth(seg(L, ...SCHEDULE.approach)) * (1 - smooth(seg(L, SCHEDULE.approach[1] - 0.03, SCHEDULE.approach[1] + 0.02)));
-    camera.position.y += 0.03 * walk * Math.sin(L * 260);
+    camera.position.y += (portrait ? 0 : 0.015) * walk * Math.sin(L * 260);
 
     camera.lookAt(target);
 

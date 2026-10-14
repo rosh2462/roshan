@@ -1,0 +1,95 @@
+/* Local opening treatment. Chapter geometry and scroll exit stay unchanged. */
+#persistentSpotlight { display: none; }
+/* BMW begins beneath this curtain. Keep its pre-initialization captions from
+   flashing through before the chapter's scroll timeline has set visibility. */
+#hero { z-index: 5; }
+#hero::before { content: ""; position: absolute; inset: 0; background: var(--bg); pointer-events: none; }
+#hero.has-ready-underlay::before { display: none; }
+#hero :is(.spotlight-haze, .spotlight-pool) { display: none; }
+#hero .stage-floor { opacity: .09; }
+#hero .hero-title { line-height: 1.12; margin: 0 0 18px; text-shadow: 0 2px 3px rgba(0, 0, 0, .3); }
+#hero .hero-inner { width: min(100%, 480px); }
+.hero-motion-toggle {
+  position: absolute; top: calc(100% + 18px); left: 50%; transform: translateX(-50%);
+  min-height: 44px; padding: 8px 12px; border: 0; background: transparent;
+  color: #929ba7; font: inherit; font-size: .75rem; letter-spacing: .04em;
+  white-space: nowrap; cursor: pointer;
+}
+.hero-motion-toggle[hidden] { display: none; }
+.hero-motion-toggle:hover { color: #d5deea; }
+.hero-motion-toggle:focus-visible { outline: 1px solid #9eafc4; outline-offset: 3px; border-radius: 4px; }
+.hero-vortex-pending .hero-motion-toggle { visibility: hidden; }
+.hero-vortex-active .hero-motion-toggle { opacity: var(--hero-copy-alpha, 0); }
+#hero .sleeping-cat { bottom: .9em; }
+#hero .hero-sub { color: rgba(210, 204, 192, .74); text-wrap: pretty; }
+#hero .hero-role { text-wrap: balance; }
+#hero .scroll-hint { width: max-content; white-space: nowrap; }
+.hero-particles {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+/* The single fixed field travels from the opening into the native BMW scene.
+   It has no hit surface, scroll pin, or influence on the chapter's lighting. */
+.hero-particle-journey { position: fixed; inset: 0; z-index: 6; pointer-events: none; overflow: hidden; }
+.hero-particle-journey.is-bmw-entry { position: absolute; z-index: 4; }
+/* Entry only: below the sharp intro and chapter copy, above the scene.
+   JS leaves this invisible at homepage progress zero and retires it as the
+   original headlight illumination takes over. The native smoke is untouched. */
+.hero-energy-darkness {
+  position: fixed; inset: 0; z-index: 3; pointer-events: none;
+  opacity: 0; visibility: hidden;
+  background: linear-gradient(to bottom, #000 0px,
+    #000 var(--energy-dark-solid, 25vh), transparent var(--energy-dark-end, 40vh));
+}
+.hero-vortex-active #hero .hero-inner { transform: translateY(var(--hero-scroll-lift, 0px)); }
+/* While the curtain lifts the copy holds its in-flow place by position, so
+   the compositor keeps it still during async scrolling (js/hero-intro.js
+   measures that place); the hero keeps its measured height. */
+.hero-vortex-active #hero.is-text-pinned { min-height: var(--hero-pin-height, var(--stage-h)); }
+.hero-vortex-active #hero.is-text-pinned .hero-inner {
+  position: fixed; top: var(--hero-pin-top, 0px); left: var(--hero-pin-left, 0px);
+  width: var(--hero-pin-width, min(100%, 480px)); transform: none;
+}
+/* The opening's copy is masked, faded and lifted every frame; separate
+   layers keep that from repainting the whole hero. */
+.hero-vortex-active #hero :is(.hero-inner, .hero-title, .hero-role, .hero-sub, .scroll-hint, .hero-stage) { will-change: transform, opacity; }
+.hero-vortex-active #hero .hero-stage { opacity: var(--hero-cover, 1); }
+.hero-vortex-active #hero .hero-title {
+  -webkit-mask-image: var(--hero-name-mask, linear-gradient(transparent, transparent));
+  mask-image: var(--hero-name-mask, linear-gradient(transparent, transparent));
+}
+.hero-vortex-active #hero :is(.hero-role, .hero-sub, .scroll-hint) { opacity: var(--hero-copy-alpha, 0); }
+.hero-vortex-active #hero :is(.hero-role, .hero-sub) { transform: translateY(var(--hero-copy-offset, 8px)); }
+.hero-vortex-active #hero .sleeping-cat { opacity: var(--hero-cat-alpha, 0); }
+.hero-vortex-pending #hero .stage-text { opacity: 0; }
+/* Static HTML remains complete when scripts, motion or WebGL are unavailable. */
+#hero .stage-text { opacity: 1; animation: none; }
+/* Late font-face declarations can briefly blank existing glyphs in Firefox.
+   Select the custom families only once their actual faces have loaded. */
+html:not(.identity-fonts-ready) #hero,
+html:not(.identity-fonts-ready) #hero .stage-text,
+html:not(.identity-fonts-ready) .nav,
+html:not(.identity-fonts-ready) .nav-logo { font-family: system-ui, -apple-system, sans-serif; }
+@media (max-width: 480px) {
+  #hero .hero-title { font-size: clamp(2.6rem, 12.5vw, 3.2rem); }
+  #hero .hero-role { font-size: clamp(.96rem, 4.15vw, 1.16rem); margin-bottom: 18px; }
+  #hero .hero-sub { font-size: .96rem; max-width: 310px; min-height: 5.1em; line-height: 1.7; }
+}
+@media (max-height: 520px) and (min-width: 480px) {
+  #hero { padding: 106px 24px 64px; }
+  #hero .hero-title { font-size: clamp(2.6rem, 6vw, 3.2rem); line-height: 1.35; }
+  #hero .hero-role { font-size: 1.1rem; margin-bottom: 12px; }
+  #hero .hero-sub { font-size: .92rem; }
+  #hero .scroll-hint { bottom: 20px; }
+  .hero-motion-toggle { top: calc(100% + 2px); left: 0; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-particle-journey, .hero-particles, .hero-energy-darkness { display: none; }
+  #hero .stage-text { animation: none; opacity: 1; }
+  .hero-vortex-active #hero .hero-title { -webkit-mask-image: none; mask-image: none; }
+  .hero-vortex-active #hero .hero-inner { transform: none; }
+  .hero-vortex-active #hero.is-text-pinned .hero-inner { position: relative; top: auto; left: auto; width: min(100%, 480px); }
+}

@@ -6,6 +6,40 @@ The whole scene is a pure function of one number, `HiWiLabState.progress`
 (0 → 1), which `js/story.js` writes from the scrubbed GSAP timeline — so
 scrolling back takes the lab apart again.
 
+The room layout, construction schedule, materials, screens, lighting and camera
+tracks retain the original `e36d20e` university-lab design. The existing reduced
+head movement on phones is retained. No textures, geometry, shadow-map sizes,
+pixel-density caps or bloom settings are reduced for scroll performance.
+
+Rendering uses the chapter's visible-state/scroll clock and wakes directly on
+`sceneprogress`. Only a changed pose updates the room's world matrices; its
+full-resolution shadow map is rebuilt during construction and monitor lifts,
+and reused while the room and casters stand still. Resizes, context restoration,
+light/target transforms and shadow-camera projection changes invalidate the map.
+Dust keeps animating normally.
+
+Shader preparation (`prepare()` in `lab.js`) compiles every program before the
+first frame needs it: the room against an offscreen key target (three.js keys a
+program by what it draws into, and the room renders into the post target, not
+the screen), the shadow pass's depth variants through stand-in meshes, and the
+post passes; then each program's first use and the texture uploads. Each step
+waits for a pause in the scrolling (`window.SceneIdle`, js/face/boot.js), or
+runs at once if the visitor arrives first. The room itself is built in pieces
+during the same pauses. `HiWiLabState.prepareLog` records the steps.
+`renderer.info.programs.length` should not grow while the lab is scrolled.
+
+In the XR stage, mouse/pen hover highlights the monitor, and a short click/tap
+toggles selection. The existing Monitor label is also a keyboard button with
+`aria-pressed`. Pointer listeners are passive: movement over 8 CSS pixels,
+pointer cancellation, a press over 500 ms, or changed lab scroll progress cancels
+a tap. Native page scrolling is preserved; actual progress changes restore the
+original scripted selection so reverse scrolling remains deterministic.
+
+`ResizeObserver` and `IntersectionObserver` have fallbacks. A lost WebGL context
+sleeps the renderer and restores its pose/shaders/shadows when available again.
+Without WebGL 2 the original caption-based fallback still works; without the
+scroll driver the finished lab remains still and its label can still be used.
+
 ## The story it tells (L = lab progress, 0 → 1)
 
 | Stage | L | What you see |
@@ -27,8 +61,9 @@ modules in this folder plus three.js r170, bundled into one classic script. A
 classic script (not ES modules) is deliberate: modules cannot be loaded from
 `file://`, and the site should work opened straight from disk.
 
-`lab.bundle.js` is a **build artifact — don't edit it**. Edit the sources, then
-rebuild.
+`lab.bundle.js` is a **build artifact — don't edit it**. It now includes the
+portrait renderer through `js/scene-3d.js`, sharing one copy of Three.js and one
+cached download between the portrait and the lab. Edit the sources, then rebuild.
 
 ## Rebuilding after editing the sources
 
@@ -36,14 +71,12 @@ Needs Node. From the site root:
 
 ```bash
 npm install --no-save three@0.170.0 esbuild
-npx esbuild js/lab/lab.js --bundle --minify --format=iife --global-name=HiWiLabBundle \
-  --target=es2020 --legal-comments=none \
-  --banner:js="/*! HiWi lab — built from js/lab/*.js with esbuild; includes three.js r170 (MIT, Copyright 2010-2024 three.js authors). Do not edit: rebuild from source. */" \
-  --outfile=js/lab/lab.bundle.js
+node js/build-scenes.mjs
 ```
 
-Then bump the `?v=` on `boot.js` in `index.html` and on `lab.bundle.js` inside
-`boot.js`, so browsers fetch the new files.
+Then bump the `?v=` on both `js/face/boot.js` and `js/lab/boot.js` in
+`index.html`, and use the same new `lab.bundle.js` version inside both boot
+scripts, so browsers fetch the new files.
 
 ## Where things are
 
@@ -57,5 +90,5 @@ Then bump the `?v=` on `boot.js` in `index.html` and on `lab.bundle.js` inside
 | `screens.js`, `logos.js` | everything painted onto a canvas: Blender/Unity/code screens, whiteboard, clock, locker fronts… |
 | `components/` | `floor`, `walls`, `desks`, `storage`, `island` (back table), `workstation` (the hero desk), `props`, `interaction` (ray, outline, label), `grid`, `atmosphere` |
 | `camera-rig.js`, `lighting.js` | the camera path and lens; the two lightings (viewport → Unity) |
-| `post.js` | light bloom, the colour grade, FXAA — built to be cheap on integrated GPUs |
-| `lab.js` | renderer, run loop (draws only while on screen), quality tiers, shader warm-up |
+| `post.js` | light bloom, the colour grade with the output tone mapping folded in, FXAA — built to be cheap on integrated GPUs |
+| `lab.js` | renderer, run loop (draws only while on screen), quality tiers, shader preparation |

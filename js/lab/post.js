@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { Pass, FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 
 /* Post-processing, built for integrated GPUs.
@@ -69,13 +68,36 @@ const BLUR = /* glsl */ `
     gl_FragColor = vec4(c, 1.0);
   }`;
 
+// The composite also does what three's OutputPass did as a separate
+// full-screen pass — the renderer's tone mapping, then the sRGB encode — with
+// the same functions in the same order, so the image is unchanged and one
+// full-resolution pass (a large share of the lab's fill on integrated GPUs)
+// is gone.
 const COMPOSITE = /* glsl */ `
+  #include <tonemapping_pars_fragment>
   uniform sampler2D tDiffuse;
   uniform sampler2D tNear;
   uniform sampler2D tFar;
   uniform float uStrength;
   uniform float uGrade;
   varying vec2 vUv;
+  vec3 outputToneMap(vec3 c) {
+    #if defined(LINEAR_TONE_MAPPING)
+      return LinearToneMapping(c);
+    #elif defined(REINHARD_TONE_MAPPING)
+      return ReinhardToneMapping(c);
+    #elif defined(CINEON_TONE_MAPPING)
+      return CineonToneMapping(c);
+    #elif defined(ACES_FILMIC_TONE_MAPPING)
+      return ACESFilmicToneMapping(c);
+    #elif defined(AGX_TONE_MAPPING)
+      return AgXToneMapping(c);
+    #elif defined(NEUTRAL_TONE_MAPPING)
+      return NeutralToneMapping(c);
+    #else
+      return c;
+    #endif
+  }
   void main() {
     vec4 base = texture2D(tDiffuse, vUv);
     vec3 glow = texture2D(tNear, vUv).rgb * 0.75 + texture2D(tFar, vUv).rgb * 1.1;
@@ -86,7 +108,11 @@ const COMPOSITE = /* glsl */ `
     c = mix(vec3(l), c, mix(0.74, 1.1, uGrade));
     c *= mix(vec3(0.97, 1.0, 1.03), vec3(1.04, 1.0, 0.95), uGrade);
     c = max((c - 0.18) * mix(0.94, 1.05, uGrade) + 0.18, 0.0);
-    gl_FragColor = vec4(c, base.a);
+    vec4 graded = vec4(outputToneMap(c), base.a);
+    #ifdef SRGB_TRANSFER
+      graded = sRGBTransferOETF(graded);
+    #endif
+    gl_FragColor = graded;
   }`;
 
 /* The classic single-pass FXAA (luma edge direction, two-tap blend along it).
@@ -150,6 +176,9 @@ class LiteBloomPass extends Pass {
     this.down = material(DOWN, { tDiffuse: { value: null }, uTexel: { value: new THREE.Vector2() } });
     this.blur = material(BLUR, { tDiffuse: { value: null }, uDir: { value: new THREE.Vector2() } });
     this.composite = material(COMPOSITE, { tDiffuse: { value: null }, tNear: { value: null }, tFar: { value: null }, uStrength: { value: strength }, uGrade: { value: 0 } });
+    // Tone mapping and the sRGB encode are its own (see COMPOSITE), never
+    // three's automatic ones.
+    this.composite.toneMapped = false;
     this.quad = new FullScreenQuad(this.bright);
   }
 
@@ -209,18 +238,51 @@ class LiteBloomPass extends Pass {
   }
 }
 
+// Tone mapping defines, as OutputPass names them.
+const TONE_DEFINES = {
+  [THREE.LinearToneMapping]: 'LINEAR_TONE_MAPPING',
+  [THREE.ReinhardToneMapping]: 'REINHARD_TONE_MAPPING',
+  [THREE.CineonToneMapping]: 'CINEON_TONE_MAPPING',
+  [THREE.ACESFilmicToneMapping]: 'ACES_FILMIC_TONE_MAPPING',
+  [THREE.AgXToneMapping]: 'AGX_TONE_MAPPING',
+  [THREE.NeutralToneMapping]: 'NEUTRAL_TONE_MAPPING',
+};
+// The composite's output defines, chosen exactly as three's OutputPass
+// chooses its own (from the renderer's tone mapping and output colour space).
+function outputDefines(material, renderer) {
+  const key = `${renderer.toneMapping}|${renderer.outputColorSpace}`;
+  if (material.userData.outputKey === key) return;
+  material.userData.outputKey = key;
+  material.defines = {};
+  if (THREE.ColorManagement.getTransfer(renderer.outputColorSpace) === THREE.SRGBTransfer) material.defines.SRGB_TRANSFER = '';
+  if (TONE_DEFINES[renderer.toneMapping]) material.defines[TONE_DEFINES[renderer.toneMapping]] = '';
+  material.needsUpdate = true;
+}
+
 export function createPost(renderer, scene, camera) {
   const target = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 0 });
   const composer = new EffectComposer(renderer, target);
   composer.addPass(new RenderPass(scene, camera));
   const bloom = new LiteBloomPass();
   composer.addPass(bloom);
-  composer.addPass(new OutputPass());
+  outputDefines(bloom.composite, renderer);
   const fxaa = new ShaderPass(FXAA);
   composer.addPass(fxaa);
 
   return {
     render: () => composer.render(),
+    // The scene draws into this target, never the screen; its programs are
+    // keyed for an offscreen target (linear, untoned), like everything here.
+    sceneTarget: target,
+    // Every pass material, with whether it draws to the screen, so the lab
+    // can compile them ahead of the first frame.
+    programs() {
+      outputDefines(bloom.composite, renderer);
+      return [
+        [bloom.bright, false], [bloom.down, false], [bloom.blur, false],
+        [bloom.composite, !fxaa.enabled], [fxaa.material, true],
+      ];
+    },
     setSize(w, h, dpr) {
       composer.setPixelRatio(dpr);
       composer.setSize(w, h);

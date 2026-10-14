@@ -16,7 +16,7 @@
   if (reduceMotion || typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined' || !window.SceneKit) return;
 
   gsap.registerPlugin(ScrollTrigger);
-  const { slateBeats, trackTransitions } = window.SceneKit;
+  const { slateBeats, trackTransitions, driveSharedScene } = window.SceneKit;
 
   document.documentElement.classList.add('has-story');
 
@@ -29,7 +29,7 @@
     return seed / 4294967296;
   };
 
-  function setupStory(scene) {
+  function setupStory(scene, compact = false) {
     const section = document.getElementById(scene.id);
     const stage = section && section.querySelector('.story-stage');
     if (!stage) return;
@@ -44,29 +44,64 @@
     measure();
     ScrollTrigger.addEventListener('refreshInit', measure);
 
-    const tl = gsap.timeline({
-      scrollTrigger: {
+    const shared = scene.id === 'chapter-beyond' || scene.id === 'chapter-work';
+    const scrollConfig = {
         trigger: section,
         start: 'top top',
-        end: 'bottom bottom',
-        scrub: 1,
+        end: () => `bottom ${stage.clientHeight}px`,
+        scrub: shared ? false : compact ? 0.28 : 0.45,
         invalidateOnRefresh: true,
         onUpdate: (self) => trackTransitions(scene, self),
         onToggle: (self) => trackTransitions(scene, self),
         onRefresh: (self) => trackTransitions(scene, self),
-      },
-    });
+    };
+    const tl = gsap.timeline(shared ? { paused: true } : { scrollTrigger: scrollConfig });
+    const range = shared ? ScrollTrigger.create(scrollConfig) : tl.scrollTrigger;
 
-    gsap.set(stage, { autoAlpha: 0 });
-    tl.to(stage, { autoAlpha: 1, duration: 0.012, ease: 'none' }, 0);
+    // All beat positions use the same 0..1 interval, including the final hold.
+    tl.to({}, { duration: 1 }, 0);
+    const portraitHandoff = scene.id === 'chapter-beyond' && window.SceneKit.boschPortrait;
+    if (portraitHandoff) {
+      // Keep opacity under the camera's clock, and only switch visibility
+      // once the next stage reaches its resting position. Using the single
+      // viewport stage also avoids compositing the whole long chapter.
+      gsap.set(stage, { visibility: 'hidden' });
+      tl.set(stage, { visibility: 'visible' }, 0.012);
+      // The display now covers the viewport. The stage beneath it has the
+      // same black surface, so release the bridge without another fade.
+      tl.set(portraitHandoff.layer, { autoAlpha: 0 }, 0.016);
+    } else {
+      gsap.set(stage, { autoAlpha: 0 });
+      tl.to(stage, { autoAlpha: 1, duration: 0.012, ease: 'none' }, 0);
+    }
 
-    scene.build(tl, { $, $$, geo });
+    scene.build(tl, { $, $$, geo, compact });
+    const render = () => {
+      if (!shared) return;
+      section._sceneProgress = tl.progress();
+      if (scene.id === 'chapter-beyond' && window.HiWiLabState) {
+        const p = section._sceneProgress;
+        // Drawing starts just before the lab fades up, so its first frame exists.
+        HiWiLabState.visible = p > 0.435 && (compact || p < 1);
+      }
+      section.dispatchEvent(new Event('sceneprogress'));
+    };
+    tl.eventCallback('onUpdate', render);
+    ScrollTrigger.addEventListener('refresh', render);
+    render();
+    const stopShared = shared ? driveSharedScene(section, tl, range) : null;
+    // Keep refresh listeners from accumulating when responsive layouts change.
+    return () => {
+      stopShared?.();
+      ScrollTrigger.removeEventListener('refreshInit', measure);
+      ScrollTrigger.removeEventListener('refresh', render);
+      trackTransitions(scene, { isActive: false, progress: 0 });
+    };
   }
 
   /* ---------- Chapter 03 · Beyond ----------
-   * Two full-bleed scenes on one chapter. First, the portrait — spotlit on
-   * the same dark stage the hero opened on, a slow Ken Burns drift, the
-   * introduction arriving as a pull-quote rather than a card, the toolkit
+   * Two full-bleed scenes on one chapter. First, a sharp still portrait on
+   * the dark stage, with the introduction arriving as a pull-quote and toolkit
    * as a thin marquee at the edge. The stage dims, and a second scene wakes:
    * the HiWi laboratory, built in real-time 3D (js/lab/) as the visitor
    * scrolls — a university computer lab assembled piece by piece (Blender),
@@ -78,65 +113,57 @@
    */
   const BEYOND = {
     id: 'chapter-beyond',
-    transitions: [[0, 0.1], [0.42, 0.48], [0.88, 1]],
-    build(tl, { $, $$, geo }) {
-      // Scene A — the portrait: two real photographs of the same pose, one
-      // barely lit and one fully lit, cross-dissolving under a black shade
-      // as the visitor scrolls. The shade opens almost nothing at first —
-      // a faint silhouette, no more — so the light doing the revealing is
-      // unmistakably the point. No big title card sits over him; chapter
-      // identification stays in the small corner dock every other chapter
-      // settles into, never competing with his face.
-      const shade = $('.reveal-shade');
-      const glow = $('.reveal-glow');
-      const after = $('.reveal-photo--after');
+    transitions: [[0, 0.24], [0.40, 0.48], [0.88, 1]],
+    build(tl, { $, $$, geo, compact }) {
+      // Scene A holds a single, sharp portrait while the introduction
+      // settles in. The particles arrive through the dashboard display;
+      // this image never needs to be blurred or relit.
       const dock = $('.slate-dock');
       const pull = $('.intro-pull');
       const support = $('.intro-support');
       const now = $('.intro-now');
       const marquee = $('.toolkit-marquee');
-      const revealAll = [$('.reveal'), marquee];
 
       // This chapter skips the shared big title card entirely (never
       // animated in, so never visible) — only the small dock ever shows,
       // so nothing large ever sits over him. His name and role are the
       // hero's headline already; this chapter doesn't repeat them.
       gsap.set($$('.slate-index, .slate-org, .slate-role, .slate-lede'), { opacity: 0 });
-      gsap.set(shade, { opacity: 0.98 });
-      gsap.set([after, glow], { opacity: 0 });
       gsap.set(dock, { opacity: 0, x: -8 });
       gsap.set([pull, support, now], { opacity: 0, y: 16 });
       gsap.set(marquee, { opacity: 0 });
+      gsap.set($('.reveal-photo--after'), { opacity: 0 });
 
-      tl.to(dock, { opacity: 1, x: 0, duration: 0.04, ease: 'power2.out' }, 0.02);
+      tl.to(dock, { opacity: 1, x: 0, duration: 0.035, ease: 'power2.out' }, 0.235);
 
-      // The reveal: the shade lifts first — darkness thinning to a faint,
-      // barely-there silhouette — then the cross-dissolve between the two
-      // source frames (pixel-aligned in CSS, so nothing shifts or flickers)
-      // carries it the rest of the way into full studio light, while the
-      // same light spills softly into the room behind him. All scrubbed,
-      // not timed, so scrolling back genuinely dims him out.
-      tl.to(shade, { opacity: 0, duration: 0.24, ease: 'power1.inOut' }, 0.03)
-        .to(after, { opacity: 1, duration: 0.3, ease: 'power1.inOut' }, 0.09)
-        .to(glow, { opacity: 0.4, duration: 0.3, ease: 'power1.inOut' }, 0.09);
+      // The unchanged photograph remains the accessible fallback. Its gate
+      // also prevents an early portrait if WebGL or a lazy asset is unavailable.
+      // Match face/boot.js: particle progress .94 is the photo's first frame.
+      const photoStart = (0.94 - 0.22) / 0.78 * 0.235;
+      tl.fromTo($('.reveal-photo--after'), { opacity: 0 }, {
+        opacity: 1, duration: 0.235 - photoStart, ease: 'sine.inOut', immediateRender: false,
+      }, photoStart);
 
-      // The introduction arrives only once he's sufficiently lit — never
-      // racing the light, never sitting over a still-dark face. It
-      // introduces what drives the work, not who he is — that's the
-      // hero's job.
-      tl.to(pull, { opacity: 1, y: 0, duration: 0.06, ease: 'power2.out' }, 0.28)
-        .to(support, { opacity: 1, y: 0, duration: 0.05, ease: 'power2.out' }, 0.33)
-        .to(now, { opacity: 1, y: 0, duration: 0.04, ease: 'power2.out' }, 0.37)
-        .to(marquee, { opacity: 1, duration: 0.06, ease: 'power1.out' }, 0.34);
+      // The introduction follows the quiet handoff, leaving the photograph
+      // unobstructed when the chapter first arrives.
+      tl.to(pull, { opacity: 1, y: 0, duration: 0.04, ease: 'power2.out' }, 0.245)
+        .to(support, { opacity: 1, y: 0, duration: 0.035, ease: 'power2.out' }, 0.265)
+        .to(now, { opacity: 1, y: 0, duration: 0.035, ease: 'power2.out' }, 0.285)
+        .to(marquee, { opacity: 1, duration: 0.04, ease: 'power1.out' }, 0.28);
 
-      // (to 0.42: held.) The stage dims.
-      tl.to(revealAll, { opacity: 0, duration: 0.05, ease: 'power1.in' }, 0.42)
-        .to(dock, { opacity: 0, duration: 0.03, ease: 'power1.in' }, 0.42);
+      // (to 0.405: held.) A scene change, not a crossfade: the lines leave
+      // in turn, rising as they fade; then the portrait's light goes down as
+      // it recedes a touch. The lab comes up after a beat of darkness (.44).
+      // (With the particle portrait, js/face/boot.js plays the same beats.)
+      tl.to([pull, support, now], { opacity: 0, y: -14, duration: 0.025, stagger: 0.005, ease: 'power1.in' }, 0.405)
+        .to($('.reveal-frame'), { opacity: 0, scale: 0.965, duration: 0.035, ease: 'sine.inOut' }, 0.41)
+        .to(marquee, { opacity: 0, duration: 0.03, ease: 'sine.inOut' }, 0.41)
+        .to(dock, { opacity: 0, duration: 0.03, ease: 'power1.in' }, 0.41);
 
-      this.buildConsole(tl, { $, $$, geo }, dock);
+      this.buildConsole(tl, { $, $$, geo, compact }, dock);
     },
 
-    buildConsole(tl, { $, $$, geo }, prevDock) {
+    buildConsole(tl, { $, $$, geo, compact }, prevDock) {
       const kicker = $('.console-kicker');
       const role = $('.console-role');
       const beats = $$('.console-beat');
@@ -170,7 +197,7 @@
       // The console fills the same stage as Scene A underneath it; it stays
       // hidden until Scene A dims, and hidden also tells the 3D to stop drawing.
       gsap.set(consoleRoot, { autoAlpha: 0 });
-      tl.to(consoleRoot, { autoAlpha: 1, duration: 0.05, ease: 'power1.out' }, 0.42);
+      tl.to(consoleRoot, { autoAlpha: 1, duration: 0.04, ease: 'sine.inOut' }, 0.44);
 
       tl.fromTo(lab, { progress: 0 }, { progress: 1, duration: LAB_TO - LAB_FROM, ease: 'none', immediateRender: false }, LAB_FROM);
 
@@ -195,7 +222,13 @@
       // (to 0.92: held on the finished lab.) The stage dims — straight into
       // the film reel.
       const consoleAll = [consoleRoot, kicker, role, $('.console-beats'), stepRail];
-      tl.to(consoleAll, { opacity: 0, duration: 0.06, ease: 'power1.in' }, 0.92);
+      if (compact) {
+        // The monitor begins growing while the lab is still held in view.
+        // Clear its labels before the stage starts travelling past the nav.
+        tl.to([kicker, role, $('.console-beats'), stepRail], { opacity: 0, duration: 0.08, ease: 'sine.inOut' }, 0.91);
+      } else {
+        tl.to(consoleAll, { opacity: 0, duration: 0.055, ease: 'power1.in' }, 0.945);
+      }
       if (prevDock) tl.set(prevDock, { display: 'none' }, 0.92);
     },
   };
@@ -221,11 +254,12 @@
       gsap.set(rails, { opacity: 0 });
       posters.forEach((p) => gsap.set(copyOf(p), { opacity: 0, y: 24 }));
 
-      const dock = slateBeats(tl, $, { at: 0.01, dockAt: 0.12 });
-      tl.to(rails, { opacity: 1, duration: 0.04, ease: 'power1.out' }, 0.1);
+      const dock = slateBeats(tl, $, { at: 0.01, dockAt: 0.1 });
+      tl.to(rails, { opacity: 1, duration: 0.04, ease: 'power1.out' }, 0.08);
 
-      tl.fromTo(track, { x: () => geo.cw }, { x: 0, duration: 0.08, ease: 'power3.out' }, 0.11)
-        .fromTo(rails, { backgroundPositionX: () => `${geo.cw}px` }, { backgroundPositionX: '0px', duration: 0.08, ease: 'power3.out' }, 0.11);
+      // The first frame is the lab monitor's match cut; subsequent works
+      // continue sideways once the visitor has had time to read.
+      gsap.set(track, { x: 0 });
       const advance = (frame, at) => {
         tl.to(track, { x: () => -frame * geo.cw, duration: 0.08, ease: 'power3.inOut' }, at)
           .to(rails, { backgroundPositionX: () => `${-frame * geo.cw}px`, duration: 0.08, ease: 'power3.inOut' }, at);
@@ -234,9 +268,9 @@
       advance(2, 0.69);
 
       const arrive = (p, at) => {
-        tl.to(copyOf(p), { opacity: 1, y: 0, duration: 0.05, stagger: 0.012, ease: 'power2.out' }, at);
+        tl.to(copyOf(p), { opacity: 1, y: 0, duration: 0.035, stagger: 0.006, ease: 'power2.out' }, at);
       };
-      arrive(posters[0], 0.17);
+      arrive(posters[0], 0.13);
       arrive(posters[1], 0.47);
       arrive(posters[2], 0.74);
 
@@ -261,21 +295,15 @@
     const quote = $('.poster-quote');
 
     gsap.set(bg, { opacity: 0 });
-    gsap.set(capture, { scale: 1.08, filter: 'brightness(2.2) saturate(0.3)' });
+    gsap.set(capture, { scale: 1.04 });
     gsap.set(scanlines, { opacity: 0 });
     gsap.set([rec, tag, quote], { opacity: 0 });
 
-    const flicker = [[0.13, 0], [0.144, 0.5], [0.153, 0.08], [0.168, 0.75], [0.18, 0.22]];
-    flicker.forEach(([t, o], i) => {
-      if (i === 0) tl.set(bg, { opacity: o }, t);
-      else tl.to(bg, { opacity: o, duration: 0.006, ease: 'none' }, t);
-    });
-    tl.to(bg, { opacity: 1, duration: 0.045, ease: 'power2.out' }, 0.19)
-      .to(capture, { scale: 1, filter: 'brightness(1) saturate(1)', duration: 0.09, ease: 'power2.out' }, 0.188)
-      .to(scanlines, { opacity: 0.4, duration: 0.03 }, 0.23)
-      .to(rec, { opacity: 1, duration: 0.02 }, 0.25)
-      .to(tag, { opacity: 1, duration: 0.02 }, 0.27)
-      .to(quote, { opacity: 1, duration: 0.03, ease: 'power1.out' }, 0.3);
+    tl.to(bg, { opacity: 1, duration: 0.1, ease: 'power2.out' }, 0.02)
+      .to(capture, { scale: 1, duration: 0.1, ease: 'power2.out' }, 0.03)
+      .to(scanlines, { opacity: 0.3, duration: 0.03 }, 0.12)
+      .to([rec, tag], { opacity: 1, duration: 0.025 }, 0.14)
+      .to(quote, { opacity: 1, duration: 0.03, ease: 'power1.out' }, 0.2);
   }
 
   // 02 · The Apocalypse: a wide alien horizon, drifting past at three
@@ -451,7 +479,7 @@
       .to(hud, { opacity: 1, y: 0, duration: 0.02, ease: 'power2.out' }, 0.85)
       .to(swish, { opacity: 1, scale: 1, duration: 0.02, ease: 'back.out(3)' }, 0.855)
       .to(swish, { opacity: 0, duration: 0.03, ease: 'power1.in' }, 0.89)
-      .call(() => { comboN.textContent = '3'; }, null, 0.855)
+      .to({ value: 2 }, { value: 3, duration: 0.001, onUpdate() { comboN.textContent = Math.round(this.targets()[0].value); } }, 0.855)
       .fromTo(comboN, { scale: 1.5 }, { scale: 1, duration: 0.03, ease: 'back.out(3)' }, 0.855);
   }
 
@@ -493,14 +521,17 @@
         .to(floorGlow, { opacity: 1, duration: 0.12, ease: 'power1.out' }, 0.05);
       const dock = slateBeats(tl, $, { at: 0.03, dockAt: 0.18 });
 
-      tl.to(foil, { opacity: 1, y: 0, duration: 0.06, ease: 'power2.out' }, 0.2)
-        .to(foil, { '--foil-x': '80%', duration: 0.16, ease: 'power1.inOut' }, 0.28)
-        .to(institution, { opacity: 1, y: 0, duration: 0.04, ease: 'power2.out' }, 0.34)
-        .to(focus, { opacity: 1, y: 0, duration: 0.04, ease: 'power2.out' }, 0.38)
-        .to(strip, { opacity: 1, y: 0, duration: 0.05, ease: 'power2.out' }, 0.45)
-        .to(cells, { opacity: 1, duration: 0.02, stagger: 0.015 }, 0.48);
+      tl.to(foil, { opacity: 1, y: 0, duration: 0.05, ease: 'power2.out' }, 0.18)
+        .to(foil, { '--foil-x': '80%', duration: 0.16, ease: 'power1.inOut' }, 0.23)
+        .to(institution, { opacity: 1, y: 0, duration: 0.04, ease: 'power2.out' }, 0.26)
+        .to(focus, { opacity: 1, y: 0, duration: 0.04, ease: 'power2.out' }, 0.3)
+        .to(strip, { opacity: 1, y: 0, duration: 0.04, ease: 'power2.out' }, 0.34)
+        .to(cells, { opacity: 1, duration: 0.02, stagger: 0.01 }, 0.36);
 
-      tl.to([hall, block, strip, dock], { opacity: 0, duration: 0.08, ease: 'power1.in' }, 0.88);
+      // The floor light opens into dawn as the text leaves the stage.
+      tl.to(floorGlow, { scaleX: 1.7, opacity: 0.65, duration: 0.18, ease: 'sine.inOut' }, 0.78)
+        .to([block, strip, dock], { opacity: 0, duration: 0.07, ease: 'power1.in' }, 0.9)
+        .to([seats, beam, dust], { opacity: 0, duration: 0.1 }, 0.9);
     },
   };
 
@@ -523,31 +554,175 @@
       const rows = $$('.credits li');
       const footer = $('.finale-footer');
 
-      gsap.set(horizon, { scaleX: 0 });
-      gsap.set(sky, { opacity: 0 });
-      gsap.set(sun, { opacity: 0, yPercent: 30 });
+      gsap.set(horizon, { scaleX: 0.3 });
+      gsap.set(sky, { opacity: 0.12 });
+      gsap.set(sun, { opacity: 0.2, yPercent: 12 });
       gsap.set([index, title, lede, ...rows, footer], { opacity: 0, y: 18 });
 
       tl.to(horizon, { scaleX: 1, duration: 0.16, ease: 'power2.inOut' }, 0.005)
         .to(sun, { opacity: 1, yPercent: 0, duration: 0.6, ease: 'power2.out' }, 0.08)
         .to(sky, { opacity: 1, duration: 0.4, ease: 'power1.inOut' }, 0.1)
-        .to(index, { opacity: 1, y: 0, duration: 0.06, ease: 'power2.out' }, 0.14)
-        .to(title, { opacity: 1, y: 0, duration: 0.1, ease: 'power2.out' }, 0.18)
-        .to(lede, { opacity: 1, y: 0, duration: 0.08, ease: 'power2.out' }, 0.28)
-        .to(rows, { opacity: 1, y: 0, duration: 0.06, stagger: 0.04, ease: 'power2.out' }, 0.36)
-        .to(footer, { opacity: 1, y: 0, duration: 0.06, ease: 'power2.out' }, 0.52);
+        .to(index, { opacity: 1, y: 0, duration: 0.05, ease: 'power2.out' }, 0.08)
+        .to(title, { opacity: 1, y: 0, duration: 0.08, ease: 'power2.out' }, 0.12)
+        .to(lede, { opacity: 1, y: 0, duration: 0.06, ease: 'power2.out' }, 0.2)
+        .to(rows, { opacity: 1, y: 0, duration: 0.05, stagger: 0.025, ease: 'power2.out' }, 0.26)
+        .to(footer, { opacity: 1, y: 0, duration: 0.05, ease: 'power2.out' }, 0.4);
     },
   };
 
+  // A portrait or an actual monitor frame survives the cut between chapters.
+  // These layers are fixed only during their short handoff; they never
+  // receive input, and reverse with the rest of the scene.
+  function setupHandoffs(compact) {
+    const layers = [];
+    const cleanups = [];
+    const add = (kind, targetId) => {
+      const target = document.getElementById(targetId);
+      const compactScreen = compact && kind === 'screen';
+      const labStage = document.querySelector('#chapter-beyond .story-stage');
+      const layer = document.createElement('div');
+      layer.className = `scene-bridge scene-bridge--${kind}${compactScreen ? ' scene-bridge--screen-compact' : ''}`;
+      layer.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(layer);
+      layers.push(layer);
+      let refreshFrame = () => {};
+      const stageHeight = () => (compactScreen ? labStage : document.querySelector('.chapter-zoom-bg')).clientHeight;
+      const boundary = () => target.getBoundingClientRect().top + window.scrollY;
+      const scrollConfig = {
+        trigger: target,
+        // Compact projects use normal page flow. Start the monitor zoom
+        // during the final lab hold, before its sticky stage scrolls away,
+        // and finish before the next heading reaches the navigation.
+        start: () => boundary() - stageHeight() * (compactScreen ? 1.35 : 0.48),
+        end: () => boundary() + (compactScreen ? -Math.max(90, stageHeight() * 0.1) : stageHeight() * 0.68),
+        scrub: kind === 'screen' ? false : compact ? 0.28 : 0.45,
+        invalidateOnRefresh: true,
+        onRefresh: () => refreshFrame(),
+      };
+      const tl = gsap.timeline(kind === 'screen' ? { paused: true } : { scrollTrigger: scrollConfig });
+      const range = kind === 'screen' ? ScrollTrigger.create(scrollConfig) : tl.scrollTrigger;
+      gsap.set(layer, { autoAlpha: 0 });
+      if (kind === 'screen') {
+        tl.to(layer, { autoAlpha: 1, duration: 0.22, ease: 'sine.out' }, 0)
+          .to(layer, { autoAlpha: 0, duration: compactScreen ? 0.22 : 0.3, ease: 'sine.inOut' }, compactScreen ? 0.68 : 0.7);
+        if (compactScreen) tl.to({}, { duration: 1 }, 0);
+        const frame = document.createElement('div');
+        frame.className = 'scene-bridge__screen';
+        layer.appendChild(frame);
+        const pose = { p: 0 };
+        const handoff = window.SceneKit.workHandoff = { progress: 0, origin: null, compact, available: false };
+        let rect = null;
+        const render = () => {
+          const lab = window.HiWiLab;
+          handoff.progress = tl.progress();
+          // WebGL failure simply leaves the ordinary project entrance intact.
+          frame.hidden = !lab || !lab.stats().drawn;
+          handoff.available = !frame.hidden;
+          if (frame.hidden) {
+            target.dispatchEvent(new Event('sceneprogress'));
+            return;
+          }
+          if (!rect || pose.p < 0.02) rect = lab.screenRect();
+          const w = layer.clientWidth;
+          const h = layer.clientHeight;
+          const p = pose.p;
+          const x = rect.x * (1 - p);
+          const y = rect.y * (1 - p);
+          const width = rect.width + (w - rect.width) * p;
+          const height = rect.height + (h - rect.height) * p;
+          handoff.origin = { x, y, width, height };
+          if (compactScreen) {
+            // Let cover crop the image as the monitor becomes a portrait
+            // viewport, rather than stretching the gameplay out of shape.
+            frame.style.width = `${width}px`;
+            frame.style.height = `${height}px`;
+            frame.style.transform = `translate3d(${x}px,${y}px,0)`;
+          } else {
+            frame.style.transform = `translate3d(${x}px,${y}px,0) scale(${width / w},${height / h})`;
+          }
+          // Whole pixels: a radius change repaints the capture's whole layer.
+          const radius = `${compactScreen ? 0 : Math.round(12 * (1 - p))}px`;
+          if (frame.style.borderRadius !== radius) frame.style.borderRadius = radius;
+          target.dispatchEvent(new Event('sceneprogress'));
+        };
+        tl.fromTo(pose, { p: 0 }, { p: 1, duration: 0.62, ease: 'power2.inOut' }, 0.06);
+        tl.eventCallback('onUpdate', render);
+        refreshFrame = () => { rect = null; render(); };
+        cleanups.push(driveSharedScene(null, tl, range));
+      } else {
+        tl.to(layer, { autoAlpha: 0.6, duration: 0.22, ease: 'sine.out' }, 0)
+          .to(layer, { autoAlpha: 0, duration: 0.3, ease: 'sine.inOut' }, 0.7)
+          .fromTo(layer, { yPercent: 12, scale: 0.8 },
+            { yPercent: 0, scale: 1.25, duration: 1, ease: 'sine.inOut' }, 0);
+      }
+    };
+    add('screen', 'chapter-work');
+    if (!compact) {
+      add('dawn', 'chapter-contact');
+    }
+    return () => {
+      cleanups.forEach((dispose) => dispose());
+      layers.forEach((layer) => layer.remove());
+      window.SceneKit.workHandoff = null;
+    };
+  }
+
+  function setupCompactLabExit() {
+    const section = document.getElementById('chapter-beyond');
+    const next = document.getElementById('chapter-work');
+    const stage = section?.querySelector('.story-stage');
+    const lab = section?.querySelector('.lab-scene');
+    const captions = section?.querySelector('.console-beats');
+    const nav = document.querySelector('.nav');
+    if (!stage || !lab || !captions || !next) return;
+    const exitEnd = () => Math.max(
+      stage.clientHeight * 0.3,
+      stage.clientHeight - captions.offsetTop + (nav?.getBoundingClientRect().bottom ?? 90) + 24,
+    );
+    // Once the lab unpins, its final caption travels toward the fixed nav.
+    // Clear the lab before that caption reaches the nav, while the next
+    // chapter's heading enters in ordinary document flow.
+    // Fade a separate wrapper so reversing scroll preserves the reveal
+    // timeline's visibility settings for the lab and its labels.
+    gsap.fromTo(lab,
+      { opacity: 1 },
+      { opacity: 0, ease: 'sine.inOut', immediateRender: false, scrollTrigger: {
+        trigger: next,
+        start: () => `top ${Math.max(stage.clientHeight * 0.45, exitEnd() + stage.clientHeight * 0.1)}px`,
+        end: () => `top ${exitEnd()}px`,
+        scrub: 0.16,
+        invalidateOnRefresh: true,
+      } });
+  }
+
   function init() {
-    [BEYOND, WORKS, EDUCATION, CONTACT].forEach(setupStory);
-    ScrollTrigger.refresh();
+    const media = gsap.matchMedia();
+    media.add({ compact: '(max-width: 720px), (max-height: 600px)', full: '(min-width: 721px) and (min-height: 601px)' }, (context) => {
+      const compact = context.conditions.compact;
+      if (compact) {
+        // These SVG/text values are set directly by the desktop animation,
+        // so restore their static reading state when a window becomes small.
+        document.querySelector('.loop-ball').setAttribute('transform', 'translate(915 600) scale(1.3)');
+        document.querySelector('.loop-combo-n').textContent = '2';
+        document.querySelector('.apoc-hud-pct').textContent = '100%';
+      }
+      // Projects and closing chapters read naturally in the normal flow
+      // on phones and short screens; the two signature 3D scenes remain.
+      const scenes = compact ? [BEYOND] : [BEYOND, WORKS, EDUCATION, CONTACT];
+      const cleanup = scenes.map((scene) => setupStory(scene, compact));
+      cleanup.push(setupHandoffs(compact));
+      if (compact) setupCompactLabExit();
+      ScrollTrigger.refresh();
+      return () => cleanup.forEach((dispose) => dispose?.());
+    });
   }
 
   function whenViewportReady(cb, attempts = 0) {
     if (window.innerHeight > 0 || attempts > 120) cb();
     else requestAnimationFrame(() => whenViewportReady(cb, attempts + 1));
   }
-  if (document.readyState === 'complete') whenViewportReady(init);
-  else window.addEventListener('load', () => whenViewportReady(init), { once: true });
+  // As js/chapters.js: built after the first painted frame rather than at
+  // window `load` (every image and font); ScrollTrigger re-measures at load.
+  // Queued after the photo scenes, which register first.
+  requestAnimationFrame(() => requestAnimationFrame(() => whenViewportReady(init)));
 })();

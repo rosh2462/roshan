@@ -12,8 +12,8 @@
    *              instead of just sliding)
    *   dye        how much smoke is where, carried along by the velocity
    *
-   * Smoke is fed in low along the bottom of the frame and from the two
-   * sides, moving in towards the middle; it rises a little, curls up into
+   * Smoke is fed in beneath the car's actual bumper and at its sides,
+   * moving in towards the middle; it rises a little, curls up into
    * wisps through vorticity confinement, and thins with height, so the
    * thick of it lies below the car and only faint veils reach the grille.
    * The cursor is just another thing that moves the air: it pushes the
@@ -22,12 +22,16 @@
    *
    * What the visitor's scroll controls is how much of that is shown, and
    * how it's being nudged — never the simulation itself, which runs on its
-   * own clock and is never reset. Scrolling forwards or back just changes
-   * the two numbers below, so there is nothing to restart or snap:
+   * own clock while visible. Scrolling forwards or back just changes the
+   * two numbers below, so there is nothing to restart or snap. The one
+   * event is the reveal's gush: as the headlamps ignite, the sources blow
+   * hard for a moment and settle (see "The reveal's gush"); it plays on its
+   * own clock, once per reveal, and only a return to the dark re-arms it.
    *
-   *   coverage  0..1, eased toward the scroll target every frame. Fades the
-   *             smoke in and out, and decides how far in from the sides it
-   *             may show.
+   *   coverage  0..1, from the car's eased timeline progress. Nothing before
+   *             the ignition (the LED outline forms in clean air); the gush
+   *             and a quiet layer after it; the original wisps rise to full
+   *             once the car is revealed, and clear before the render sweep.
    *   flow      -1..1. Negative rolls the smoke in toward the middle as it
    *             gathers; positive parts it sideways as it clears.
    *
@@ -45,9 +49,43 @@
   const section = document.getElementById('bmw-chapter');
   if (reduceMotion || !canvas || !section || typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
 
-  const gl = canvas.getContext('webgl2', { alpha: true, premultipliedAlpha: false, antialias: false, depth: false, stencil: false });
-  if (!gl) return;
-  if (!gl.getExtension('EXT_color_buffer_float') && !gl.getExtension('EXT_color_buffer_half_float')) return;
+  // The display shader writes associated (premultiplied) colour. Transparent
+  // pixels therefore contain no latent grey RGB for a mobile compositor.
+  // The context is created with the programs, after the opening: creating
+  // a WebGL 2 context is itself a noticeable pause while the page loads.
+  let gl = null;
+  let parallelCompile = null;
+  function createContext() {
+    // preserveDrawingBuffer: the veil is redrawn only when it changes, so its
+    // last frame must stay on screen in every engine (WebKit otherwise drops
+    // an undrawn WebGL canvas). Each draw covers every pixel of this small,
+    // 0.6-scale canvas, so keeping the buffer costs next to nothing.
+    const context = canvas.getContext('webgl2', { alpha: true, premultipliedAlpha: true, antialias: false, depth: false, stencil: false, preserveDrawingBuffer: true });
+    if (!context) return false;
+    if (!context.getExtension('EXT_color_buffer_float') && !context.getExtension('EXT_color_buffer_half_float')) return false;
+    gl = context;
+    parallelCompile = gl.getExtension('KHR_parallel_shader_compile');
+    // A lost context hands the veil straight back to CSS; the smoke stops.
+    canvas.addEventListener('webglcontextlost', () => {
+      ready = false;
+      glVeil = false;
+      section.classList.remove('has-gl-veil');
+      stop();
+    }, { once: true });
+    const posBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+    // One oversized triangle covering the whole clip-space square — cheaper
+    // than a quad (no diagonal seam, one fewer vertex) and clipped for free.
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    // Blending is deliberately off, everywhere: every draw replaces its
+    // target. (With it on, repeated draws to the visible canvas stacked and
+    // the smoke's density pulsed frame to frame while scrolling.)
+    gl.disable(gl.BLEND);
+    smokeState.premultipliedAlpha = gl.getContextAttributes()?.premultipliedAlpha === true;
+    return true;
+  }
 
   // ---- Shaders ---------------------------------------------------------------
   const VERT = `
@@ -276,7 +314,18 @@
     uniform vec2 u_lampA;
     uniform vec2 u_lampB;
     uniform float u_lampI;
+    // How brightly the smoke is lit: the lamps' own glow as they ignite, which
+    // leads the veil (--li) opening onto the rest of the car.
+    uniform float u_light;
+    // The gush (js: burst): x = glow, y = spread past the resting region.
+    uniform vec2 u_burst;
     uniform float u_gain;
+    uniform vec4 u_photo;
+    // The lamp-lit veil (.reveal-veil--lamps), drawn under the smoke:
+    // x = --li, y = --lr, z = 1 when on; u_lpx = both lamps in CSS px.
+    uniform vec4 u_veil;
+    uniform vec4 u_lpx;
+    uniform vec2 u_css;
 
     vec3 mod289(vec3 x){return x-floor(x*(1.0/289.0))*289.0;}
     vec4 mod289(vec4 x){return x-floor(x*(1.0/289.0))*289.0;}
@@ -332,11 +381,13 @@
     // patterned, and bent by w (the smoke's own density gradient) so the
     // light wanders with the smoke it passes through rather than ruling
     // straight lines across it. Just light on its own; it only shows where
-    // there is smoke to scatter it (see main).
-    float beamScatter(vec2 p, vec2 lp, float t, vec2 w) {
+    // there is smoke to scatter it (see main). Distances are in the car's
+    // own scale (s: 1 at the desktop framing): on a portrait phone the car
+    // is a third the size, and viewport-sized beams flooded its smoke white.
+    float beamScatter(vec2 p, vec2 lp, float t, vec2 w, float s) {
       vec2 r = p - lp;
-      float d = length(r);
-      vec2 dir = r / max(d, 0.001);
+      float d = length(r) / s;
+      vec2 dir = r / max(length(r), 0.001);
       float streak = snoise(vec3(dir * 1.7 + w * 1.1, t * 0.05)) * 0.5 + 0.5;
       streak = mix(0.55, 1.0, smoothstep(0.25, 0.85, streak));
       float forward = 0.15 + 0.85 * smoothstep(-0.3, 0.8, -dir.y);
@@ -346,9 +397,42 @@
       return core * 0.6 + lobe * 0.7;
     }
 
+    // One lamp's radial-gradient(circle at c, ...) exactly as the CSS veil
+    // defines it: stops at lr*0.22%, lr*0.55% and lr*1% of the distance to
+    // the farthest corner, alpha 1-li, 1-.82li, 1-.42li and 1.
+    float lampVeil(vec2 p, vec2 c, float li, float lr) {
+      float radius = length(max(abs(c), abs(u_css - c)));
+      float d = length(p - c) / max(radius, 1.0) * 100.0;
+      float s1 = lr * 0.22;
+      float s2 = lr * 0.55;
+      float s3 = lr;
+      float a0 = 1.0 - li;
+      float a1 = 1.0 - li * 0.82;
+      float a2 = 1.0 - li * 0.42;
+      if (d < s1) return mix(a0, a1, d / max(s1, 1e-4));
+      if (d < s2) return mix(a1, a2, (d - s1) / max(s2 - s1, 1e-4));
+      if (d < s3) return mix(a2, 1.0, (d - s2) / max(s3 - s2, 1e-4));
+      return 1.0;
+    }
+
     void main() {
+      vec2 css = vec2(v_uv.x, 1.0 - v_uv.y) * u_css;
+      float veilAlpha = u_veil.z * lampVeil(css, u_lpx.xy, u_veil.x, u_veil.y)
+        * lampVeil(css, u_lpx.zw, u_veil.x, u_veil.y);
+      // Premultiplied, in the page's own --bg (#08090f).
+      vec4 veil = vec4(vec3(8.0, 9.0, 15.0) / 255.0 * veilAlpha, veilAlpha);
       vec2 aspect = vec2(u_resolution.x / u_resolution.y, 1.0);
       vec2 p = (v_uv - 0.5) * aspect;
+      // Source-photo coordinates follow the car's actual camera pose. This
+      // bounds the smoke around its bumper and sides on a portrait phone,
+      // where the car is much smaller than the full viewport.
+      vec2 photo = vec2((v_uv.x - u_photo.x) / u_photo.z,
+        1.0 - (v_uv.y - u_photo.y) / u_photo.w);
+      if (u_coverage <= 0.0 || photo.x < -0.20 || photo.x > 1.20
+          || photo.y < 0.48 || photo.y > 0.99) {
+        gl_FragColor = veil;
+        return;
+      }
 
       // The simulated smoke, and its gradient (for shading).
       float d = texture2D(u_dye, v_uv).x;
@@ -361,113 +445,150 @@
 
       // The grid is coarse next to the screen; fine grain, scaled by how
       // much smoke there is, gives it the tattered edges of the real thing.
-      float grain = snoise(vec3(p * 7.0 + vec2(0.0, -u_time * 0.02), u_time * 0.05)) * 0.6
-                  + snoise(vec3(p * 19.0, u_time * 0.09 + 3.0)) * 0.4;
-      float dens = max(d * (1.0 + 0.3 * grain), 0.0);
+      // Breakup scales with the photographed car, not the viewport. A
+      // portrait phone therefore sees the same soft wisps as a wide screen.
+      vec2 detail = photo * vec2(28.0, 50.0);
+      float grain = snoise(vec3(detail + vec2(0.0, -u_time * 0.14), u_time * 0.08)) * 0.65
+                  + snoise(vec3(detail * 2.3, u_time * 0.12 + 3.0)) * 0.35;
+      float dens = max(d - 0.035, 0.0) * max(0.25, 1.0 + 0.55 * grain);
 
       // Beer-Lambert: thin smoke is nearly clear, thick smoke saturates,
       // and nothing has a hard edge.
-      float a = 1.0 - exp(-dens * 2.2);
+      float a = 1.0 - exp(-dens * 1.9);
 
-      // Where it may show. The scroll's coverage fades it in and out and
-      // decides how far in from the sides it reaches; above the lamps
-      // there's nothing, so the title and nav sit in clear dark.
-      float reach = mix(0.58, -0.15, u_coverage);
-      float horizontal = mix(0.3, 1.0, smoothstep(reach - 0.42, reach, abs(p.x)));
-      float ceil = 1.0 - smoothstep(0.02, 0.26, p.y);
-      float vis = a * horizontal * ceil * u_coverage;
+      // One broad, softly feathered ground region lets the fluid roll into
+      // connected wisps. It follows the bumper instead of shaping the dye
+      // into separate puffs or filling the entire screen with floor fog.
+      // Its opacity is already zero well before the coarse outer guard.
+      // While the gush spreads, its outer edge is broken up more strongly
+      // and feathered further, so it thins into wisps rather than a shape.
+      float contour = grain * mix(0.035, 0.085, u_burst.y);
+      // The gush may roll further out along the floor and toward the camera
+      // (wider, and lower on screen) before the region draws back in.
+      vec2 reach = vec2(0.51, 0.105) * (1.0 + u_burst.y * vec2(0.42, 0.75));
+      vec2 ground = (photo - vec2(0.48, 0.671 + 0.03 * u_burst.y)) / reach;
+      float envelope = 1.0 - smoothstep(mix(0.48, 0.32, u_burst.y), 1.0, length(ground) + contour);
+      // Wisps emerge at the bumper and sides; the bonnet and LED contours
+      // stay in clean air, and so does everything above the car, whatever
+      // the gush does. This suppression is feathered, not a crop edge, and
+      // while the gush lasts its line drifts slowly so the rolling top of
+      // the smoke never meets a straight edge.
+      float drift = u_burst.x > 0.001
+        ? snoise(vec3(photo.x * 5.0 + u_time * 0.07, u_time * 0.11, 3.7)) * u_burst.x : 0.0;
+      envelope *= smoothstep(mix(0.588, 0.578, u_burst.x) + 0.012 * drift,
+        mix(0.625, 0.655, u_burst.x) + 0.016 * drift, photo.y);
+      float edges = smoothstep(0.0, 0.055, v_uv.y)
+        * (1.0 - smoothstep(0.955, 1.0, v_uv.y))
+        * smoothstep(0.0, 0.025, v_uv.x)
+        * (1.0 - smoothstep(0.975, 1.0, v_uv.x));
+      float vis = a * envelope * edges * u_coverage;
 
       // Lit from above and to one side: the faces of a puff that look
       // toward the light are brighter than the ones that look away.
-      float edge = clamp(length(grad) * 5.0, 0.0, 1.0);
+      float edge = clamp(length(grad) / (0.055 + d * 0.08), 0.0, 1.0);
       float facing = dot(-normalize(grad + vec2(1e-5)), normalize(vec2(-0.45, 0.9)));
       float shade = clamp(0.55 + 0.45 * facing * edge, 0.0, 1.0);
 
-      // The headlamps light the smoke, in proportion to the smoke — plus a
-      // little faint haze in the air between the wisps, since a beam needs
-      // something to show in.
+      // The headlamps scatter only in real, visible dye. Empty air stays
+      // transparent instead of receiving an independent gray haze.
       vec2 la = (u_lampA - 0.5) * aspect;
       vec2 lb = (u_lampB - 0.5) * aspect;
-      float haze = 0.12 * u_coverage * (1.0 - smoothstep(-0.28, 0.16, p.y));
-      float medium = vis + haze;
+      float light = max(u_lampI, u_light);
+      float carScale = clamp(u_photo.w / 1.89, 0.3, 1.25);
       float scattered = clamp(
-        u_lampI * (beamScatter(p, la, u_time, grad * 3.0) + beamScatter(p, lb, u_time, grad * 3.0)) * medium * 2.4,
+        light * (beamScatter(p, la, u_time, grad * 3.0, carScale) + beamScatter(p, lb, u_time, grad * 3.0, carScale)) * vis * 2.0,
         0.0, 1.0);
 
       // Before the lamps are on there's nothing lighting the smoke but the
-      // dark itself, so it sits back; it comes forward as they do.
-      float ambient = mix(0.5, 1.0, u_lampI);
-      float alpha = vis * 0.5 * ambient + scattered * 0.26;
-      alpha = clamp(alpha, 0.0, 0.62) * u_gain;
+      // dark itself, so it sits back; it comes forward as they do. The gush
+      // reads stronger while it lasts, still well short of hiding the car.
+      float ambient = mix(0.5, 1.0, light);
+      float alpha = vis * mix(0.32, 0.50, u_burst.x) * ambient + scattered * mix(0.13, 0.21, u_burst.x);
+      alpha = clamp(alpha, 0.0, mix(0.38, 0.60, u_burst.x)) * u_gain;
+      if (alpha <= 0.00001) {
+        gl_FragColor = veil;
+        return;
+      }
 
-      vec3 smokeDark = vec3(0.05, 0.052, 0.058);
-      vec3 smokeLit = vec3(0.6, 0.6, 0.61);
-      vec3 lampColour = vec3(0.88, 0.92, 0.98);
-      vec3 color = mix(smokeDark, smokeLit, clamp(0.18 + 0.7 * a, 0.0, 1.0) * (0.55 + 0.75 * shade));
-      color = mix(color, lampColour, clamp(scattered * 0.9, 0.0, 0.7));
+      vec3 smokeDark = vec3(0.035, 0.038, 0.044);
+      vec3 smokeLit = vec3(0.40, 0.44, 0.49);
+      vec3 lampColour = vec3(0.80, 0.87, 0.96);
+      vec3 color = mix(smokeDark, smokeLit, clamp(0.20 + 0.60 * a + edge * 0.18, 0.0, 1.0)
+        * (0.50 + 0.75 * shade));
+      color = mix(color, lampColour, clamp(scattered * mix(0.6, 0.72, u_burst.x), 0.0, mix(0.42, 0.48, u_burst.x)));
+      // A little light catches moving wisp edges; the broad body stays dark.
+      color *= 1.0 + 0.14 * edge * shade;
 
-      gl_FragColor = vec4(color, alpha);
+      gl_FragColor = vec4(color * alpha, alpha) + veil * (1.0 - alpha);
     }
   `;
 
-  function compile(type, src) {
+  // Every program is compiled and linked before any of them is checked: a
+  // status query waits for the driver, and checking each in turn used to
+  // serialise all thirteen compiles into one long freeze while the page was
+  // opening. They are started once the opening has its own shader (or as soon
+  // as the car is approached), polled without blocking where the browser
+  // compiles in parallel, and checked in a pause.
+  const PROGRAMS = {
+    advect: [ADVECT, ['vel', 'src', 'velTexel', 'dt', 'rateLow', 'rateHigh', 'ceil']],
+    divergence: [DIVERGENCE, ['vel', 'texel']],
+    curl: [CURL, ['vel', 'texel']],
+    vorticity: [VORTICITY, ['vel', 'curl', 'texel', 'strength', 'dt']],
+    pressure: [PRESSURE, ['pressure', 'div', 'texel']],
+    gradient: [GRADIENT, ['pressure', 'vel', 'texel']],
+    scale: [SCALE, ['tex', 'value']],
+    force: [FORCE, ['vel', 'dye', 'dt', 'flow', 'buoy']],
+    emitVel: [EMIT_VEL, ['target', 'aspect', 'em', 'emv']],
+    emitDye: [EMIT_DYE, ['target', 'aspect', 'em', 'cap', 'add']],
+    pointerVel: [POINTER_VEL, ['target', 'aspect', 'm', 'mp', 'mv', 'rad2', 'str']],
+    pointerDye: [POINTER_DYE, ['target', 'aspect', 'm', 'mp', 'rad2', 'clear']],
+    display: [DISPLAY, ['dye', 'dyeTexel', 'resolution', 'time', 'coverage', 'lampA', 'lampB', 'lampI', 'light', 'burst', 'gain', 'photo', 'veil', 'lpx', 'css']],
+  };
+  let progs = null;
+  let building = null;
+  function shader(type, src) {
     const sh = gl.createShader(type);
     gl.shaderSource(sh, src);
     gl.compileShader(sh);
-    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
-      console.warn('bmw-smoke: shader failed to compile —', gl.getShaderInfoLog(sh));
-      gl.deleteShader(sh);
-      return null;
-    }
     return sh;
   }
-  const vs = compile(gl.VERTEX_SHADER, VERT);
-  function program(fsSrc, names) {
-    const fs = compile(gl.FRAGMENT_SHADER, fsSrc);
-    if (!vs || !fs) return null;
-    const prog = gl.createProgram();
-    gl.attachShader(prog, vs);
-    gl.attachShader(prog, fs);
-    gl.bindAttribLocation(prog, 0, 'a_pos');
-    gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-      console.warn('bmw-smoke: program failed to link —', gl.getProgramInfoLog(prog));
-      return null;
-    }
-    const u = {};
-    names.forEach((n) => { u[n] = gl.getUniformLocation(prog, 'u_' + n); });
-    return { p: prog, u };
+  function buildPrograms() {
+    if (building) return building;
+    if (!createContext()) return (building = Promise.resolve(null));
+    const vs = shader(gl.VERTEX_SHADER, VERT);
+    const pending = Object.entries(PROGRAMS).map(([name, [src, names]]) => {
+      const fs = shader(gl.FRAGMENT_SHADER, src);
+      const prog = gl.createProgram();
+      gl.attachShader(prog, vs);
+      gl.attachShader(prog, fs);
+      gl.bindAttribLocation(prog, 0, 'a_pos');
+      gl.linkProgram(prog);
+      return { name, names, prog, fs };
+    });
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    building = (async () => {
+      if (parallelCompile) {
+        await wait(120);
+        while (!pending.every(({ prog }) => gl.getProgramParameter(prog, parallelCompile.COMPLETION_STATUS_KHR))) await wait(100);
+      } else {
+        // The driver links in its own time; check once it has had a pause.
+        await (window.SceneIdle ? window.SceneIdle.quiet(300, 2500) : wait(400));
+      }
+      const built = {};
+      for (const { name, names, prog, fs } of pending) {
+        if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+          console.warn('bmw-smoke: program failed to link —', gl.getProgramInfoLog(prog) || gl.getShaderInfoLog(fs) || gl.getShaderInfoLog(vs));
+          return null;
+        }
+        const u = {};
+        names.forEach((n) => { u[n] = gl.getUniformLocation(prog, 'u_' + n); });
+        built[name] = { p: prog, u };
+      }
+      return built;
+    })();
+    return building;
   }
 
-  const progs = {
-    advect: program(ADVECT, ['vel', 'src', 'velTexel', 'dt', 'rateLow', 'rateHigh', 'ceil']),
-    divergence: program(DIVERGENCE, ['vel', 'texel']),
-    curl: program(CURL, ['vel', 'texel']),
-    vorticity: program(VORTICITY, ['vel', 'curl', 'texel', 'strength', 'dt']),
-    pressure: program(PRESSURE, ['pressure', 'div', 'texel']),
-    gradient: program(GRADIENT, ['pressure', 'vel', 'texel']),
-    scale: program(SCALE, ['tex', 'value']),
-    force: program(FORCE, ['vel', 'dye', 'dt', 'flow', 'buoy']),
-    emitVel: program(EMIT_VEL, ['target', 'aspect', 'em', 'emv']),
-    emitDye: program(EMIT_DYE, ['target', 'aspect', 'em', 'cap', 'add']),
-    pointerVel: program(POINTER_VEL, ['target', 'aspect', 'm', 'mp', 'mv', 'rad2', 'str']),
-    pointerDye: program(POINTER_DYE, ['target', 'aspect', 'm', 'mp', 'rad2', 'clear']),
-    display: program(DISPLAY, ['dye', 'dyeTexel', 'resolution', 'time', 'coverage', 'lampA', 'lampB', 'lampI', 'gain']),
-  };
-  if (!vs || Object.values(progs).some((p) => !p)) return;
-
-  const posBuf = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
-  // One oversized triangle covering the whole clip-space square — cheaper
-  // than a quad (no diagonal seam, one fewer vertex) and clipped for free.
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
-  gl.enableVertexAttribArray(0);
-  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-
-  // Blending is deliberately off, everywhere: every draw replaces its
-  // target. (With it on, repeated draws to the visible canvas stacked and
-  // the smoke's density pulsed frame to frame while scrolling.)
-  gl.disable(gl.BLEND);
 
   // ---- Simulation grids ----------------------------------------------------
   function makeTarget(w, h) {
@@ -496,6 +617,16 @@
       swap() { const t = a; a = b; b = t; },
     };
   }
+  function disposeSim(value) {
+    if (!value) return;
+    const targets = [value.vel.read, value.vel.write, value.dye.read,
+      value.dye.write, value.pressure.read, value.pressure.write,
+      value.div, value.curl];
+    for (const target of targets) {
+      gl.deleteFramebuffer(target.fbo);
+      gl.deleteTexture(target.tex);
+    }
+  }
   const dims = (max, aspect) => (aspect >= 1
     ? [max, Math.max(16, Math.round(max / aspect))]
     : [Math.max(16, Math.round(max * aspect)), max]);
@@ -516,9 +647,16 @@
       curl: makeTarget(sw, sh),
     };
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    if (!next.vel.ok || !next.dye.ok || !next.pressure.ok || !next.div.ok || !next.curl.ok) return false;
+    if (!next.vel.ok || !next.dye.ok || !next.pressure.ok || !next.div.ok || !next.curl.ok) {
+      disposeSim(next);
+      return false;
+    }
+    const previous = sim;
     sim = next;
     simAspect = aspect;
+    // A resize replaces the air grid. Release its old GPU targets only
+    // after the replacement is complete; the new field is unchanged.
+    disposeSim(previous);
     warm = 260;
     return true;
   }
@@ -539,6 +677,50 @@
   // ---- Drawing helpers ------------------------------------------------------
   let cw = 0;
   let ch = 0;
+  let cssWidth = 1;
+  let cssHeight = 1;
+  const photoPlane = section.querySelector('.photo-plane');
+  const sceneFrame = section.querySelector('.chapter-zoom-bg');
+  const photo = { x: 0, y: 0, width: 1, height: 1 };
+  const photoUV = new Float32Array(4);
+  let geometryDirty = true;
+  let geometryProgress = NaN;
+  const smokeState = window.BMWSmokeState = {
+    ready: true, progress: 0, coverage: 0, flow: 0, running: false,
+    drawn: false, frames: 0, time: 0, simulationTime: 0, gain: 0, layoutRefreshes: 0,
+    photoRect: null, region: null, viewport: [1, 1],
+    lampCoordinates: [[0, 0], [0, 0]], lampIntensity: 0,
+    compositing: 'premultiplied', premultipliedAlpha: false,
+    revealStart: 0.32, revealFull: 0.37, clearStart: 0.395, clearEnd: 0.44,
+  };
+  function readGeometry() {
+    if (!photoPlane || (!geometryDirty && geometryProgress === progress)) return;
+    // The chapter publishes the photo's on-screen rectangle from its camera
+    // pose (relative to the sticky frame this canvas fills); measuring the
+    // DOM instead forced a style and layout flush on every frame.
+    const known = section._photoRect;
+    let plane = known && known.width > 0 ? { left: known.x, top: known.y, width: known.width, height: known.height } : null;
+    let frame = { left: 0, top: 0 };
+    if (!plane) {
+      frame = canvas.getBoundingClientRect();
+      plane = photoPlane.getBoundingClientRect();
+    }
+    if (!(plane.width > 0 && plane.height > 0)) return;
+    photo.x = plane.left - frame.left;
+    photo.y = plane.top - frame.top;
+    photo.width = plane.width;
+    photo.height = plane.height;
+    photoUV.set([photo.x / cssWidth, 1 - (photo.y + photo.height) / cssHeight,
+      photo.width / cssWidth, photo.height / cssHeight]);
+    smokeState.photoRect = { x: plane.left, y: plane.top, width: plane.width, height: plane.height };
+    smokeState.region = { x: plane.left - plane.width * 0.04,
+      y: plane.top + plane.height * 0.56,
+      width: plane.width * 1.08, height: plane.height * 0.23 };
+    smokeState.viewport[0] = cssWidth;
+    smokeState.viewport[1] = cssHeight;
+    geometryProgress = progress;
+    geometryDirty = false;
+  }
   function blit(target) {
     if (target) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, target.fbo);
@@ -554,44 +736,146 @@
     gl.bindTexture(gl.TEXTURE_2D, target.tex);
   }
 
+  // ---- The reveal's gush -------------------------------------------------------
+  // When the headlamps ignite, the same eight sources blow hard for a moment:
+  // low ground jets from under the bumper and the wheel arches, thrown out
+  // and toward the camera, heavy (little buoyancy) so they roll along the
+  // floor, then easing back into the calm breathing sources while the extra
+  // smoke thins away to a quiet layer. It runs on its own clock, so it plays
+  // out the same whether the visitor stops at the lamps or keeps scrolling.
+  // It fires once per reveal: scrolling back into the dark re-arms it, and
+  // the next ignition starts from fresh air rather than stacking smoke.
+  const BURST_AT = 0.27;   // both lamps are igniting (BMW_SCENE, js/chapters.js)
+  const BURST_REARM = 0.20;
+  const BURST_LENGTH = 5.5;
+  const burst = { t: Infinity, armed: null, seed: 0, count: 0, jet: 0, glow: 0, spread: 0, settle: 0, cover: 0 };
+  smokeState.burst = burst;
+  function armBurst() {
+    // Every progress read, even while the loop sleeps above the chapter.
+    if (burst.armed === null) burst.armed = progress < BURST_AT; // landing mid-chapter: no replay
+    if (progress < BURST_REARM) burst.armed = true;
+  }
+  // The push itself: full by .12 s, fading from .25 s (the outer sources
+  // follow it a little later; burst.jet is the middle's).
+  const burstJet = (t) => (t > 0 && t < BURST_LENGTH ? smooth(0, 0.12, t) * Math.exp(-Math.max(0, t - 0.25) / 0.55) : 0);
+  function burstPhase(dt) {
+    armBurst();
+    if (burst.armed && progress >= BURST_AT && progress < 0.54 && sim) {
+      burst.armed = false; burst.t = 0; burst.count++; burst.seed = Math.random() * 6.283;
+      freshAir();
+    } else if (burst.t < BURST_LENGTH) burst.t += dt;
+    else burst.t = Infinity;
+    const t = burst.t;
+    const active = t < BURST_LENGTH;
+    // jet: the push; glow: how much brighter the gush reads; spread: how far it may roll out past
+    // the resting ground region; settle: extra thinning once it has.
+    burst.jet = active ? burstJet(t) : 0;
+    burst.glow = active ? smooth(0, 0.15, t) * (1 - smooth(0.9, 3.2, t)) : 0;
+    burst.spread = active ? smooth(0, 0.6, t) * (1 - smooth(1.8, 3.8, t)) : 0;
+    burst.settle = active ? smooth(0.8, 1.6, t) * (1 - smooth(3.5, 5.5, t)) : 0;
+    burst.cover = active ? 1 - smooth(3.0, 4.5, t) : 0;
+  }
+  // The gush starts from clear air: the resting field is faded right down
+  // (not wiped, so nothing pops), and the air's old motion mostly stilled.
+  function freshAir() {
+    const g = progs.scale;
+    gl.useProgram(g.p);
+    gl.uniform1i(g.u.tex, 0);
+    bind(0, sim.dye.read);
+    gl.uniform1f(g.u.value, 0.12);
+    blit(sim.dye.write);
+    sim.dye.swap();
+    bind(0, sim.vel.read);
+    gl.uniform1f(g.u.value, 0.35);
+    blit(sim.vel.write);
+    sim.vel.swap();
+  }
+
   // Emitters: x, y, size (a variance, in screen heights squared), strength.
   const em = new Float32Array(8 * 4);
   const emv = new Float32Array(8 * 2);
   function updateEmitters(t) {
-    // Sideways speeds are set for a landscape screen. On a tall one the same
-    // speed would carry the smoke across it in a moment and stack it in a
-    // column down the middle, so they follow the width. Likewise the
-    // sources: six full-size ones would run together into one flat slab, so
-    // they shrink to stay distinct plumes.
+    // Overlapping continuous sources made a flat fog band, and on desktop
+    // they sat below the visible frame. Staggered breaths now originate at
+    // the lower bumper, with narrow gaps for the moving air to curl through.
     const w = Math.min(1, Math.max(0.3, simAspect / 1.6));
-    const size = 0.0075 * (0.4 + 0.6 * w);
+    const radius = photo.height * 0.023 / cssHeight;
+    const size = Math.max(0.000035, radius * radius);
+    const speed = Math.min(1, Math.max(0.60, photo.height / cssHeight * 0.65));
+    const onPhoto = (x, y) => [(photo.x + photo.width * x) / cssWidth,
+      1 - (photo.y + photo.height * y) / cssHeight];
     for (let i = 0; i < 6; i++) {
-      const x = (i + 0.5) / 6 + 0.05 * Math.sin(t * 0.27 + i * 1.9);
-      const y = 0.05 + 0.035 * Math.sin(t * 0.41 + i * 2.3);
-      const s = Math.sin(t * 0.33 + i * 1.1);
-      em.set([x, y, size, 0.55 + 0.45 * s * s], i * 4);
-      emv.set([((0.5 - x) * 30 + 8 * Math.sin(t * 0.6 + i * 2.1)) * w, 5 + 4 * Math.sin(t * 0.5 + i * 1.3)], i * 2);
+      const u = 0.12 + (i + 0.5) / 6 * 0.76 + 0.018 * Math.sin(t * 0.31 + i * 1.9);
+      const [x, y] = onPhoto(u, 0.661 + 0.008 * Math.sin(t * 0.43 + i * 2.3));
+      const breath = 0.5 + 0.5 * Math.sin(t * 0.82 + i * 2.1);
+      em.set([x, y, size, 0.20 + 0.65 * breath * breath], i * 4);
+      emv.set([((0.48 - u) * 24 + 11 * Math.sin(t * 0.63 + i * 2.1)) * w * speed,
+        (4 + 3 * Math.sin(t * 0.55 + i * 1.3)) * speed], i * 2);
     }
-    em.set([0.0, 0.14 + 0.03 * Math.sin(t * 0.3), 0.01, 0.8], 24);
-    emv.set([(18 + 4 * Math.sin(t * 0.5)) * w, 2], 12);
-    em.set([1.0, 0.14 + 0.03 * Math.sin(t * 0.36 + 1), 0.01, 0.8], 28);
-    emv.set([(-18 - 4 * Math.sin(t * 0.45)) * w, 2], 14);
+    const [lx, ly] = onPhoto(0.12, 0.641 + 0.009 * Math.sin(t * 0.35));
+    const [rx, ry] = onPhoto(0.86, 0.641 + 0.009 * Math.sin(t * 0.39 + 1));
+    em.set([lx, ly, size * 1.2, 0.32 + 0.22 * Math.sin(t * 0.72) ** 2], 24);
+    emv.set([(16 + 6 * Math.sin(t * 0.5)) * w * speed, 3 * speed], 12);
+    em.set([rx, ry, size * 1.2, 0.32 + 0.22 * Math.sin(t * 0.68 + 1.4) ** 2], 28);
+    emv.set([(-16 - 6 * Math.sin(t * 0.45)) * w * speed, 3 * speed], 14);
+    if (!(burst.t < BURST_LENGTH)) return;
+    // The gush: the same sources, wider and far stronger, blowing outward
+    // from beneath the car. The middle pair drives down toward the camera,
+    // the rest fan out along the ground and lift as they go; the arches
+    // throw it sideways round the wheels. Each reveal varies a little.
+    const s = burst.seed;
+    // It blooms from the middle: the outer sources join a beat later.
+    const at = (delay) => burstJet(burst.t - delay);
+    for (let i = 0; i < 6; i++) {
+      const o = i * 4, v = i * 2;
+      const u = 0.12 + (i + 0.5) / 6 * 0.76;
+      const out = (u - 0.5) * 2;
+      const middle = i === 2 || i === 3;
+      const jet = at(Math.abs(out) * 0.2);
+      if (jet <= 0.001) continue;
+      const bx = out * (middle ? 38 : 92) + 9 * Math.sin(s + i * 1.7);
+      const by = middle ? -30 + 6 * Math.sin(s * 1.3 + i) : 3 + 6 * Math.sin(s + i * 2.3);
+      em[o + 1] += (onPhoto(u, 0.674)[1] - em[o + 1]) * jet;
+      em[o + 2] = size * (1 + 1.6 * jet);
+      em[o + 3] += (0.95 - em[o + 3]) * jet;
+      emv[v] += (bx * w * speed - emv[v]) * jet;
+      emv[v + 1] += (by * speed - emv[v + 1]) * jet;
+    }
+    for (const [o, v, dir] of [[24, 12, -1], [28, 14, 1]]) {
+      const jet = at(0.22);
+      if (jet <= 0.001) continue;
+      em[o + 2] = size * 1.2 * (1 + 1.4 * jet);
+      em[o + 3] += (0.9 - em[o + 3]) * jet;
+      emv[v] += ((dir * 105 + 10 * Math.sin(s * 0.7 + dir)) * w * speed - emv[v]) * jet;
+      emv[v + 1] += (7 * speed - emv[v + 1]) * jet;
+    }
   }
 
   // ---- Pointer -----------------------------------------------------------------
-  // In uv (0..1, y up), which is also the simulation's space, because the
-  // canvas is pinned to the viewport. s* is the eased position actually
+  // In canvas uv (0..1, y up), which is also the simulation's space. The
+  // canvas can be shorter than the viewport when mobile chrome retracts.
+  // s* is the eased position actually
   // used: a little lag makes a jittery hand read as a gentle one.
-  const ptr = { x: 0.5, y: 0.5, seen: false, target: 0, active: 0, sx: 0.5, sy: 0.5, px: 0.5, py: 0.5 };
+  const ptr = { x: 0.5, y: 0.5, cx: 0, cy: 0, seen: false, target: 0, active: 0, sx: 0.5, sy: 0.5, px: 0.5, py: 0.5 };
+  function projectPointer() {
+    const bounds = canvas.getBoundingClientRect();
+    ptr.x = (ptr.cx - bounds.left) / (bounds.width || cssWidth);
+    ptr.y = 1 - (ptr.cy - bounds.top) / (bounds.height || cssHeight);
+  }
   function point(cx, cy) {
-    ptr.x = cx / window.innerWidth;
-    ptr.y = 1 - cy / window.innerHeight;
+    ptr.cx = cx;
+    ptr.cy = cy;
+    ptr.target = 1;
+    // Keep the latest client position while asleep. wake/resetPointer
+    // projects it once against the current canvas and clears its history,
+    // rather than measuring an offscreen canvas twice per pointer event.
+    if (!frameId) { ptr.seen = true; return; }
+    projectPointer();
     if (!ptr.seen) {
       ptr.seen = true;
       ptr.sx = ptr.px = ptr.x;
       ptr.sy = ptr.py = ptr.y;
     }
-    ptr.target = 1;
   }
   window.addEventListener('pointermove', (e) => {
     if (e.pointerType === 'touch') return;
@@ -622,8 +906,10 @@
     gl.uniform1i(g.u.vel, 0);
     gl.uniform1i(g.u.dye, 1);
     gl.uniform1f(g.u.dt, dt);
-    gl.uniform1f(g.u.flow, flow * Math.min(1, Math.max(0.3, simAspect / 1.6)));
-    gl.uniform1f(g.u.buoy, P.buoyancy);
+    // While the gush rolls out, the scroll's gentle gathering waits; it then
+    // draws the settling smoke back in beneath the car.
+    gl.uniform1f(g.u.flow, flow * (1 - burst.spread) * Math.min(1, Math.max(0.3, simAspect / 1.6)));
+    gl.uniform1f(g.u.buoy, P.buoyancy * (1 - 0.6 * burst.jet));
     blit(vel.write);
     vel.swap();
 
@@ -645,8 +931,8 @@
     gl.uniform1i(g.u.target, 0);
     gl.uniform1f(g.u.aspect, aspect);
     gl.uniform4fv(g.u.em, em);
-    gl.uniform1f(g.u.cap, P.emitCap);
-    gl.uniform1f(g.u.add, P.emitAdd * dt);
+    gl.uniform1f(g.u.cap, P.emitCap * (1 + 0.25 * burst.jet));
+    gl.uniform1f(g.u.add, P.emitAdd * dt * (1 + 5 * burst.jet));
     blit(dye.write);
     dye.swap();
 
@@ -694,7 +980,7 @@
     gl.uniform1i(g.u.vel, 0);
     gl.uniform1i(g.u.curl, 1);
     gl.uniform2f(g.u.texel, vel.texel[0], vel.texel[1]);
-    gl.uniform1f(g.u.strength, P.curl);
+    gl.uniform1f(g.u.strength, P.curl * (1 + 0.6 * burst.jet));
     gl.uniform1f(g.u.dt, dt);
     blit(vel.write);
     vel.swap();
@@ -755,8 +1041,8 @@
 
     bind(0, vel.read);
     bind(1, dye.read);
-    gl.uniform1f(g.u.rateLow, P.dyeRateLow);
-    gl.uniform1f(g.u.rateHigh, P.dyeRateHigh);
+    gl.uniform1f(g.u.rateLow, P.dyeRateLow + 0.5 * burst.settle);
+    gl.uniform1f(g.u.rateHigh, P.dyeRateHigh + 0.4 * burst.settle);
     gl.uniform1f(g.u.ceil, 1);
     blit(dye.write);
     dye.swap();
@@ -767,71 +1053,92 @@
   // keep sharp. CSS stretches it back up.
   const RENDER_SCALE = 0.6;
   function resize() {
-    const w = Math.max(1, Math.round(window.innerWidth * RENDER_SCALE));
-    const h = Math.max(1, Math.round(window.innerHeight * RENDER_SCALE));
+    cssWidth = Math.max(1, canvas.clientWidth || window.innerWidth);
+    cssHeight = Math.max(1, canvas.clientHeight || window.innerHeight);
+    const w = Math.max(1, Math.round(cssWidth * RENDER_SCALE));
+    const h = Math.max(1, Math.round(cssHeight * RENDER_SCALE));
     if (w !== cw || h !== ch) {
       cw = w;
       ch = h;
       canvas.width = w;
       canvas.height = h;
+      geometryDirty = true;
     }
     // A different shape of screen (a phone turned over) needs a
     // differently-shaped grid.
-    const aspect = window.innerWidth / window.innerHeight;
+    const aspect = cssWidth / cssHeight;
     if (!sim || Math.abs(aspect / simAspect - 1) > 0.12) initSim(aspect);
   }
 
   // ---- Scroll ----------------------------------------------------------------------
-  // Smoothstep, hand-rolled. The smoke drifts in as the intro scrolls away
-  // (0 -> 12% of #bmw-chapter's own progress), holds while the headlamps
-  // switch on through it (BMW_SCENE.intro in js/chapters.js starts them at
-  // 12%), then separates and thins from 24% to 42% as their light reaches
-  // the car — all done before the render sweep at 44%. So the order is:
-  // darkness, smoke, headlamps through the smoke, light on the car, smoke
-  // clearing.
+  // The headlamps ignite at 24.5–27% and the car is revealed by 40.5%. The
+  // gush (above) plays out from the ignition; after it, a quiet layer of
+  // smoke stays under the car, and from 40.5% the original wisps rise to
+  // full, breathe under the bumper, and part. Nothing shows before the
+  // ignition, so the forming LED outline is always drawn in clean air. The
+  // same camera progress controls the envelope in both scroll directions.
   const smooth = (a, b, x) => {
     const t = Math.min(Math.max((x - a) / (b - a), 0), 1);
     return t * t * (3 - 2 * t);
   };
+  const SMOKE_FROM = 0.245;
+  // The simulation resumes a little before the ignition, so the air is moving.
+  const SIM_FROM = 0.22;
   function coverageAt(p) {
-    if (p < 0.12) return smooth(0, 0.12, p);
-    if (p < 0.24) return 1;
-    if (p < 0.42) return 1 - smooth(0.24, 0.42, p);
-    return 0;
+    if (p <= SMOKE_FROM || p >= 0.62) return 0;
+    const atmosphere = 0.62 * smooth(SMOKE_FROM, 0.30, p);
+    const rise = p < 0.405 ? 0 : smooth(0.405, 0.46, p);
+    return Math.max(atmosphere, rise) * (1 - smooth(0.54, 0.62, p));
   }
-  // Negative while it gathers (rolling in from the sides), settling to
-  // nothing as it holds, then positive as it parts.
+  // The gush is shown in full while it lasts, inside the same bounds.
+  const burstGate = (p) => smooth(SMOKE_FROM, 0.26, p) * (1 - smooth(0.54, 0.62, p));
   function flowAt(p) {
-    if (p < 0.24) return -(1 - smooth(0.06, 0.24, p));
-    return smooth(0.24, 0.3, p) * (1 - smooth(0.34, 0.44, p));
+    if (p < 0.54) return -0.45 * (1 - smooth(0.405, 0.47, p));
+    return smooth(0.54, 0.58, p) * (1 - smooth(0.60, 0.62, p));
   }
-
-  // The scroll target is recorded here, and again from the live scroll
-  // position every frame in step() — a phone's momentum scroll can go a
-  // long way between the trigger's callbacks, and the smoke must never be
-  // left showing where the page no longer is. What the shader and the
-  // simulation see eases toward it in step().
+  // The BMW timeline publishes its rendered progress, so the smoke, car
+  // and headlamps all use the same scrub. Until that timeline is ready,
+  // the local trigger also supports restored scroll positions.
   let target = 0;
   let flowTarget = 0;
   let progress = 0;
   let coverage = 0;
   let snapped = false;
-  const st = ScrollTrigger.create({
+  let ready = false;
+  let st = null;
+  function readProgress(fallback) {
+    const shared = Number.isFinite(section._sceneProgress);
+    if (shared) progress = section._sceneProgress;
+    else if (Number.isFinite(fallback)) progress = fallback;
+    else if (st && st.end > st.start) {
+      progress = Math.min(Math.max((window.pageYOffset - st.start) / (st.end - st.start), 0), 1);
+    }
+    target = Math.max(coverageAt(progress), burst.cover * burstGate(progress));
+    flowTarget = flowAt(progress);
+    if (shared) {
+      coverage = target;
+      flow = flowTarget;
+    }
+    armBurst();
+    smokeState.progress = progress;
+    smokeState.coverage = coverage;
+    smokeState.flow = flow;
+    return shared;
+  }
+  st = ScrollTrigger.create({
     trigger: section,
     start: 'top top',
     end: 'bottom bottom',
     onUpdate: (self) => {
-      progress = self.progress;
-      target = coverageAt(progress);
-      flowTarget = flowAt(progress);
+      readProgress(self.progress);
+      wake();
     },
     onRefresh: (self) => {
-      progress = self.progress;
-      target = coverageAt(progress);
-      flowTarget = flowAt(progress);
+      readProgress(self.progress);
       // Landing mid-chapter (reload, anchor link): start there rather than
       // easing in from nothing.
       if (!snapped) { coverage = target; flow = flowTarget; snapped = true; }
+      wake();
     },
   });
 
@@ -843,12 +1150,13 @@
   // veil's light can't drift apart. Until the timeline has written them
   // the lamps are simply off.
   const veilEl = section.querySelector('.reveal-veil');
-  const lamps = { ax: 0.3, ay: 0.44, bx: 0.7, by: 0.44, i: 0 };
+  const lamps = { ax: 0.3, ay: 0.44, bx: 0.7, by: 0.44, i: 0, r: 9, glow: 0 };
+  const lampGlows = [section.querySelector('.lamp-lit--left'), section.querySelector('.lamp-lit--right')];
   function readLamps() {
     if (!veilEl) return;
     const s = veilEl.style;
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+    const w = cssWidth;
+    const h = cssHeight;
     const px = (name, fallback) => {
       const v = s.getPropertyValue(name);
       return v.endsWith('px') ? parseFloat(v) : fallback;
@@ -859,18 +1167,22 @@
     lamps.by = 1 - px('--l2y', h * 0.56) / h;
     const i = parseFloat(s.getPropertyValue('--li'));
     lamps.i = Number.isFinite(i) ? Math.min(Math.max(i, 0), 1) : 0;
+    const r = parseFloat(s.getPropertyValue('--lr'));
+    lamps.r = Number.isFinite(r) ? Math.max(r, 0) : 9;
+    // The timeline's inline opacity on each lamp's glow (no layout read).
+    let glow = 0;
+    for (const el of lampGlows) glow += Math.min(Math.max(parseFloat(el?.style.opacity) || 0, 0), 1) * 0.5;
+    lamps.glow = glow * 0.85;
   }
 
-  // Runs only while there's a reason to: the chapter is on screen and
-  // we're in the stretch of it where the smoke lives.
-  let visible = true;
-  new IntersectionObserver(([entry]) => {
-    visible = entry.isIntersecting;
-  }, { rootMargin: '20% 0px' }).observe(section);
+  // An observer wakes the simulation before the chapter arrives. Hidden
+  // sections retain their fluid state without scheduling more frames.
+  let visible = false;
 
   const narrowScreen = window.matchMedia('(max-width: 720px)');
   const clock = { t: 0, sim: 0 };
   let warm = 0;
+  let sizeDirty = true;
 
   function render() {
     const d = progs.display;
@@ -881,13 +1193,25 @@
     gl.uniform2f(d.u.resolution, cw, ch);
     gl.uniform1f(d.u.time, clock.t);
     gl.uniform1f(d.u.coverage, coverage);
+    gl.uniform4fv(d.u.photo, photoUV);
     readLamps();
     gl.uniform2f(d.u.lampA, lamps.ax, lamps.ay);
     gl.uniform2f(d.u.lampB, lamps.bx, lamps.by);
     gl.uniform1f(d.u.lampI, lamps.i);
-    // A phone is a small, tall screen: the same smoke fills a larger share
-    // of it and reads brighter, so it's held back a little.
-    gl.uniform1f(d.u.gain, narrowScreen.matches ? 0.92 : 1);
+    gl.uniform1f(d.u.light, lamps.glow);
+    gl.uniform2f(d.u.burst, burst.glow, burst.spread);
+    gl.uniform4f(d.u.veil, lamps.i, lamps.r, glVeil ? 1 : 0, 0);
+    gl.uniform4f(d.u.lpx, lamps.ax * cssWidth, (1 - lamps.ay) * cssHeight, lamps.bx * cssWidth, (1 - lamps.by) * cssHeight);
+    gl.uniform2f(d.u.css, cssWidth, cssHeight);
+    // A small phone needs a much quieter foreground, not just a slight
+    // reduction of the landscape smoke's opacity (its gush is let up a little).
+    smokeState.gain = narrowScreen.matches ? 0.44 * (1 + 0.25 * burst.glow) : 0.68;
+    gl.uniform1f(d.u.gain, smokeState.gain);
+    smokeState.lampCoordinates[0][0] = lamps.ax * cssWidth;
+    smokeState.lampCoordinates[0][1] = (1 - lamps.ay) * cssHeight;
+    smokeState.lampCoordinates[1][0] = lamps.bx * cssWidth;
+    smokeState.lampCoordinates[1][1] = (1 - lamps.by) * cssHeight;
+    smokeState.lampIntensity = lamps.i;
     blit(null);
   }
 
@@ -895,23 +1219,63 @@
   // the smoke has gone, and never shows a stale frame.
   let drawn = false;
 
-  function step(dt) {
-    if (st.end > st.start) {
-      progress = Math.min(Math.max((window.pageYOffset - st.start) / (st.end - st.start), 0), 1);
-      target = coverageAt(progress);
-      flowTarget = flowAt(progress);
+  // The lamp-lit veil is drawn here too, beneath the smoke, from the very
+  // same properties the CSS veil reads (the chapter writes them each frame).
+  // A viewport-sized gradient mask re-parameterised on every frame of the
+  // reveal is costly to composite — in Firefox it halved the frame rate —
+  // while one shader pass is not. It redraws only when its values change;
+  // the CSS veil stays underneath as the fallback, hidden once this draws.
+  let glVeil = false;
+  let veilKey = '';
+  function present() {
+    if (!ready || !gl) return;
+    if (sizeDirty || !sim) {
+      resize();
+      sizeDirty = false;
     }
-    // Ease toward the scroll target (about a sixth of a second to settle):
-    // a wheel notch lands as a short glide, not a step.
-    const k = 1 - Math.exp(-dt * 7);
-    coverage += (target - coverage) * k;
-    if (Math.abs(target - coverage) < 0.0005) coverage = target;
-    flow += (flowTarget - flow) * k;
+    if (!sim) return;
+    readLamps();
+    const smoke = coverage > 0.002;
+    glVeil = visible && !document.hidden;
+    const key = glVeil ? [lamps.ax, lamps.ay, lamps.bx, lamps.by, lamps.i, lamps.r, cw, ch, smoke].join() : '';
+    if (smoke || (glVeil && (key !== veilKey || !drawn))) {
+      render();
+      drawn = true;
+      smokeState.drawn = smoke;
+      veilKey = key;
+      if (glVeil && !section.classList.contains('has-gl-veil')) section.classList.add('has-gl-veil');
+    } else if (!glVeil) {
+      clearCanvas();
+      veilKey = '';
+    }
+  }
+
+  function clearCanvas() {
+    if (!drawn) return;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, cw, ch);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    drawn = false;
+    smokeState.drawn = false;
+  }
+
+  function step(dt) {
+    const shared = readProgress();
+    // Only the startup fallback needs easing; the car timeline is already
+    // eased and must not acquire a second delay here.
+    if (!shared) {
+      const k = 1 - Math.exp(-dt * 7);
+      coverage += (target - coverage) * k;
+      if (Math.abs(target - coverage) < 0.0005) coverage = target;
+      flow += (flowTarget - flow) * k;
+    }
+    // Even the pre-initialization fallback must respect both hard sequence
+    // boundaries; no easing tail may leave smoke over the forming LEDs.
+    if (progress <= SMOKE_FROM || progress >= 0.62) coverage = 0;
     clock.t += dt;
 
-    // The pointer's history is consumed every frame, live or not, so
-    // motion made while the smoke was offscreen doesn't arrive as one
-    // enormous stroke when it comes back.
+    // The history is reset on resume; only visible motion moves the air.
     ptr.px = ptr.sx;
     ptr.py = ptr.sy;
     const follow = 1 - Math.exp(-dt * 22);
@@ -919,19 +1283,38 @@
     ptr.sy += (ptr.y - ptr.sy) * follow;
     ptr.active += (ptr.target - ptr.active) * (1 - Math.exp(-dt * 8));
 
-    resize();
+    if (sizeDirty || !sim) {
+      resize();
+      sizeDirty = false;
+    }
     if (!sim) return;
+    readGeometry();
 
-    const live = visible && progress < 0.5;
-    if (live) {
-      // The air's speed under the pointer, in grid cells per second, with
-      // only about a quarter of the pointer's own speed handed on.
-      const cap = (v) => Math.max(-60, Math.min(60, v));
-      const mvx = cap(((ptr.sx - ptr.px) / dt) * sim.vel.w * 0.24);
-      const mvy = cap(((ptr.sy - ptr.py) / dt) * sim.vel.h * 0.24);
-      const sdt = Math.min(dt, 1 / 30);
-      clock.sim += sdt;
-      simulate(sdt, clock.sim, mvx, mvy);
+    // The air only needs to move once the smoke is close to showing; during
+    // the headlight formation before it, the settled field simply waits.
+    const near = progress > SIM_FROM && progress < 0.70;
+    // Leaving the chapter ends a gush in progress rather than freezing it.
+    if (!near && burst.t < BURST_LENGTH) burst.t = BURST_LENGTH;
+    if (visible) {
+      // On the fluid's own (capped) step, so a slow device sees the whole
+      // gush in step with the smoke it pours, rather than its jets ending
+      // before the air has carried them anywhere.
+      burstPhase(Math.min(dt, 1 / 30));
+      if (shared) readProgress();
+      else target = Math.max(coverageAt(progress), burst.cover * burstGate(progress));
+      if (progress <= SMOKE_FROM || progress >= 0.62) coverage = 0;
+    }
+    if (visible && (near || warm > 0)) {
+      if (near) {
+        // The air's speed under the pointer, in grid cells per second, with
+        // only about a quarter of the pointer's own speed handed on.
+        const cap = (v) => Math.max(-60, Math.min(60, v));
+        const mvx = cap(((ptr.sx - ptr.px) / dt) * sim.vel.w * 0.24);
+        const mvy = cap(((ptr.sy - ptr.py) / dt) * sim.vel.h * 0.24);
+        const sdt = Math.min(dt, 1 / 30);
+        clock.sim += sdt;
+        simulate(sdt, clock.sim, mvx, mvy);
+      }
       // The first moments of the simulation are just smoke being poured
       // in; it's brought up to speed a few frames at a time, behind the
       // intro, so the smoke is already a settled thing when it's needed.
@@ -940,24 +1323,106 @@
         simulate(1 / 30, clock.sim, 0, 0);
       }
     }
-    if (coverage > 0.002) {
-      render();
-      drawn = true;
-    } else if (drawn) {
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      gl.viewport(0, 0, cw, ch);
-      gl.clearColor(0, 0, 0, 0);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-      drawn = false;
-    }
+    present();
+    smokeState.frames++;
+    smokeState.progress = progress;
+    smokeState.coverage = coverage;
+    smokeState.flow = flow;
+    smokeState.time = clock.t;
+    smokeState.simulationTime = clock.sim;
   }
 
+  let frameId = 0;
   let last = 0;
+  function resetPointer() {
+    // A paused canvas may have moved under a stationary pointer.
+    if (ptr.seen) projectPointer();
+    ptr.sx = ptr.px = ptr.x;
+    ptr.sy = ptr.py = ptr.y;
+    ptr.active = 0;
+  }
+  function shouldRun() {
+    if (!visible || document.hidden) return false;
+    // Smoke on the canvas keeps the loop alive until it is cleared; the veil
+    // alone does not (it is redrawn on change, from the scene clock).
+    return (progress > SIM_FROM && progress < 0.62) || coverage > 0.002 || smokeState.drawn
+      || (progress < 0.62 && (!sim || warm > 0));
+  }
+  function stop() {
+    if (!frameId && !last && !smokeState.running && ptr.active === 0) return;
+    cancelAnimationFrame(frameId);
+    frameId = 0;
+    last = 0;
+    smokeState.running = false;
+    resetPointer();
+  }
+  function wake() {
+    // ScrollTrigger may refresh synchronously during its own creation.
+    if (!ready) return;
+    readProgress();
+    // A reversal can close the smoke gate before its next fluid frame:
+    // redraw (the veil alone) with the native scene clock straight away.
+    // This also draws the veil on each camera move while the fluid sleeps.
+    if (coverage <= 0.002 || !frameId) present();
+    if (!shouldRun()) {
+      stop();
+      if (!visible || document.hidden) present();
+      return;
+    }
+    if (!frameId) {
+      resetPointer();
+      last = 0;
+      frameId = requestAnimationFrame(frame);
+      smokeState.running = true;
+    }
+  }
   function frame(now) {
+    frameId = 0;
+    if (!shouldRun()) { stop(); present(); return; }
     const dt = last ? Math.min((now - last) / 1000, 0.05) : 1 / 60;
     last = now;
     step(dt);
-    requestAnimationFrame(frame);
+    if (sim && shouldRun()) frameId = requestAnimationFrame(frame);
+    else stop();
   }
-  requestAnimationFrame(frame);
+  // Programs are built after the opening, or as soon as the car is near.
+  const begin = () => buildPrograms().then((built) => {
+    if (!built || ready) return;
+    progs = built;
+    ready = true;
+    wake();
+  });
+  window.SceneIdle?.prepare(0, begin, 150, 1200);
+  if (!window.SceneIdle) begin();
+  section.addEventListener('sceneprogress', () => { geometryDirty = true; if (!ready && progress > 0) begin(); wake(); });
+  new IntersectionObserver(([entry]) => {
+    visible = entry.isIntersecting;
+    if (!ready && visible && window.scrollY > 0) begin();
+    wake();
+  }, { rootMargin: '20% 0px' }).observe(section);
+  document.addEventListener('visibilitychange', wake);
+  let layoutRefreshTimer = 0;
+  window.addEventListener('resize', () => {
+    sizeDirty = true;
+    geometryDirty = true;
+    resetPointer();
+    wake();
+    clearTimeout(layoutRefreshTimer);
+    layoutRefreshTimer = setTimeout(() => {
+      layoutRefreshTimer = 0;
+      const measured = section._photoBridgeLayout?.().viewport;
+      if (!measured || !sceneFrame) return;
+      // Mobile resize can suppress the native debounce when returning to a
+      // previous width. Reuse its refresh only if its measured stage is stale;
+      // browser chrome changing without a stage-size change needs no work.
+      if (Math.abs(measured.width - sceneFrame.clientWidth) <= 0.5
+        && Math.abs(measured.height - sceneFrame.clientHeight) <= 0.5) return;
+      ScrollTrigger.refresh();
+      smokeState.layoutRefreshes++;
+      sizeDirty = true;
+      geometryDirty = true;
+      wake();
+    }, 220);
+  }, { passive: true });
+  window.addEventListener('pageshow', wake);
 })();

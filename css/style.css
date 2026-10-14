@@ -20,6 +20,10 @@
   --radius: 18px;
   --ease-fluid: cubic-bezier(0.22, 1, 0.36, 1);
   --container: 1080px;
+  --stage-h: 100vh;
+}
+@supports (height: 100svh) {
+  :root { --stage-h: 100svh; }
 }
 
 * { box-sizing: border-box; }
@@ -141,122 +145,70 @@ p { margin: 0; }
   mix-blend-mode: screen;
 }
 
-.cursor-glow {
-  position: fixed;
-  z-index: 2;
-  width: 420px;
-  height: 420px;
-  margin-left: -210px;
-  margin-top: -210px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(226, 162, 78, 0.14), transparent 70%);
-  pointer-events: none;
-  transform: translate3d(-999px, -999px, 0);
-  will-change: transform;
-  transition: opacity 0.6s ease;
-}
-
-/* The glow sits out the cinematic transitions — while a scene's light is
-   arriving or the camera is moving between chapters — so a UI flourish
-   never floats over the film. js/chapters.js sets the class. */
-.is-scene-transition .cursor-glow {
-  opacity: 0;
-}
-
-@media (max-width: 720px), (hover: none) {
-  .cursor-glow { display: none; }
-}
-
-/* ---------- Nav ---------- */
+/* ---------- Navigation: a quiet glass rail ---------- */
 .nav-wrap {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 50;
-  display: flex;
-  justify-content: center;
-  padding-top: 18px;
-  pointer-events: none;
+  position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+  display: flex; justify-content: center;
+  padding-top: max(16px, env(safe-area-inset-top)); pointer-events: none;
 }
-
 .nav {
-  pointer-events: all;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  width: min(92%, 880px);
-  padding: 10px 10px 10px 22px;
-  border-radius: 999px;
-  background: rgba(14, 16, 25, 0.6);
-  border: 1px solid var(--surface-border);
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
-  transition: background 0.4s var(--ease-fluid), box-shadow 0.4s var(--ease-fluid);
+  position: relative; pointer-events: auto;
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+  width: min(calc(100% - 48px), 960px); min-height: 58px;
+  padding: 6px 8px 6px 20px; border-radius: 14px;
+  background: rgba(9, 12, 18, 0.76); border: 1px solid rgba(209, 224, 238, 0.12);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.13);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
 }
-
 .nav-logo {
-  font-weight: 700;
-  font-size: 1.15rem;
+  display: inline-flex; align-items: center; min-height: 44px;
+  font-size: 1.1rem; font-weight: 600; letter-spacing: -0.035em; color: #edf1f5;
 }
-.nav-logo span { color: var(--accent-b); }
-
+.nav-logo span { color: #aab9c9; }
 .nav-links {
-  display: flex;
-  align-items: center;
-  gap: 28px;
+  position: relative; display: flex; align-items: center; gap: 4px;
 }
-
+.nav-links li { position: relative; }
 .nav-links a {
-  position: relative;
-  font-size: 0.92rem;
-  color: var(--text-dim);
-  transition: color 0.3s ease;
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 44px; padding: 9px 16px; border-radius: 7px;
+  font-size: 0.8rem; font-weight: 500; letter-spacing: 0.02em; line-height: 1.4;
+  color: #aab2c0; transition: color 180ms ease, background 180ms ease;
 }
-.nav-links a:not(.nav-cta)::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  bottom: -6px;
-  width: 0%;
-  height: 1.5px;
-  background: var(--grad);
-  transition: width 0.35s var(--ease-fluid);
+.nav-links a.active { color: #edf1f5; }
+.nav-marker {
+  position: absolute; bottom: 10px; left: 0; width: 0; height: 1px;
+  background: #b8c8d8; opacity: 0; pointer-events: none;
+  transform: translateX(0);
+  transition: transform 300ms var(--ease-fluid), width 300ms var(--ease-fluid), opacity 180ms ease;
 }
-.nav-links a:hover,
-.nav-links a.active {
-  color: var(--text);
+.nav-marker.ready { opacity: 0.85; }
+.nav-links .nav-cta {
+  margin-left: 12px; padding-left: 22px; border-left: 1px solid rgba(209, 224, 238, 0.16);
+  border-radius: 0; color: #e0e6ed;
 }
-.nav-links a:not(.nav-cta):hover::after,
-.nav-links a:not(.nav-cta).active::after {
-  width: 100%;
+.nav-cta-arrow { color: #9aabba; font-size: 1rem; transition: transform 180ms ease; }
+@media (hover: hover) {
+  .nav-links a:hover { color: #f4f6f8; background: rgba(207, 224, 239, 0.045); }
+  .nav-links .nav-cta:hover { background: transparent; }
+  .nav-cta:hover .nav-cta-arrow { transform: translateX(2px); }
 }
-
-.nav-cta {
-  padding: 9px 20px;
-  border-radius: 999px;
-  background: var(--grad);
-  color: #0a0a12 !important;
-  font-weight: 600;
+.nav a:focus-visible, .nav-toggle:focus-visible {
+  outline: 2px solid #b8c8d8; outline-offset: 3px;
 }
-
 .nav-toggle {
-  display: none;
-  flex-direction: column;
-  gap: 5px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 8px;
+  display: none; position: relative; width: 44px; height: 44px; flex: 0 0 44px;
+  padding: 0; border: 0; border-radius: 7px; background: transparent; cursor: pointer;
 }
 .nav-toggle span {
-  width: 20px;
-  height: 2px;
-  background: var(--text);
-  border-radius: 2px;
-  transition: transform 0.3s var(--ease-fluid), opacity 0.3s ease;
+  position: absolute; left: 12px; width: 20px; height: 1.5px;
+  background: #e1e7ed; transform-origin: center;
+  transition: transform 200ms var(--ease-fluid);
 }
+.nav-toggle span:first-child { top: 18px; }
+.nav-toggle span:last-child { top: 25px; }
+.nav-toggle[aria-expanded="true"] span:first-child { transform: translateY(3.5px) rotate(45deg); }
+.nav-toggle[aria-expanded="true"] span:last-child { transform: translateY(-3.5px) rotate(-45deg); }
 
 /* ---------- Progress rail ---------- */
 .progress-rail {
@@ -270,7 +222,9 @@ p { margin: 0; }
 }
 .progress-fill {
   height: 100%;
-  width: 0%;
+  width: 100%;
+  transform-origin: left center;
+  transform: scaleX(0);
   background: linear-gradient(90deg, var(--accent-c), var(--accent-a), var(--accent-b));
 }
 
@@ -291,7 +245,7 @@ p { margin: 0; }
    a stacking context here would prevent. */
 .hero {
   position: relative;
-  min-height: 100svh;
+  min-height: var(--stage-h);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -616,33 +570,36 @@ p { margin: 0; }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 860px) {
+  .nav-wrap { padding-top: max(12px, env(safe-area-inset-top)); }
+  .nav { width: calc(100% - 28px); min-height: 56px; padding: 5px 6px 5px 16px; border-radius: 12px; }
+  .nav-toggle { display: block; }
   .nav-links {
-    position: fixed;
-    top: 74px;
-    right: 16px;
-    left: 16px;
-    flex-direction: column;
-    align-items: stretch;
-    text-align: center;
-    background: rgba(14, 16, 25, 0.92);
-    border: 1px solid var(--surface-border);
-    border-radius: 20px;
-    padding: 18px;
-    gap: 16px;
-    -webkit-backdrop-filter: blur(18px);
-    backdrop-filter: blur(18px);
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(-12px);
-    transition: opacity 0.35s var(--ease-fluid), transform 0.35s var(--ease-fluid), visibility 0.35s;
+    position: absolute; top: calc(100% + 8px); left: -1px; right: -1px;
+    flex-direction: column; align-items: stretch; gap: 2px; padding: 10px;
+    max-height: calc(100svh - 100px - env(safe-area-inset-top)); overflow-y: auto;
+    border: 1px solid rgba(209, 224, 238, 0.14); border-radius: 12px;
+    background: rgba(9, 12, 18, 0.97); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+    opacity: 0; visibility: hidden; transform: translateY(-5px);
+    transition: opacity 200ms ease, transform 200ms var(--ease-fluid), visibility 200ms;
   }
-  .nav-links.open {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
+  .nav-links.open { opacity: 1; visibility: visible; transform: translateY(0); }
+  .nav-links a {
+    display: flex; justify-content: space-between; min-height: 48px; padding: 12px 16px;
+    font-size: 0.9rem; letter-spacing: 0.01em;
   }
-  .nav-toggle { display: flex; }
-  .nav-cta { align-self: center; }
+  .nav-links a::after { content: ''; width: 4px; height: 4px; border-radius: 50%; background: transparent; }
+  .nav-links a.active { background: rgba(209, 224, 238, 0.055); }
+  .nav-links a.active::after { background: #b8c8d8; }
+  .nav-links .nav-cta {
+    margin: 6px 0 0; padding: 15px 16px 12px; border-left: 0;
+    border-top: 1px solid rgba(209, 224, 238, 0.12); min-height: 52px;
+  }
+  .nav-cta::after { display: none; }
+  .nav-marker { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-links, .nav-links a, .nav-marker, .nav-toggle span, .nav-cta-arrow { transition: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -700,7 +657,7 @@ p { margin: 0; }
    is still rising out of frame — rather than after a screen of empty
    darkness. Transparent, so it never covers the hero. */
 .chapter-container--opening {
-  margin-top: -100vh;
+  margin-top: calc(-1 * var(--stage-h));
   background: none;
 }
 
@@ -719,15 +676,15 @@ p { margin: 0; }
 /* Each chapter now tells its whole story in place — reveal, slate, the
    work shown on the scene, and the crane between them — so each gets a
    longer stretch of scroll to do it unhurriedly. */
-.chapter-container--handoff { height: 560vh; }
+.chapter-container--handoff { height: calc(5 * var(--stage-h)); }
 
 /* ...and Bosch picks up exactly where it went dark: pulled up by a screen,
    so the BMW scene's last frame and this one's first are the same scroll
    position, with no dead screen of darkness between them. Transparent, so
    the overlapping screen never covers the end of the BMW push. */
 .chapter-container--continues {
-  height: 520vh;
-  margin-top: -100vh;
+  height: calc(5.6 * var(--stage-h));
+  margin-top: calc(-1 * var(--stage-h));
   background: none;
 }
 
@@ -736,7 +693,7 @@ p { margin: 0; }
   top: 0;
   left: 0;
   width: 100vw;
-  height: 100vh;
+  height: var(--stage-h);
   overflow: hidden;
   /* Stacked beneath the page's persistent beam (z-index 1), not above it.
      The beam is one fixed element behind the entire page; anything opaque
@@ -783,6 +740,11 @@ p { margin: 0; }
     linear-gradient(to bottom, transparent 0%, #000 14%, #000 86%, transparent 100%);
   mask-composite: intersect;
 }
+/* Set by js/chapters.js only while every feathered edge is off-screen. */
+.zoom-bg-image.is-frame-filled {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
 
 /* The photograph itself, with everything attached to it. js/chapters.js
    sizes it to the whole photo (fitted by width, placed vertically by the
@@ -827,6 +789,7 @@ p { margin: 0; }
    replaced. */
 .zoom-bg-blur {
   opacity: 0;
+  visibility: hidden;
 }
 
 /* On a phone the photo is only a screen tall (see fitScale in
@@ -927,6 +890,10 @@ p { margin: 0; }
   mask-composite: intersect;
 }
 
+/* Once js/bmw-smoke.js draws the same veil in its shader pass (beneath the
+   smoke), this CSS copy steps aside; it returns if WebGL is lost. */
+.has-gl-veil .reveal-veil--lamps { visibility: hidden; }
+
 /* Smoke ahead of the veil (z 3, the veil is z 2): a WebGL canvas
    (js/bmw-smoke.js) rendering real turbulent noise rather than a shape
    drawn in CSS, so it has genuine irregular structure and keeps evolving
@@ -1025,13 +992,19 @@ p { margin: 0; }
   filter: blur(22px);
 }
 
+/* Until js/chapters.js has built the scenes (it waits for GSAP), a chapter's
+   words are only its finished-state markup, which over the still-dark stage
+   reads as a broken page. The head marks that wait; it lifts on init, or by
+   itself if the scenes never arrive (the static page then shows). */
+.scenes-pending .chapter-content { visibility: hidden; }
+
 .chapter-content {
   position: sticky;
   top: 0;
   left: 0;
   width: 100vw;
-  height: 100vh;
-  margin-top: -100vh;
+  height: var(--stage-h);
+  margin-top: calc(-1 * var(--stage-h));
   display: flex;
   flex-direction: column;
   /* Top-aligned into the open dark space above the car. Vertically
@@ -1059,6 +1032,15 @@ p { margin: 0; }
 }
 .scene-story--bmw { --accent: #6db2ff; --accent-rgb: 109, 178, 255; }
 .scene-story--bosch { --accent: #ff5a4e; --accent-rgb: 255, 90, 78; }
+
+/* What the chapter timelines fade, slide or move each frame gets its own
+   compositor layer, so an animating label or light never repaints the
+   photograph or the viewport-sized text layer it sits in. */
+.scene-story .slate > *, .scene-story .slate-dock, .hud-corner, .hud-caption,
+.callout-dots i, .callout, .callout-leaders, .lamp-spill, .ripples i {
+  will-change: transform, opacity;
+}
+.zoom-bg-blur, .scan-line, .screen-on, .screen-spill, .strip { will-change: opacity; }
 
 .slate {
   position: absolute;
@@ -1774,15 +1756,17 @@ p { margin: 0; }
 }
 .story .slate-dock { display: none; }
 
-.has-story .story { margin-top: -100vh; }
-.has-story .story--beyond { height: 620vh; }
-.has-story .story--works { height: 540vh; }
-.has-story .story--education { height: 300vh; }
-.has-story .story--contact { height: 260vh; }
+.has-story .story { margin-top: calc(-1 * var(--stage-h)); pointer-events: none; }
+.has-story .story--beyond { height: calc(6 * var(--stage-h)); }
+.has-story .story--beyond .story-stage { background: #000; }
+.has-story .story--works { height: calc(5.2 * var(--stage-h)); }
+.has-story .story--education { height: calc(2.1 * var(--stage-h)); }
+.has-story .story--contact { height: calc(1.75 * var(--stage-h)); }
 .has-story .story-stage {
+  pointer-events: auto;
   position: sticky;
   top: 0;
-  height: 100vh;
+  height: var(--stage-h);
   padding: 0;
 }
 .has-story .story .slate {
@@ -1794,98 +1778,51 @@ p { margin: 0; }
 
 /* ================= 03 · Beyond ================= */
 .story--beyond { --accent: #e8b566; --accent-rgb: 232, 181, 102; }
+.story--beyond .slate-dock {
+  top: 84px;
+  left: auto;
+  right: clamp(20px, 4.5vw, 64px);
+}
+.story--beyond .slate-dock span {
+  padding-left: 0;
+  border-left: 0;
+}
 
-/* ---- Scene A: a cinematic light reveal — two real photographs of the
-   same pose, one barely lit and one fully lit, cross-dissolving with
-   scroll. No synthetic spotlight is added; the light is already in the
-   photographs. ---- */
+/* ---- Scene A: the photograph is the stage, with its natural dark space
+   reserved for the introduction. ---- */
 .reveal {
   position: relative;
   z-index: 0;
-  padding: 120px 24px 40px;
+  padding: 96px 0 40px;
 }
 .has-story .reveal { position: absolute; inset: 0; padding: 0; }
 
-/* A soft, blurred echo of the lit photo itself, sitting behind the frame
-   and spilling past its edges — so the frame's boundary reads as light
-   bleeding into the room rather than a picture rectangle laid over the
-   page. Brightens in sync with the photo (see js/story.js). */
-.reveal-glow {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  opacity: 0;
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: contain;
-  filter: blur(70px) saturate(1.15);
-  transform: scale(1.14);
-  pointer-events: none;
-}
-.has-story .reveal-glow {
-  left: 50%;
-  top: 50%;
-  inset: auto;
-  transform: translate(-50%, -50%) scale(1.14);
-  width: min(88vw, 1480px);
-  max-height: min(76vh, 820px);
-  aspect-ratio: 1672 / 941;
-}
-
-/* The frame holds the photo at its own aspect ratio (1672:941), so the
-   negative space it was shot with — where the introduction lands — always
-   falls in the same place relative to the frame, at any viewport size,
-   with no crop of either image. */
+/* The wrapper is kept as geometry for the scroll bridge. It paints no
+   border or mask; in the pinned scene the image reaches every stage edge. */
 .reveal-frame {
   position: relative;
-  z-index: 1;
-  margin: 0 auto;
-  width: min(90%, 1180px);
+  width: 100%;
   aspect-ratio: 1672 / 941;
-  /* Feathered deeply on every edge, so the photo dissolves gradually into
-     the dark stage rather than sitting on it as a hard-edged rectangle. */
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 20%, #000 80%, transparent),
-    linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent);
-  -webkit-mask-composite: source-in;
-  mask-image: linear-gradient(to right, transparent, #000 20%, #000 80%, transparent),
-    linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent);
-  mask-composite: intersect;
 }
 .has-story .reveal-frame {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: min(88vw, 1480px);
-  max-height: min(76vh, 820px);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
 }
 
-/* Both frames share one position, size and fit, pixel-for-pixel — the only
-   thing that changes between them is the light. */
+/* The source is shown without blur, glow or a second low-resolution layer. */
 .reveal-photo {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   object-position: center;
 }
-.reveal-photo--before { display: none; }
 .reveal-photo--after { opacity: 1; }
-.has-story .reveal-photo--before { display: block; opacity: 1; }
-.has-story .reveal-photo--after { opacity: 0; }
-
-/* The dark it opens on: near-opaque at rest (a faint silhouette is all
-   that should read), lifted by JS as the light arrives. Invisible in the
-   static/no-JS page, where the fully-lit frame is shown outright. */
-.reveal-shade {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  background: var(--bg);
-  opacity: 0;
-  pointer-events: none;
-}
+.has-story .reveal-photo--after { opacity: 1; }
 
 /* ---- The introduction: waits in the negative space the photo's own
    composition leaves beside him, never over his face or shoulders ---- */
@@ -1919,7 +1856,6 @@ p { margin: 0; }
   line-height: 1.14;
   letter-spacing: -0.02em;
   color: var(--text);
-  text-shadow: 0 4px 28px rgba(8, 9, 15, 0.75);
 }
 .intro-support {
   max-width: 500px;
@@ -1927,7 +1863,6 @@ p { margin: 0; }
   font-size: clamp(1rem, 1.25vw, 1.15rem);
   line-height: 1.55;
   color: var(--text-dim);
-  text-shadow: 0 2px 14px rgba(8, 9, 15, 0.8);
 }
 .intro-now {
   display: inline-flex;
@@ -1936,7 +1871,6 @@ p { margin: 0; }
   margin: 24px auto 0;
   font-size: 0.85rem;
   color: var(--text-dim);
-  text-shadow: 0 2px 14px rgba(8, 9, 15, 0.8);
 }
 .intro-now strong { color: var(--text); }
 .now-dot {
@@ -1945,11 +1879,8 @@ p { margin: 0; }
   height: 8px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.18);
   transform: translateY(-1px);
-  animation: now-pulse 2.4s ease-in-out infinite;
 }
-@keyframes now-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
 
 /* ---- The toolkit: a thin marquee, like end-credits, not a card grid ---- */
 .toolkit-marquee {
@@ -1958,8 +1889,6 @@ p { margin: 0; }
   overflow: hidden;
   margin-top: 32px;
   padding: 14px 0;
-  border-top: 1px solid rgba(var(--accent-rgb), 0.18);
-  border-bottom: 1px solid rgba(var(--accent-rgb), 0.18);
 }
 .has-story .toolkit-marquee {
   position: absolute;
@@ -1990,6 +1919,7 @@ p { margin: 0; }
    (reduced motion) the same canvas is an ordinary block that draws the
    finished lab once. If the 3D can't run at all (.is-failed) the captions
    simply sit over the dark stage. */
+.has-story .lab-scene { position: absolute; inset: 0; }
 .console {
   position: relative;
   padding: 120px 24px 40px;
@@ -2118,6 +2048,7 @@ p { margin: 0; }
   text-shadow: 0 4px 20px rgba(8, 9, 15, 0.7);
 }
 .has-story .console-beat { position: absolute; inset: 0; }
+.has-story :is(.console-kicker, .console-role, .console-beat, .lab-steps) { will-change: transform, opacity; }
 /* The tools' own marks, beside the stage they belong to. */
 .beat-logo {
   width: 1.15em;
@@ -2264,7 +2195,12 @@ p { margin: 0; }
   width: 100vw;
   height: 100%;
   min-height: 0;
+  /* Each poster is its own layer, and so is its animated scene, so one
+     poster's motion never repaints its neighbours or its own backdrop. */
+  will-change: transform;
 }
+.has-story .poster-scene,
+.has-story .poster :is(.poster-hud, .apoc-warning, .court-glow, .poster-chrome, .poster-quote) { will-change: transform, opacity; }
 .poster-bg {
   position: absolute;
   inset: 0;
@@ -2344,6 +2280,179 @@ p { margin: 0; }
 .poster-cta:hover { background: rgba(255, 255, 255, 0.14); border-color: rgba(255, 255, 255, 0.6); }
 .poster-cta i { font-style: normal; transition: transform 0.35s var(--ease-fluid); }
 .poster-cta:hover i { transform: translateX(4px); }
+
+/* Brief project evidence stays still while the scene moves behind it. */
+.project-facts {
+  margin: 18px 0 0;
+  max-width: 540px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+.project-facts > div {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  gap: 14px;
+  padding: 7px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+}
+.project-facts dt { color: var(--accent); font-weight: 500; }
+.project-facts dd { margin: 0; color: rgba(255, 255, 255, 0.86); }
+.has-story .poster-content { max-width: 760px; bottom: clamp(40px, 7vh, 72px); }
+.poster-title { font-size: clamp(3rem, 6.4vw, 5.6rem); }
+.poster-tags { color: rgba(255, 255, 255, 0.68); }
+.poster-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(4, 4, 8, 0.68), rgba(4, 4, 8, 0.25) 48%, transparent 75%);
+}
+
+/* Shared light carries the eye across the chapter boundary. */
+.scene-bridge {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  overflow: hidden;
+}
+.scene-bridge--portrait {
+  background: transparent;
+  isolation: isolate;
+  height: var(--stage-h);
+  bottom: auto;
+}
+.scene-bridge__portrait {
+  position: absolute;
+  inset: 0;
+}
+
+/* The rendered camera owns the handoff, independent of overlapping opacity
+   tweens. Reverse scrolling removes these gates before the cockpit returns. */
+.has-story #chapter-bosch.has-particle-portal :is(.screen-on, .screen-spill, .screen-ui, .strip, .chapter-content),
+.has-story #chapter-bosch.has-left-dashboard .chapter-zoom-bg {
+  visibility: hidden !important;
+}
+
+/* The display opens into one GPU starfield, then the sharp native image. */
+.face-portrait {
+  position: fixed;
+  inset: 0;
+  bottom: auto;
+  height: var(--stage-h);
+  z-index: 5;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.face-portrait__black {
+  position: absolute;
+  inset: 0;
+  background: #000;
+}
+.face-portrait__canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+.face-portrait__hint {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: max(36px, env(safe-area-inset-bottom, 0px));
+  margin: 0;
+  opacity: 0;
+  color: rgba(220, 226, 237, 0.58);
+  font-size: clamp(0.65rem, 1.1vw, 0.75rem);
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+.face-portrait__photo {
+  position: absolute;
+  opacity: 0;
+  overflow: hidden;
+  transform-origin: 50% 46%;
+}
+.face-portrait__crop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 91.5%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 91.5%, transparent 100%);
+}
+.face-portrait__image {
+  position: absolute;
+  display: block;
+  max-width: none;
+  border: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.has-face-portrait.has-story .reveal-photo--after { opacity: 0 !important; }
+/* Enhanced particles hand back to the real text; fallback timelines remain
+   untouched when WebGL, font sampling, or reduced-motion prevents enhancement. */
+.has-particle-copy.has-story #chapter-beyond .reveal {
+  opacity: var(--portrait-copy-alpha, 1) !important;
+  z-index: 2;
+  pointer-events: none;
+}
+.has-particle-copy.has-story.is-portrait-intro .reveal-copy { pointer-events: auto; }
+.has-particle-copy.has-story :is(.intro-pull, .intro-support, .intro-now),
+.has-particle-copy.has-story .particle-work-target {
+  opacity: var(--particle-copy-alpha, 0) !important;
+  transform: none !important;
+}
+/* Leaving for the lab, each line rises as it fades (js/face/boot.js). */
+.has-particle-copy.has-story :is(.intro-pull, .intro-support, .intro-now) {
+  opacity: calc(var(--particle-copy-alpha, 0) * var(--portrait-line-alpha, 1)) !important;
+  transform: translateY(var(--portrait-line-lift, 0px)) !important;
+}
+.has-particle-copy.has-story :is(.intro-pull, .intro-support, .intro-now) {
+  -webkit-mask-image: var(--particle-exit-mask, none);
+  mask-image: var(--particle-exit-mask, none);
+}
+@media (prefers-reduced-motion: reduce) {
+  .face-portrait { display: none; }
+  .has-face-portrait.has-story .reveal-photo--after { opacity: 1 !important; }
+  .has-particle-copy.has-story :is(.intro-pull, .intro-support, .intro-now, .particle-work-target) {
+    opacity: 1 !important;
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
+  }
+}
+.scene-bridge--portrait .scene-bridge__matte {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: #000;
+  pointer-events: none;
+}
+/* This surface lives inside the dashboard glass; the portrait arrives later. */
+.scene-bridge--portrait .scene-bridge__cover {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: none;
+  pointer-events: none;
+}
+.scene-bridge--dawn {
+  background: radial-gradient(ellipse 90% 44% at 50% 78%, rgba(255, 206, 140, 0.55), rgba(214, 124, 92, 0.22) 42%, transparent 76%);
+  mix-blend-mode: screen;
+}
+.scene-bridge__screen {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+  background: #130c10 url('../assets/neuromaze-capture.webp') center / cover no-repeat;
+  box-shadow: 0 0 36px rgba(244, 207, 142, 0.16);
+}
+.scene-bridge--screen-compact .scene-bridge__screen {
+  inset: auto;
+  box-shadow: none;
+  contain: layout paint;
+}
+a:focus-visible, button:focus-visible {
+  outline: 2px solid var(--accent-b);
+  outline-offset: 6px;
+}
 
 /* ---- 01 · NeuroMaze: the real capture, full-bleed ---- */
 .poster-capture {
@@ -2614,6 +2723,7 @@ p { margin: 0; }
   background: radial-gradient(ellipse 60% 110% at 50% 0%, rgba(232, 181, 102, 0.17), transparent 74%);
 }
 .grad-dust { top: -12%; left: 50%; width: 46vw; max-width: 620px; height: 108%; }
+.grad-seats, .grad-beam, .grad-dust, .grad-floor-glow { will-change: transform, opacity; }
 .grad-floor-glow {
   position: absolute;
   inset: auto 0 0 0;
@@ -2859,43 +2969,32 @@ p { margin: 0; }
 
 /* ================= Responsive ================= */
 @media (max-width: 860px) {
-  /* The reveal becomes a stack: the photo above, the words below — still
-     never overlapping, just in one column instead of side by side.
-     The photo is landscape, with him in its left half and the empty
-     stage beside him; laid whole into a phone's width he shrinks to a
-     small figure with a wide dark gap under it. So here the frame is
-     cropped to him instead (cover, weighted to the left where he
-     stands), tall enough to read as a portrait, and the words start a
-     fixed step beneath it rather than at the foot of the screen. */
-  .has-story .reveal-frame,
-  .has-story .reveal-glow {
-    left: 50%;
-    top: calc(102px + 1vh);
-    transform: translateX(-50%);
-    width: min(94vw, 480px);
-    height: clamp(230px, 36vh, 400px);
-    max-height: none;
-    aspect-ratio: auto;
-  }
-  .has-story .reveal-glow {
-    transform: translateX(-50%) scale(1.1);
-    background-size: cover;
-    background-position: 20% 0;
-  }
-  .has-story .reveal-photo {
-    object-fit: cover;
-    object-position: 20% 0;
+  /* On a narrow screen the full-width image fades naturally into the dark
+     text area. Only its lower edge is softened; the portrait stays sharp. */
+  .reveal-frame {
+    aspect-ratio: 4 / 3;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 6%, #000 60%, transparent 85%);
+    mask-image: linear-gradient(to bottom, transparent 0%, #000 6%, #000 60%, transparent 85%);
   }
   .has-story .reveal-frame {
-    -webkit-mask-image: linear-gradient(to right, transparent, #000 14%, #000 86%, transparent),
-      linear-gradient(to bottom, transparent, #000 6%, #000 76%, transparent);
-    mask-image: linear-gradient(to right, transparent, #000 14%, #000 86%, transparent),
-      linear-gradient(to bottom, transparent, #000 6%, #000 76%, transparent);
+    inset: 72px auto auto 0;
+    width: 100%;
+    height: min(52svh, 460px);
+    aspect-ratio: auto;
+  }
+  .reveal-photo { object-position: 20% 0; }
+  .scene-bridge--portrait .scene-bridge__cover {
+    inset: 72px auto auto 0;
+    width: 100%;
+    height: min(52svh, 460px);
+    background-position: 20% 0;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 6%, #000 60%, transparent 85%);
+    mask-image: linear-gradient(to bottom, transparent 0%, #000 6%, #000 60%, transparent 85%);
   }
   .has-story .reveal-copy {
     left: 24px;
     right: 24px;
-    top: calc(102px + 1vh + clamp(230px, 36vh, 400px) + 6px);
+    top: min(52svh, 445px);
     bottom: auto;
     transform: none;
     max-width: none;
@@ -2908,7 +3007,7 @@ p { margin: 0; }
 
   .has-story .console-kicker { top: 10.5%; }
   .has-story .console-role { top: calc(10.5% + 26px); font-size: 1.5rem; }
-  .has-story .console-beats { bottom: 8.5%; padding: 0 20px; }
+  .has-story .console-beats { bottom: 8.5%; height: 4.7rem; padding: 0 20px; }
   .has-story .lab-steps { bottom: 4.5%; }
   .lab-steps li { width: 34px; }
   .console-beat { font-size: 1.05rem; }
@@ -2935,12 +3034,142 @@ p { margin: 0; }
   .credits a { justify-self: center; }
 }
 
+/* Phones and short windows get an editorial flow for projects and closing
+   information. Reading never depends on catching a horizontal camera move. */
+@media (max-width: 720px), (max-height: 600px) {
+  .chapter-container--handoff { height: calc(4.2 * var(--stage-h)); }
+  .chapter-container--continues { height: calc(4.8 * var(--stage-h)); }
+  .has-story .story--beyond { height: calc(5.4 * var(--stage-h)); }
+  .has-story .story--works,
+  .has-story .story--education,
+  .has-story .story--contact { height: auto; margin-top: 0; }
+  .has-story .story--works .story-stage,
+  .has-story .story--education .story-stage,
+  .has-story .story--contact .story-stage {
+    position: relative;
+    height: auto;
+    overflow: hidden;
+  }
+  .has-story .story--works .slate,
+  .has-story .story--education .slate {
+    position: static;
+    inset: auto;
+    padding: 0 24px;
+    margin: 0 auto 32px;
+  }
+  .has-story .story--works .story-stage { padding-top: 40px; }
+  .has-story .story--works .slate-dock,
+  .has-story .story--education .slate-dock,
+  .has-story .reel-rail { display: none; }
+  .has-story .reel-track { position: relative; inset: auto; display: block; width: 100%; }
+  .has-story .poster { width: 100%; height: auto; min-height: 0; background: #0b0c13; }
+  .poster + .poster { border-top: 1px solid var(--surface-border); }
+  .poster-bg { height: clamp(240px, 65vw, 440px); }
+  .poster-bg::after { background: linear-gradient(to bottom, transparent 55%, #0b0c13); }
+  .poster-content, .has-story .poster-content {
+    position: relative;
+    bottom: auto;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: clamp(230px, 60vw, 400px) 24px 48px;
+  }
+  .poster-title { font-size: clamp(2.4rem, 9vw, 4rem); }
+  .poster-desc { max-width: 600px; }
+  .project-facts { font-size: 0.85rem; }
+  .project-facts > div { grid-template-columns: 96px minmax(0, 1fr); gap: 12px; padding: 10px 0; }
+  .poster-chrome { top: 20px; font-size: 9px; }
+  .poster-tag { max-width: 65%; text-align: right; }
+  .poster-quote { display: none; }
+  .poster-hud, .loop-hud { top: 28px; }
+  .loop-trail { display: none; }
+  .has-story .story--education .story-stage { padding: 88px 24px 64px; }
+  .has-story .degree-block { position: relative; top: auto; left: auto; right: auto; transform: none; margin: 48px auto 0; padding: 0; }
+  .degree-title { font-size: clamp(2rem, 7vw, 3.4rem); }
+  .has-story .credential-strip { position: relative; left: auto; right: auto; bottom: auto; margin: 32px auto 0; }
+  .has-story .story--contact .story-stage { padding: 80px 24px 24px; }
+  .has-story .finale { position: relative; inset: auto; padding: 0; }
+  .finale-title { font-size: clamp(2.2rem, 8vw, 4rem); }
+  .has-story .finale-footer { position: relative; inset: auto; margin-top: 60px; }
+  #work, #education, #contact { top: 0; scroll-margin-top: 80px; }
+  #beyond { top: calc(1.2 * var(--stage-h)); }
+}
+
+@media (max-width: 720px) and (orientation: portrait) {
+  .has-story .reveal-photo { object-position: left top; }
+  .scene-bridge--portrait .scene-bridge__cover { background-position: left top; }
+  .story--beyond .slate-dock { top: 70px; }
+}
+
+@media (max-width: 720px) and (max-height: 740px) {
+  .has-story .reveal-frame { height: 50svh; }
+  .scene-bridge--portrait .scene-bridge__cover { height: 50svh; }
+  .has-story .reveal-copy { top: calc(72px + 42svh); }
+  .intro-pull { font-size: clamp(1.25rem, 5.3vw, 1.65rem); }
+  .intro-support { margin-top: 12px; font-size: 0.9rem; }
+  .intro-now { margin-top: 12px; font-size: 0.78rem; }
+}
+@media (max-width: 720px) and (max-height: 620px) and (orientation: portrait) {
+  .has-story .reveal-copy { top: calc(68px + 39svh); left: 20px; right: 20px; }
+  .story--beyond .intro-pull { font-size: 1.15rem; line-height: 1.18; }
+  .story--beyond .intro-support { margin-top: 8px; font-size: 0.82rem; line-height: 1.4; }
+  .story--beyond .intro-now { margin-top: 8px; font-size: 0.72rem; line-height: 1.4; }
+  .story--beyond .toolkit-marquee { padding: 8px 0; }
+  .story--beyond .toolkit-track { font-size: 0.68rem; }
+}
+@media (min-width: 600px) and (max-height: 600px) {
+  .has-story .reveal-frame {
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .has-story .reveal-photo { object-position: center; }
+  .scene-bridge--portrait .scene-bridge__cover {
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background-position: center;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .has-story .reveal-copy {
+    left: 49%;
+    right: 28px;
+    top: 55%;
+    bottom: auto;
+    max-width: 570px;
+    transform: translateY(-50%);
+    text-align: left;
+  }
+  .intro-pull { font-size: clamp(1.1rem, 2.8vw, 1.55rem); line-height: 1.15; }
+  .intro-support { font-size: 0.8rem; line-height: 1.4; margin-top: 10px; }
+  .intro-now { font-size: 0.72rem; line-height: 1.4; margin-top: 10px; justify-content: flex-start; }
+  .toolkit-marquee { padding: 8px 0; }
+  .toolkit-track { font-size: 0.68rem; }
+}
+@media (min-width: 721px) and (max-height: 760px) and (min-height: 601px) {
+  .has-story .poster-content { max-width: 750px; bottom: 34px; }
+  .poster-title { font-size: clamp(2.8rem, 5vw, 4.6rem); margin-top: 10px; }
+  .poster-desc { font-size: 0.94rem; margin-top: 14px; }
+  .project-facts { margin-top: 12px; font-size: 0.77rem; }
+  .project-facts > div { padding: 5px 0; }
+  .poster-tags { margin-top: 10px; font-size: 0.68rem; }
+  .poster-cta { margin-top: 14px; padding: 10px 20px; }
+  .finale-title { font-size: clamp(2.5rem, 5vw, 4rem); }
+  .finale-lede { margin-top: 14px; }
+  .credits { margin-top: 18px; }
+  .credits li { padding: 8px 0; }
+}
+
 /* Must come after the scene's base rules above, or they win the cascade.
    Nothing animates here, so don't make people scroll through four screens
    of the same still frame — and with no timeline to swap the two title
    cards, let all the text simply follow the photo instead of stacking
    both cards over it in the same spot. */
 @media (prefers-reduced-motion: reduce) {
+  .windshield-portrait,
+  .scene-bridge--portrait { display: none !important; }
   .chapter-container { height: auto; }
   .chapter-container--continues,
   .chapter-container--opening { margin-top: 0; }
@@ -2975,4 +3204,26 @@ p { margin: 0; }
   /* With no JS to clip it, the "display on" frame simply shows whole —
      the static end state, screen lit. */
   .screen-spill { display: none; }
+}
+
+/* The original monitor label doubles as an accessible XR control. */
+.lab-tag { border: 0; background: none; padding: 0; font: inherit; color: inherit; text-align: left; min-width: 44px; min-height: 44px; }
+.lab-tag.is-interactive { pointer-events: auto; }
+.lab-tag.is-interactive .lab-tag__box { cursor: pointer; }
+/* The tag keeps its original size; an invisible margin makes it a full
+   44-pixel touch target. */
+.lab-tag.is-interactive .lab-tag__box::after { content: ''; position: absolute; inset: -8px -6px; }
+.lab-tag:focus-visible .lab-tag__box { outline: 2px solid var(--accent); outline-offset: 6px; }
+@media (prefers-reduced-motion: reduce) and (min-width: 721px) and (pointer: fine) {
+  #bmw-chapter :is(.photo-plane, .zoom-bg-layer) {
+    background-size: min(100%, calc(var(--stage-h) * 1.2705882353)) auto;
+  }
+}
+/* Short landscape screens retain the car's framing while the BMW slate
+   makes room above the headlights. Portrait phone typography is unchanged. */
+@media (max-height: 600px) and (min-width: 480px) {
+  #bmw-chapter .slate { top: 76px; }
+  #bmw-chapter .slate-org { font-size: 2rem; margin-top: 6px; }
+  #bmw-chapter .slate-role { font-size: 1rem; line-height: 1.2; margin-top: 6px; }
+  #bmw-chapter .slate-lede { max-width: none; font-size: .82rem; line-height: 1.4; margin-top: 6px; }
 }

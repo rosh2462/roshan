@@ -5,21 +5,43 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Roshan M — Software Visualization Engineer</title>
 <meta name="description" content="Roshan M — Software Visualization Engineer specializing in immersive systems, real-time 3D interaction, and VR/AR development." />
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=98" />
+<script>
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches && window.WebGLRenderingContext) {
+    window.HeroStartupExpired = false;
+    document.documentElement.classList.add('hero-vortex-pending');
+    setTimeout(() => {
+      if (!document.documentElement.classList.contains('hero-vortex-active')) {
+        window.HeroStartupExpired = true;
+        document.documentElement.classList.remove('hero-vortex-pending');
+        window.dispatchEvent(new Event('herointrotimeout'));
+      }
+    }, 1800);
+  }
+</script>
+<script>
+  // The chapter scenes are built by js/chapters.js once GSAP has arrived;
+  // until then their words stay hidden (.scenes-pending), never shown as
+  // raw markup over a dark stage. Lifts by itself if they never arrive.
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    document.documentElement.classList.add('scenes-pending');
+    setTimeout(() => document.documentElement.classList.remove('scenes-pending'), 10000);
+  }
+</script>
+<link id="portfolioFonts" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="css/style.css?v=132" />
+<link rel="stylesheet" href="css/portrait-mask.css?v=7" />
+<link rel="stylesheet" href="css/bmw-bridge.css?v=2" />
+<link rel="stylesheet" href="css/hero-particles.css?v=14" />
+<style>#hero .stage-text { opacity: 1; }</style>
 </head>
 <body>
 
 
-  <!-- The stage light: one beam, fixed to the viewport, from the hero's
-       first frame through the BMW chapter. js/hero-intro.js strikes it on;
-       it never moves while the page scrolls beneath it, so the hero lifts
-       away and the car slides in under the very same light. The camera
-       leaves it behind on the crane into the Bosch cabin (see .ps-rig), and
-       the chapters after that bring their own light. Sits above the scenes
-       and the hero's backdrop, below all text. -->
+  <!-- Legacy light anchors retained for the existing chapter timelines.
+       The particle homepage hides this beam and uses a hero-local canvas. -->
   <div class="persistent-spotlight" id="persistentSpotlight" aria-hidden="true">
     <div class="ps-rig">
       <div class="ps-cone">
@@ -29,42 +51,34 @@
     </div>
   </div>
 
-  <div class="cursor-glow" aria-hidden="true"></div>
-
   <div class="progress-rail" aria-hidden="true"><div class="progress-fill" id="pageProgress"></div></div>
 
   <header class="nav-wrap" id="navWrap">
-    <nav class="nav">
-      <a href="#top" class="nav-logo">RM<span>.</span></a>
-      <button class="nav-toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false">
-        <span></span><span></span><span></span>
+    <nav class="nav" aria-label="Main navigation">
+      <a href="#top" class="nav-logo" aria-label="Roshan M — home">RM<span>.</span></a>
+      <button class="nav-toggle" id="navToggle" type="button" aria-label="Open navigation" aria-controls="navLinks" aria-expanded="false">
+        <span></span><span></span>
       </button>
       <ul class="nav-links" id="navLinks">
         <li><a href="#journey" data-nav>Journey</a></li>
         <li><a href="#beyond" data-nav>Beyond</a></li>
         <li><a href="#work" data-nav>Work</a></li>
         <li><a href="#education" data-nav>Education</a></li>
-        <li><a href="#contact" data-nav class="nav-cta">Contact</a></li>
+        <li><a href="#contact" data-nav class="nav-cta">Contact<span class="nav-cta-arrow" aria-hidden="true">→</span></a></li>
       </ul>
     </nav>
   </header>
 
   <main id="top">
 
-    <!-- HERO: a dark theatrical stage. A single overhead spotlight switches
-         on, hazes drift through the beam, and the name emerges into the
-         light — no color, no tech chrome, just light and shadow. -->
+    <!-- HERO: falling particles gather into the identity, then continue into
+         the BMW entrance. Native typography remains the static fallback. -->
     <section class="hero" id="hero">
-      <!-- The stage itself — backdrop, beam, haze, dust and vignette — lives
-           in one layer so it can fade out toward the hero's bottom edge as a
-           unit, without also fading the text and scroll hint above it. -->
+      <!-- Legacy stage anchors remain local. The shared particle canvas is
+           mounted outside this curtain so it can travel into the BMW scene. -->
       <div class="hero-stage" aria-hidden="true">
         <div class="stage-floor"></div>
-        <!-- What the beam catches on this stage: haze, dust (added by
-             js/hero-intro.js) and the pool where it lands. The beam itself
-             is the page's one stage light (#persistentSpotlight). These fade
-             as the hero lifts away, so nothing of the stage is left
-             floating in the light when the car arrives beneath it. -->
+        <!-- Retained for the original chapter scroll-exit timeline. -->
         <div class="stage-light">
           <div class="spotlight-haze">
             <span class="haze-wisp haze-wisp--a"></span>
@@ -76,8 +90,7 @@
       </div>
 
       <div class="hero-inner">
-        <p class="eyebrow stage-text">Hello, I'm</p>
-        <h1 class="hero-title stage-text">Rosha<span class="name-n">n<span class="sleeping-cat" aria-hidden="true">
+        <h1 class="hero-title stage-text">ROSHA<span class="name-n">N<span class="sleeping-cat" aria-hidden="true">
               <span class="cat-poof"></span>
               <span class="cat-rig">
                 <svg class="cat-svg" viewBox="0 0 64 44">
@@ -107,14 +120,13 @@
                 </span>
               </span>
             </span></span> M</h1>
-        <p class="hero-role stage-text">Software&nbsp;Visualization&nbsp;Engineer</p>
+        <p class="hero-role stage-text">Software Visualization Engineer</p>
         <p class="hero-sub stage-text">
-          Crafting immersive, real-time 3D experiences at the edge of VR, AR, and interactive design —
-          with an MSc in Computer Science for Digital Media.
+          Building immersive experiences through real-time 3D and interactive technology.
         </p>
       </div>
-      <a href="#journey" class="scroll-hint stage-text" aria-label="Scroll to begin the journey">
-        <span class="hint-fade">Scroll to begin the journey<i>↓</i></span>
+      <a href="#journey" class="scroll-hint stage-text" aria-label="Scroll to explore the journey">
+        <span class="hint-fade">Scroll to explore<i>↓</i></span>
       </a>
     </section>
 
@@ -129,7 +141,7 @@
 <section class="chapter-container chapter-container--handoff chapter-container--opening" id="bmw-chapter">
   <!-- Where "the journey" starts for links: the car lit, the hero gone.
        The section itself begins a screen earlier, underneath the hero. -->
-  <span class="scene-anchor" id="journey" style="--at: 100vh"></span>
+  <span class="scene-anchor" id="journey" style="--at: calc(var(--stage-h) * 0.85)"></span>
   <div class="chapter-zoom-bg">
     <!-- The GSAP-scaled "approach zoom" transform lives on this inner
          element, never on .chapter-zoom-bg itself: a transform on a
@@ -173,17 +185,10 @@
          car — it should always cover the full viewport, never shrink or
          grow as the camera moves the car nearer or farther. -->
     <div class="reveal-veil reveal-veil--lamps" aria-hidden="true"></div>
-    <!-- Smoke, in front of the veil and the car: a WebGL canvas showing a
-         live fluid simulation (velocity, pressure and a smoke density
-         carried along by them — not a gradient or a noise pattern), fed in
-         low along the ground and from the sides, so it really rolls,
-         curls and parts around the cursor. It's what the visitor sees
-         emerge from the dark first, thickest low across the frame while
-         the veil is still mostly closed, then thinning as the veil opens
-         and the lamps wake underneath it — so the headlights are seen
-         igniting through it, not after it. Driven entirely by
-         js/bmw-smoke.js, reading #bmw-chapter's own scroll progress;
-         touches nothing else in the scene. -->
+    <!-- The original fluid simulation rolls softly beneath the bumper
+         after the car has emerged. Its visibility follows the same BMW
+         scroll clock in either direction; its air keeps drifting while
+         the visitor pauses. Driven by js/bmw-smoke.js. -->
     <canvas class="bmw-smoke-canvas" aria-hidden="true"></canvas>
   </div>
 
@@ -348,43 +353,24 @@
       </div>
     </section>
 
-    <!-- CHAPTER 03: BEYOND — two full-bleed scenes, not an illustration in a
-         box. First, the portrait held in a single spotlight on the same
-         dark stage the hero opened on — the toolkit as a thin marquee,
-         the introduction as a pull-quote, not a card. Then the HiWi
+    <!-- CHAPTER 03: BEYOND — the portrait fills the dark stage, with the
+         toolkit as a thin marquee and the introduction in its natural
+         negative space. Then the HiWi
          laboratory itself, built in real-time 3D as the visitor scrolls
          (js/lab/), with each contribution arriving as its own oversized
          statement while the lab answers it. Driven by js/story.js
          (BEYOND). -->
     <section class="story story--beyond" id="chapter-beyond">
-      <span class="scene-anchor" id="beyond" style="--at: 90vh"></span>
+      <span class="scene-anchor" id="beyond" style="--at: calc(var(--stage-h) * 1.35)"></span>
       <div class="story-stage">
 
-        <!-- SCENE A — a cinematic character reveal. Two frames of the same
-             portrait, pixel-identical in position and size (see the ffmpeg
-             note below): a barely-lit frame beneath, a fully-lit frame above
-             it, cross-dissolving as the visitor scrolls, under a black shade
-             that starts almost fully closed (a faint silhouette, nothing
-             more) and lifts as the light arrives — the same "light reveals
-             the subject" idea as the BMW headlights, but as a scroll-scrubbed
-             cross-dissolve of two real photographs rather than a synthetic
-             spotlight, since the lighting is already baked into the images
-             themselves. His name and title are already the hero's own
-             headline, so this chapter doesn't repeat them — it introduces
-             what drives the work instead, in the negative space the photo's
-             own composition leaves beside him. No big title card sits over
-             him — chapter identification stays in the small corner dock,
-             same as every other chapter. -->
+        <!-- SCENE A — the portrait fills the stage, with the introduction
+             placed in its dark negative space. -->
         <div class="reveal">
-          <div class="reveal-glow" style="background-image: url('assets/roshan-reveal-after.webp');" aria-hidden="true"></div>
           <div class="reveal-frame">
-            <!-- Sources kept as My_picture_before_reveal.png /
-                 My_picture_after_reveal.png; served as WebP with no resize
-                 or resample, just re-encoded for weight:
-                   ffmpeg -i My_picture_before_reveal.png -c:v libwebp -quality 92 -compression_level 6 roshan-reveal-before.webp -->
-            <img class="reveal-photo reveal-photo--before" src="assets/roshan-reveal-before.webp" width="1672" height="941" alt="" aria-hidden="true" />
+            <!-- The source remains My_picture_after_reveal.png; the WebP is
+                 re-encoded without resizing so the portrait stays sharp. -->
             <img class="reveal-photo reveal-photo--after" src="assets/roshan-reveal-after.webp" width="1672" height="941" alt="Portrait of Roshan M" />
-            <div class="reveal-shade" aria-hidden="true"></div>
           </div>
           <div class="reveal-copy">
             <h2 class="intro-pull">I turn real-time 3D pipelines into experiences people can step into.</h2>
@@ -415,22 +401,24 @@
              back takes it apart again. The canvas is drawn by three.js; the
              captions and the step rail are ordinary DOM over it, so the story
              still reads with the 3D unavailable (no WebGL, or the CDN down). -->
-        <div class="console">
-          <div class="labspace" aria-hidden="true">
-            <canvas class="lab-canvas"></canvas>
-            <div class="lab-vignette"></div>
+        <div class="lab-scene">
+          <div class="console">
+            <div class="labspace" aria-hidden="true">
+              <canvas class="lab-canvas"></canvas>
+              <div class="lab-vignette"></div>
+            </div>
+
+            <div class="console-beats">
+              <p class="console-beat" data-beat="1"><b>01</b><svg class="beat-logo beat-logo--blender" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12.51 13.214c.046-.8.438-1.506 1.03-2.006a3.424 3.424 0 0 1 2.212-.79c.85 0 1.631.3 2.211.79.592.5.983 1.206 1.028 2.005.045.823-.285 1.586-.865 2.153a3.389 3.389 0 0 1-2.374.938 3.393 3.393 0 0 1-2.376-.938c-.58-.567-.91-1.33-.865-2.152M7.35 14.831c.006.314.106.922.256 1.398a7.372 7.372 0 0 0 1.593 2.757 8.227 8.227 0 0 0 2.787 2.001 8.947 8.947 0 0 0 3.66.76 8.964 8.964 0 0 0 3.657-.772 8.285 8.285 0 0 0 2.785-2.01 7.428 7.428 0 0 0 1.592-2.762 6.964 6.964 0 0 0 .25-3.074 7.123 7.123 0 0 0-1.016-2.779 7.764 7.764 0 0 0-1.852-2.043h.002L13.566 2.55l-.02-.015c-.492-.378-1.319-.376-1.86.002-.547.382-.609 1.015-.123 1.415l-.001.001 3.126 2.543-9.53.01h-.013c-.788.001-1.545.518-1.695 1.172-.154.665.38 1.217 1.2 1.22V8.9l4.83-.01-8.62 6.617-.034.025c-.813.622-1.075 1.658-.563 2.313.52.667 1.625.668 2.447.004L7.414 14s-.069.52-.063.831zm12.09 1.741c-.97.988-2.326 1.548-3.795 1.55-1.47.004-2.827-.552-3.797-1.538a4.51 4.51 0 0 1-1.036-1.622 4.282 4.282 0 0 1 .282-3.519 4.702 4.702 0 0 1 1.153-1.371c.942-.768 2.141-1.183 3.396-1.185 1.256-.002 2.455.41 3.398 1.175.48.391.87.854 1.152 1.367a4.28 4.28 0 0 1 .522 1.706 4.236 4.236 0 0 1-.239 1.811 4.54 4.54 0 0 1-1.035 1.626"/></svg> Blender-modelled lab</p>
+              <p class="console-beat" data-beat="2"><b>02</b><svg class="beat-logo beat-logo--unity" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m12.9288 4.2939 3.7997 2.1929c.1366.077.1415.2905 0 .3675l-4.515 2.6076a.4192.4192 0 0 1-.4246 0L7.274 6.8543c-.139-.0745-.1415-.293 0-.3675l3.7972-2.193V0L1.3758 5.5977V16.793l3.7177-2.1456v-4.3858c-.0025-.1565.1813-.2682.318-.1838l4.5148 2.6076a.4252.4252 0 0 1 .2136.3676v5.2127c.0025.1565-.1813.2682-.3179.1838l-3.7996-2.1929-3.7178 2.1457L12 24l9.6954-5.5977-3.7178-2.1457-3.7996 2.1929c-.1341.082-.3229-.0248-.3179-.1838V13.053c0-.1565.087-.2956.2136-.3676l4.5149-2.6076c.134-.082.3228.0224.3179.1838v4.3858l3.7177 2.1456V5.5977L12.9288 0Z"/></svg> Brought into Unity, built for the Oculus XR toolkit</p>
+              <p class="console-beat" data-beat="3"><b>03</b>Navigation &amp; object-selection UX</p>
+            </div>
+            <ol class="lab-steps" aria-hidden="true"><li></li><li></li><li></li></ol>
           </div>
 
-          <div class="console-beats">
-            <p class="console-beat" data-beat="1"><b>01</b><svg class="beat-logo beat-logo--blender" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12.51 13.214c.046-.8.438-1.506 1.03-2.006a3.424 3.424 0 0 1 2.212-.79c.85 0 1.631.3 2.211.79.592.5.983 1.206 1.028 2.005.045.823-.285 1.586-.865 2.153a3.389 3.389 0 0 1-2.374.938 3.393 3.393 0 0 1-2.376-.938c-.58-.567-.91-1.33-.865-2.152M7.35 14.831c.006.314.106.922.256 1.398a7.372 7.372 0 0 0 1.593 2.757 8.227 8.227 0 0 0 2.787 2.001 8.947 8.947 0 0 0 3.66.76 8.964 8.964 0 0 0 3.657-.772 8.285 8.285 0 0 0 2.785-2.01 7.428 7.428 0 0 0 1.592-2.762 6.964 6.964 0 0 0 .25-3.074 7.123 7.123 0 0 0-1.016-2.779 7.764 7.764 0 0 0-1.852-2.043h.002L13.566 2.55l-.02-.015c-.492-.378-1.319-.376-1.86.002-.547.382-.609 1.015-.123 1.415l-.001.001 3.126 2.543-9.53.01h-.013c-.788.001-1.545.518-1.695 1.172-.154.665.38 1.217 1.2 1.22V8.9l4.83-.01-8.62 6.617-.034.025c-.813.622-1.075 1.658-.563 2.313.52.667 1.625.668 2.447.004L7.414 14s-.069.52-.063.831zm12.09 1.741c-.97.988-2.326 1.548-3.795 1.55-1.47.004-2.827-.552-3.797-1.538a4.51 4.51 0 0 1-1.036-1.622 4.282 4.282 0 0 1 .282-3.519 4.702 4.702 0 0 1 1.153-1.371c.942-.768 2.141-1.183 3.396-1.185 1.256-.002 2.455.41 3.398 1.175.48.391.87.854 1.152 1.367a4.28 4.28 0 0 1 .522 1.706 4.236 4.236 0 0 1-.239 1.811 4.54 4.54 0 0 1-1.035 1.626"/></svg> Blender-modelled lab</p>
-            <p class="console-beat" data-beat="2"><b>02</b><svg class="beat-logo beat-logo--unity" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m12.9288 4.2939 3.7997 2.1929c.1366.077.1415.2905 0 .3675l-4.515 2.6076a.4192.4192 0 0 1-.4246 0L7.274 6.8543c-.139-.0745-.1415-.293 0-.3675l3.7972-2.193V0L1.3758 5.5977V16.793l3.7177-2.1456v-4.3858c-.0025-.1565.1813-.2682.318-.1838l4.5148 2.6076a.4252.4252 0 0 1 .2136.3676v5.2127c.0025.1565-.1813.2682-.3179.1838l-3.7996-2.1929-3.7178 2.1457L12 24l9.6954-5.5977-3.7178-2.1457-3.7996 2.1929c-.1341.082-.3229-.0248-.3179-.1838V13.053c0-.1565.087-.2956.2136-.3676l4.5149-2.6076c.134-.082.3228.0224.3179.1838v4.3858l3.7177 2.1456V5.5977L12.9288 0Z"/></svg> Brought into Unity, built for the Oculus XR toolkit</p>
-            <p class="console-beat" data-beat="3"><b>03</b>Navigation &amp; object-selection UX</p>
-          </div>
-          <ol class="lab-steps" aria-hidden="true"><li></li><li></li><li></li></ol>
+          <p class="console-kicker">University Lab</p>
+          <h3 class="console-role">HiWi — Unity XR Developer</h3>
         </div>
-
-        <p class="console-kicker">University Lab</p>
-        <h3 class="console-role">HiWi — Unity XR Developer</h3>
       </div>
     </section>
 
@@ -440,7 +428,7 @@
          massive title type low and left. The camera cuts sideways between
          them; nothing is boxed. Driven by js/story.js (WORKS). -->
     <section class="story story--works" id="chapter-work">
-      <span class="scene-anchor" id="work" style="--at: 105vh"></span>
+      <span class="scene-anchor" id="work" style="--at: calc(var(--stage-h) * 0.95)"></span>
       <div class="story-stage">
         <div class="reel-rail reel-rail--top" aria-hidden="true"></div>
         <div class="reel-rail reel-rail--bottom" aria-hidden="true"></div>
@@ -470,7 +458,12 @@
             <div class="poster-content">
               <p class="poster-eyebrow"><span>01 / 03</span>Unity · 3D Horror</p>
               <h3 class="poster-title poster-title--neuromaze">NeuroMaze</h3>
-              <p class="poster-desc">A mad scientist's experiment on his own robot goes wrong — and the only way out is through its brain. A first-person descent through nerve-lit corridors, monsters and traps across three levels, racing the clock and your own health to reach daylight again.</p>
+              <p class="poster-desc">Escape a robot's brain after a scientist's experiment goes wrong. Nerve-lit corridors, monsters and traps turn every step toward daylight into a race for survival.</p>
+              <dl class="project-facts">
+                <div><dt>Contribution</dt><dd>One of four credited developers.</dd></div>
+                <div><dt>Technical focus</dt><dd>First-person 3D horror in Unity.</dd></div>
+                <div><dt>Outcome</dt><dd>Three playable levels with time and health constraints.</dd></div>
+              </dl>
               <p class="poster-tags">Unity · 3D · Horror · 4-person team</p>
               <a class="poster-cta magnetic" href="https://micapigment.itch.io/neuromaze" target="_blank" rel="noopener noreferrer">Play on itch.io <i aria-hidden="true">→</i></a>
             </div>
@@ -593,7 +586,12 @@
             <div class="poster-content">
               <p class="poster-eyebrow"><span>02 / 03</span>2D Game</p>
               <h3 class="poster-title">The Apocalypse</h3>
-              <p class="poster-desc">An endless runner across a dying alien world: an astronaut stranded far from home, sprinting the horizon while a hand-drawn oxygen gauge — worn right on the pack — counts down the only resource that matters.</p>
+              <p class="poster-desc">An astronaut runs across a dying alien world, far from home. The oxygen gauge on the backpack counts down the only resource that matters.</p>
+              <dl class="project-facts">
+                <div><dt>Project scope</dt><dd>2D endless runner with hand-drawn sprites.</dd></div>
+                <div><dt>Design focus</dt><dd>An oxygen gauge carried on the astronaut's pack.</dd></div>
+                <div><dt>Experience</dt><dd>Survival driven by a dwindling oxygen supply.</dd></div>
+              </dl>
               <p class="poster-tags">Hand-drawn Sprites · 2D · Survival</p>
             </div>
             <svg class="poster-hud apoc-hud" viewBox="0 0 120 120" aria-hidden="true">
@@ -670,7 +668,7 @@
                   <circle class="loop-trail-dot" r="10"></circle>
                   <circle class="loop-trail-dot" r="10"></circle>
                 </g>
-                <g class="loop-ball">
+                <g class="loop-ball" transform="translate(915 600) scale(1.3)">
                   <circle r="26" fill="url(#loopBall)"></circle>
                   <path d="M-26 0H26M0 -26V26M-18 -18Q0 0 -18 18M18 -18Q0 0 18 18" stroke="rgba(60,30,10,0.55)" stroke-width="2" fill="none"></path>
                 </g>
@@ -701,7 +699,12 @@
             <div class="poster-content">
               <p class="poster-eyebrow"><span>03 / 03</span>Unity · VR</p>
               <h3 class="poster-title">LoopShoot VR</h3>
-              <p class="poster-desc">A hyper-realistic VR basketball game: HOMER navigation puts the ball naturally in your hand, every arc lands with weight, and Photon keeps a second player shooting alongside you in real time.</p>
+              <p class="poster-desc">Step onto a shared VR basketball court, take the ball in hand, and shoot alongside a second player in real time.</p>
+              <dl class="project-facts">
+                <div><dt>Project scope</dt><dd>Multiplayer VR basketball built in Unity.</dd></div>
+                <div><dt>Technical focus</dt><dd>HOMER navigation and Photon networking.</dd></div>
+                <div><dt>Experience</dt><dd>Real-time shared play with a second player.</dd></div>
+              </dl>
               <p class="poster-tags">Unity · VR · Multiplayer</p>
             </div>
             <div class="poster-hud loop-hud">
@@ -720,7 +723,7 @@
          illustrated diploma. A thin credential strip holds the details and
          the one link out. Driven by js/story.js (EDUCATION). -->
     <section class="story story--education" id="chapter-education">
-      <span class="scene-anchor" id="education" style="--at: 110vh"></span>
+      <span class="scene-anchor" id="education" style="--at: calc(var(--stage-h) * 0.6)"></span>
       <div class="story-stage">
         <div class="grad-hall" aria-hidden="true">
           <div class="grad-seats"></div>
@@ -765,7 +768,7 @@
          whole site rises behind the closing lines, set like end credits.
          Driven by js/story.js (CONTACT). -->
     <section class="story story--contact" id="chapter-contact">
-      <span class="scene-anchor" id="contact" style="--at: 160vh"></span>
+      <span class="scene-anchor" id="contact" style="--at: calc(var(--stage-h) * 0.5)"></span>
       <div class="story-stage">
         <div class="dawn" aria-hidden="true">
           <i class="dawn-sky"></i>
@@ -794,17 +797,23 @@
   </main>
 
 
+  <!-- Local particles initialize independently of the chapter animation CDN. -->
+  <script src="assets/hero-bmw-points.js?v=1" defer></script>
+  <script src="js/hero-motion.js?v=1" defer></script>
+  <script src="js/hero-flow.js?v=19" defer></script>
+  <script src="js/hero-intro.js?v=37" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" defer></script>
-  <script src="js/chapters.js?v=47" defer></script>
-  <script src="js/story.js?v=21" defer></script>
-  <script src="js/hero-intro.js?v=9" defer></script>
-  <script src="js/bmw-smoke.js?v=30" defer></script>
-  <script src="js/main.js?v=7" defer></script>
+  <script src="js/chapters.js?v=77" defer></script>
+  <script src="js/story.js?v=50" defer></script>
+  <script src="js/face/boot.js?v=29" defer></script>
+  <script src="js/bmw/boot.js?v=5" defer></script>
+  <script src="js/bmw-smoke.js?v=53" defer></script>
+  <script src="js/main.js?v=11" defer></script>
 
   <!-- The HiWi lab (chapter 03, scene B) is real-time 3D. boot.js is tiny; it
        loads js/lab/lab.bundle.js (the lab + three.js, one classic script)
        only once the visitor nears that chapter. -->
-  <script src="js/lab/boot.js?v=8" defer></script>
+  <script src="js/lab/boot.js?v=32" defer></script>
 </body>
 </html>

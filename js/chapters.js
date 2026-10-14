@@ -4,20 +4,42 @@
   /* ---------- Page scroll progress rail ---------- */
   const progressFill = document.getElementById('pageProgress');
   if (progressFill) {
-    let ticking = false;
+    let ticking = false, heightDirty = true;
+    let railHeight = 1, railScroll = window.scrollY;
     const update = () => {
       ticking = false;
-      const h = document.documentElement.scrollHeight - window.innerHeight;
-      const pct = h > 0 ? (window.scrollY / h) * 100 : 0;
-      progressFill.style.width = `${Math.min(Math.max(pct, 0), 100)}%`;
+      if (heightDirty) {
+        railHeight = document.documentElement.scrollHeight - window.innerHeight;
+        heightDirty = false;
+      }
+      const pct = railHeight > 0 ? railScroll / railHeight : 0;
+      progressFill.style.transform = `scaleX(${Math.min(Math.max(pct, 0), 1)})`;
     };
-    document.addEventListener('scroll', () => {
+    const queue = () => {
       if (!ticking) { ticking = true; requestAnimationFrame(update); }
-    }, { passive: true });
+    };
+    const invalidate = () => { heightDirty = true; railScroll = window.scrollY; queue(); };
+    // Sample native input before timeline writes. The rail's RAF never reads
+    // scroll/layout after the particle and chapter renderers have changed CSS.
+    window.addEventListener('scroll', () => { railScroll = window.scrollY; queue(); },
+      { passive: true, capture: true });
+    window.addEventListener('resize', invalidate, { passive: true });
+    window.addEventListener('load', invalidate, { once: true });
+    window.addEventListener('pageshow', invalidate);
+    window.visualViewport?.addEventListener('resize', invalidate, { passive: true });
+    if (typeof ResizeObserver !== 'undefined') new ResizeObserver(invalidate).observe(document.body);
+    document.fonts?.addEventListener('loadingdone', invalidate);
+    document.fonts?.ready.then(invalidate);
+    if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.addEventListener('refresh', invalidate);
     update();
   }
 
-  if (reduceMotion || typeof gsap === 'undefined') return;
+  // The head hides the chapters' words until their scenes exist (see
+  // .scenes-pending); without GSAP the static page shows at once instead.
+  if (reduceMotion || typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') {
+    document.documentElement.classList.remove('scenes-pending');
+    return;
+  }
 
   gsap.registerPlugin(ScrollTrigger);
 
@@ -64,6 +86,9 @@
    * is the subject.)
    */
   const BASE_SCALE = 0.7;
+  // Positions that follow the camera use the independent `translate`
+  // property where supported (it composes with GSAP's own transforms).
+  const moveByTranslate = typeof CSS !== 'undefined' && CSS.supports?.('translate', '1px 1px');
   const APPROACH_SCALE = 0.84;
 
   // The veil's hole is a radial gradient: fully transparent out to --rr,
@@ -84,6 +109,11 @@
   // Narrow screens swap layouts that can't fit around the subject (BMW's
   // labels move into a list beneath the car). Kept in step with the CSS.
   const narrow = window.matchMedia('(max-width: 720px)');
+  const desktopFraming = window.matchMedia('(min-width: 721px) and (pointer: fine)');
+
+  // Move through the display itself. Its glass becomes the particle portal;
+  // the surrounding cockpit leaves the frame through camera travel alone.
+  const BOSCH_HANDOFF = { zoomStart: 0.78, zoomEnd: 0.99, portalStart: 0.855, portalReady: 0.885 };
 
   // The page's stage light (the persistent beam), which the crane leaves
   // behind outside the car. See .ps-rig.
@@ -100,6 +130,69 @@
     document.documentElement.classList.toggle('is-scene-transition', transitioning.size > 0);
   }
 
+  // Bosch, Beyond, the monitor handoff and Works share an absolute scroll clock. Separate scrub tweens
+  // clamp at their chapter ends, so a fast flick used to finish the camera
+  // and unlock an already-completed portrait in a single frame.
+  const sharedScenes = new Set();
+  const sharedScroll = { y: window.scrollY };
+  const compactClock = matchMedia('(max-width: 720px), (max-height: 600px)');
+  let sharedScrollTrigger;
+  function renderSharedScenes() {
+    for (const { timeline, range } of sharedScenes) {
+      const span = range.end - range.start;
+      if (span > 0) timeline.progress(Math.max(0, Math.min(1, (sharedScroll.y - range.start) / span)));
+    }
+    // Cross-chapter overlays read one completed pose, after both photo scenes.
+    window.dispatchEvent(new Event('sceneclock'));
+  }
+  function driveSharedScene(section, timeline, range) {
+    const entry = { timeline, range };
+    sharedScenes.add(entry);
+    // Keep the scene's own range inspectable without giving it a second scrub.
+    range._sceneTimeline = timeline;
+    if (section) {
+      section._sceneTimeline = timeline;
+      section._sceneRange = range;
+    }
+    const invalidate = () => {
+      // BMW must refresh from its dark entry, not capture the current lit
+      // pose as a new tween start. The shared clock restores the pose after
+      // measurement, preserving particle-before-headlight order on resize.
+      // Rewind every paused timeline before invalidating its captured starts.
+      // Resizing mid-scene otherwise captures visible pages as their hidden start.
+      timeline.progress(0, true);
+      timeline.invalidate();
+    };
+    ScrollTrigger.addEventListener('refreshInit', invalidate);
+    if (!sharedScrollTrigger) {
+      const clock = gsap.fromTo(sharedScroll, { y: 0 }, {
+        y: () => ScrollTrigger.maxScroll(window),
+        duration: 1, ease: 'none', immediateRender: false,
+        onUpdate: renderSharedScenes,
+        scrollTrigger: {
+          start: 0,
+          end: () => ScrollTrigger.maxScroll(window),
+          scrub: compactClock.matches ? 0.20 : 0.28,
+          invalidateOnRefresh: true,
+          // Measure both chapter ranges before restoring their shared pose.
+          refreshPriority: -10,
+          onRefresh: renderSharedScenes,
+        },
+      });
+      sharedScrollTrigger = clock.scrollTrigger;
+      compactClock.addEventListener('change', () => {
+        sharedScrollTrigger.scrubDuration(compactClock.matches ? 0.20 : 0.28);
+      });
+      ScrollTrigger.addEventListener('refresh', renderSharedScenes);
+    }
+    renderSharedScenes();
+    return () => {
+      sharedScenes.delete(entry);
+      ScrollTrigger.removeEventListener('refreshInit', invalidate);
+      range.kill();
+    };
+  }
+
   // The scale a scene's photo is laid out at in a cw × ch viewport. Fitted by
   // width — on a landscape desktop the photo then runs far past the frame
   // top and bottom, so the camera can crane through it without ever
@@ -111,6 +204,10 @@
   // it does on a desktop (the sides, which are only cabin, crop).
   function fitScale(scene, cw, ch) {
     const byWidth = cw / scene.image.w;
+    // A portrait photograph must also respect the available desktop height:
+    // fitting by width alone crops the front on short or very wide screens.
+    if (scene.desktopFitHeight && desktopFraming.matches)
+      return Math.min(byWidth, ch / scene.desktopFitHeight);
     return scene.coverNarrow && narrow.matches
       ? Math.max(byWidth, (ch / scene.image.h) * scene.coverNarrow)
       : byWidth;
@@ -237,6 +334,24 @@
     layout();
     ScrollTrigger.addEventListener('refreshInit', layout);
 
+    // The particle handoff uses the same photographic projection at its two
+    // resting endpoints. It never measures a moving/sticky bounding box.
+    section._photoBridgeLayout = () => {
+      const [left, top] = photoPoint(scene, 0, 0, geo.cw, geo.ch);
+      return {
+        viewport: { width: geo.cw, height: geo.ch },
+        origin: `${geo.ox}px ${geo.oy}px`,
+        frame: { x: geo.ox * (1 - APPROACH_SCALE), y: geo.oy * (1 - APPROACH_SCALE),
+          width: geo.cw * APPROACH_SCALE, height: geo.ch * APPROACH_SCALE },
+        rect: {
+          x: geo.ox + (left - geo.ox) * APPROACH_SCALE,
+          y: geo.oy + (top - geo.oy) * APPROACH_SCALE,
+          width: scene.image.w * geo.scale * APPROACH_SCALE,
+          height: scene.image.h * geo.scale * APPROACH_SCALE,
+        },
+      };
+    };
+
     // Where a point of the photo is on screen right now: through the
     // plane's crane offset, then the frame's zoom and pan.
     const screenPoint = (x, y) => {
@@ -256,14 +371,13 @@
     // cockpit it let the dashboard show before the light had arrived.
     if (veil) gsap.set(veil, { '--rx': `${focusX}%`, '--ry': '8%', '--rr': VEIL_CLOSED });
 
-    const tl = gsap.timeline({
-      scrollTrigger: {
+    const shared = scene.id === 'chapter-bosch' || scene.id === 'bmw-chapter';
+    const scrollConfig = {
         trigger: section,
         start: 'top top',
-        end: 'bottom bottom',
-        // A full second of smoothing: the camera has weight, easing into
-        // and out of every move rather than jumping with each scroll tick.
-        scrub: 1,
+        end: () => `bottom ${bg.clientHeight}px`,
+        // Short catch-up keeps the camera weighted without trailing a reversal.
+        scrub: shared ? false : narrow.matches ? 0.28 : 0.45,
         // Targets that depend on layout (where the light rests, how far a
         // crane travels) are functions, so the tweens have to re-read them
         // whenever the layout is remeasured.
@@ -271,8 +385,9 @@
         onUpdate: (self) => trackTransitions(scene, self),
         onToggle: (self) => trackTransitions(scene, self),
         onRefresh: (self) => trackTransitions(scene, self),
-      },
-    });
+    };
+    const tl = gsap.timeline(shared ? { paused: true } : { scrollTrigger: scrollConfig });
+    const range = shared ? ScrollTrigger.create(scrollConfig) : tl.scrollTrigger;
 
     // A scene that carries straight on from the one before it overlaps it
     // by a screen (.chapter-container--continues), so that one's last frame
@@ -326,13 +441,48 @@
 
     // Screen-space overlays follow the photo on every frame the timeline
     // renders, and whenever the layout changes under them.
-    if (scene.render) {
-      const render = () => scene.render(ctx);
-      tl.eventCallback('onUpdate', render);
-      ScrollTrigger.addEventListener('refresh', render);
-      narrow.addEventListener('change', render);
-      render();
-    }
+    const render = () => {
+      if (scene.render) scene.render(ctx);
+      // Smoke reads the very same eased pose as the car and its lamps.
+      section._sceneProgress = tl.progress();
+      // Where the whole photograph is on screen (relative to the sticky
+      // frame), worked out from the camera pose rather than measured, so
+      // the particles and smoke that follow it never force a layout.
+      if (geo.cw) {
+        const [x0, y0] = screenPoint(0, 0);
+        const [x1, y1] = screenPoint(scene.image.w, scene.image.h);
+        const rect = section._photoRect || (section._photoRect = {});
+        rect.x = x0; rect.y = y0; rect.width = x1 - x0; rect.height = y1 - y0;
+        // Close in, the frame's feathered edges (6% / 14%, see
+        // .zoom-bg-image) all lie outside the view, so its mask changes no
+        // pixel; dropping it then spares the browser re-masking a magnified
+        // frame every frame (a large cost in Firefox).
+        const s = gsap.getProperty(img, 'scale');
+        const tx = gsap.getProperty(img, 'x');
+        const ty = gsap.getProperty(img, 'y');
+        const fx = (x) => geo.ox + s * (x - geo.ox) + tx;
+        const fy = (y) => geo.oy + s * (y - geo.oy) + ty;
+        const filled = fx(geo.cw * 0.06) <= -1 && fx(geo.cw * 0.94) >= geo.cw + 1
+          && fy(geo.ch * 0.14) <= -1 && fy(geo.ch * 0.86) >= geo.ch + 1;
+        if (filled !== img._filled) {
+          img._filled = filled;
+          img.classList.toggle('is-frame-filled', filled);
+        }
+      }
+      if (scene.id === 'chapter-bosch') {
+        // Retire the old surfaces using the rendered camera clock. CSS gates
+        // cannot be undone by an opacity tween or ScrollTrigger refresh; they
+        // lift only when the camera actually travels back into this chapter.
+        section.classList.toggle('has-particle-portal', section._sceneProgress >= BOSCH_HANDOFF.portalReady);
+        section.classList.toggle('has-left-dashboard', section._sceneProgress >= BOSCH_HANDOFF.zoomEnd);
+      }
+      section.dispatchEvent(new Event('sceneprogress'));
+    };
+    tl.eventCallback('onUpdate', render);
+    ScrollTrigger.addEventListener('refresh', render);
+    narrow.addEventListener('change', render);
+    render();
+    if (shared) driveSharedScene(section, tl, range);
   }
 
   // The slate: the chapter's title card, which then docks into the corner
@@ -364,6 +514,9 @@
     // Measured directly off assets/bmw.jpg, in its own pixel space: the
     // centre and size of each lit feature.
     image: { w: 2160, h: 3840 },
+    // Keep the bonnet, grille and lower bumper inside the camera's feathered
+    // frame. Coarse-pointer/mobile layouts retain the original width fit.
+    desktopFitHeight: 1700,
     focusY: 0.45,
     lampL: { x: 327, y: 1973, w: 313, h: 160 },
     lampR: { x: 1768, y: 1978, w: 343, h: 163 },
@@ -378,11 +531,12 @@
       intake: { x: 1027, y: 2230, elbow: [0.19, 0.035] },
     },
     // Fully lit by here; the rest of the chapter is the story.
-    revealEnd: 0.22,
+    revealEnd: 0.405,
     // The light arriving, and the crane out into the next chapter.
-    transitions: [[0, 0.22], [0.86, 1]],
+    transitions: [[0, 0.405], [0.86, 1]],
 
     place({ $, put, on }) {
+      this.labelSizesDirty = true;
       put($('.lamp-lit--left'), this.lampL, 1.3);
       put($('.lamp-lit--right'), this.lampR, 1.3);
       put($('.badge-lit'), this.badge, 1.5);
@@ -407,17 +561,16 @@
     // through the smoke — and --lr is how far the light carries, which
     // trails behind it, so the grille and bonnet are found by the light
     // rather than simply uncovered. They overlap the lamps' own wake-up
-    // below (0.14–0.31) and the smoke thinning out (js/bmw-smoke.js), and
-    // are done before the render sweep at 0.44. The push-in is the
-    // default entrance's, unchanged.
+    // below. The name's points finish tracing the LEDs by 0.215 and hold
+    // there, charging, until native light begins at 0.245. Its reach then
+    // finds the full front by 0.405, before the render sweep at 0.44.
     intro(tl, { img, veil }) {
-      const k = this.revealEnd / 0.32;
       if (veil) {
         gsap.set(veil, { '--li': 0, '--lr': 9 });
-        tl.to(veil, { '--li': 1, duration: 0.2, ease: 'power1.inOut' }, 0.12)
-          .to(veil, { '--lr': 140, duration: 0.28, ease: 'power1.inOut' }, 0.14);
+        tl.to(veil, { '--li': 1, duration: 0.15, ease: 'power1.inOut' }, 0.245)
+          .to(veil, { '--lr': 140, duration: 0.14, ease: 'power1.inOut' }, 0.265);
       }
-      tl.to(img, { scale: APPROACH_SCALE, duration: 0.26 * k, ease: 'power2.out' }, 0.36 * k);
+      tl.to(img, { scale: APPROACH_SCALE, duration: 0.16, ease: 'power2.out' }, 0.265);
     },
 
     beats(tl, ctx) {
@@ -440,6 +593,14 @@
         labels: Object.fromEntries([...$$('.callout[data-pin]')].map((el) => [el.dataset.pin, el])),
         leaders: Object.fromEntries([...$$('.callout-leaders path')].map((el) => [el.dataset.pin, el])),
       };
+      const invalidateLabelSizes = () => { this.labelSizesDirty = true; };
+      this.labelSizesObserver?.disconnect();
+      if (typeof ResizeObserver !== 'undefined') {
+        this.labelSizesObserver = new ResizeObserver(invalidateLabelSizes);
+        Object.values(this.refs.labels).forEach((label) => this.labelSizesObserver.observe(label));
+      }
+      document.fonts?.addEventListener('loadingdone', invalidateLabelSizes);
+      document.fonts?.ready.then(invalidateLabelSizes);
       const { dots, labels, leaders } = this.refs;
 
       gsap.set([spillL, spillR], { opacity: 0, scale: 0.8 });
@@ -450,21 +611,21 @@
       // The lamps come up as the beam reaches them, left a beat before the
       // right. These only amplify the corona rings the photo already has,
       // so they stay crisp; the faint spill lights the bodywork.
-      tl.to(spillL, { opacity: 1, scale: 1, duration: 0.11, ease: 'power2.out' }, 0.14)
-        .to(lampL, { opacity: 1, duration: 0.09, ease: 'power2.out' }, 0.16)
-        .to(spillR, { opacity: 1, scale: 1, duration: 0.11, ease: 'power2.out' }, 0.17)
-        .to(lampR, { opacity: 1, duration: 0.09, ease: 'power2.out' }, 0.19)
-        .to([spillL, spillR], { opacity: 0.75, duration: 0.1, ease: 'power1.out' }, 0.29);
+      tl.to(spillL, { opacity: 1, scale: 1, duration: 0.1, ease: 'power2.out' }, 0.248)
+        .to(lampL, { opacity: 1, duration: 0.08, ease: 'power2.out' }, 0.252)
+        .to(spillR, { opacity: 1, scale: 1, duration: 0.1, ease: 'power2.out' }, 0.262)
+        .to(lampR, { opacity: 1, duration: 0.08, ease: 'power2.out' }, 0.268)
+        .to([spillL, spillR], { opacity: 0.75, duration: 0.1, ease: 'power1.out' }, 0.36);
 
       // The emblem lights from within — the photograph's own blue and
       // white panels brightening in place, the last detail to wake.
-      tl.to(badge, { opacity: 1, duration: 0.1, ease: 'power2.out' }, 0.21);
+      tl.to(badge, { opacity: 1, duration: 0.09, ease: 'power2.out' }, 0.292);
 
       // The slate over the establishing shot, held, then docked. It waits
       // for the car: the lamps are already on and the light is reaching the
-      // bodywork by 0.24, so the title arrives as the BMW emerges rather
+      // bodywork by 0.30, so the title arrives as the BMW emerges rather
       // than over the top of the darkness and the smoke it's emerging from.
-      const dock = slateBeats(tl, $, { at: 0.24, dockAt: 0.42 });
+      const dock = slateBeats(tl, $, { at: 0.30, dockAt: 0.44 });
 
       // The render sweep: the real car becomes its virtual prototype, and
       // the VR viewport draws in around it.
@@ -519,34 +680,54 @@
       // later cranes away. Written here, once per frame, and read by
       // js/bmw-smoke.js from the same properties, so the two can never
       // disagree about where the light is.
+      // Only changed values are written: an unchanged write still restyles
+      // (and repaints) the whole viewport-sized layer they belong to.
+      const write = (el, name, value) => {
+        if (el._written?.[name] === value) return;
+        (el._written ||= {})[name] = value;
+        if (name === 'd') el.setAttribute('d', value);
+        else if (name.startsWith('--')) el.style.setProperty(name, value);
+        else el.style[name] = value;
+      };
       if (veil) {
         const [ax, ay] = screenPoint(this.lampL.x, this.lampL.y);
         const [bx, by] = screenPoint(this.lampR.x, this.lampR.y);
-        veil.style.setProperty('--l1x', `${ax}px`);
-        veil.style.setProperty('--l1y', `${ay}px`);
-        veil.style.setProperty('--l2x', `${bx}px`);
-        veil.style.setProperty('--l2y', `${by}px`);
+        write(veil, '--l1x', `${ax.toFixed(2)}px`);
+        write(veil, '--l1y', `${ay.toFixed(2)}px`);
+        write(veil, '--l2x', `${bx.toFixed(2)}px`);
+        write(veil, '--l2y', `${by.toFixed(2)}px`);
       }
 
       const { dots, labels, leaders } = this.refs;
       const compact = narrow.matches;
-      // Measure every label before moving any, so a frame costs one layout.
-      const sizes = compact ? null : Object.fromEntries(Object.keys(this.pins)
-        .map((name) => [name, [labels[name].offsetWidth, labels[name].offsetHeight]]));
+      // The labels move each camera frame, but their layout dimensions do
+      // not. Font, viewport and wrapping changes invalidate this cache.
+      if (!compact && (this.labelSizesDirty || !this.labelSizes)) {
+        this.labelSizes = Object.fromEntries(Object.keys(this.pins)
+          .map((name) => [name, [labels[name].offsetWidth, labels[name].offsetHeight]]));
+        this.labelSizesDirty = false;
+      }
+      const sizes = compact ? null : this.labelSizes;
+      // Pins and labels move by the compositor's `translate`, not left/top,
+      // so following the camera needs no layout.
+      const move = (el, x, y) => (moveByTranslate
+        ? write(el, 'translate', x === null ? '' : `${x.toFixed(1)}px ${y.toFixed(1)}px`)
+        : (write(el, 'left', x === null ? '' : `${x.toFixed(1)}px`), write(el, 'top', y === null ? '' : `${y.toFixed(1)}px`)));
       Object.entries(this.pins).forEach(([name, pin]) => {
-        const [ax, ay] = screenPoint(pin.x, pin.y);
-        dots[name].style.left = `${ax}px`;
-        dots[name].style.top = `${ay}px`;
-        if (compact) return;
-
+        const dot = dots[name];
         const label = labels[name];
+        // A pin that is not on screen yet keeps its last position.
+        if (!(gsap.getProperty(dot, 'opacity') > 0 || gsap.getProperty(label, 'opacity') > 0)) return;
+        const [ax, ay] = screenPoint(pin.x, pin.y);
+        move(dot, ax, ay);
+        if (compact) { move(label, null, null); return; }
+
         const [w, h] = sizes[name];
         const below = label.classList.contains('callout--below');
         const ex = Math.min(Math.max(ax + pin.elbow[0] * geo.cw, geo.cw * 0.05), geo.cw * 0.95 - w);
         const ey = ay + pin.elbow[1] * geo.ch;
-        label.style.left = `${ex}px`;
-        label.style.top = `${below ? ey + 10 : ey - h - 10}px`;
-        leaders[name].setAttribute('d', `M${ax} ${ay}L${ex} ${ey}L${ex + w} ${ey}`);
+        move(label, ex, below ? ey + 10 : ey - h - 10);
+        write(leaders[name], 'd', `M${ax.toFixed(1)} ${ay.toFixed(1)}L${ex.toFixed(1)} ${ey.toFixed(1)}L${(ex + w).toFixed(1)} ${ey.toFixed(1)}`);
       });
     },
 
@@ -561,9 +742,9 @@
       const AT = 0.87;
       const DUR = 0.13;
       const EASE = 'power1.in';
-      tl.to(plane, { y: () => CRANE_OUT * geo.ch, duration: DUR, ease: EASE }, AT)
+      tl.to(plane, { y: () => CRANE_OUT * geo.ch * (narrow.matches ? 0.75 : 1), duration: DUR, ease: EASE }, AT)
         .to(img, { scale: 1, duration: DUR, ease: EASE }, AT)
-        .to($('.zoom-bg-blur'), { opacity: 1, duration: 0.06, ease: 'power1.in' }, 0.92)
+        .to($('.zoom-bg-blur'), { autoAlpha: 1, duration: 0.06, ease: 'power1.in' }, 0.92)
         .to(stageRig(), { '--ps-leave': 1, duration: 0.09, ease: EASE }, AT);
     },
   };
@@ -575,7 +756,8 @@
    * camera leans into the display, which pages through the work as the
    * interfaces it was — frontend, APIs, integration — while data pulses run
    * along the cabin's red light strips between the screen and the car. The
-   * camera eases back, the display powers down, and the darkness closes.
+   * camera moves through the dashboard display into the particle field
+   * that assembles the portrait opening Chapter 03.
    */
   const BOSCH_SCENE = {
     id: 'chapter-bosch',
@@ -611,9 +793,10 @@
       in: [[312, 788], [364, 788]],
     },
     // The crane arriving and settling, and the darkness closing at the end.
-    transitions: [[0, 0.24], [0.88, 1]],
+    transitions: [[0, 0.24], [BOSCH_HANDOFF.zoomStart, 1]],
 
     place({ $, put, on, scale }) {
+      this.uiSizeDirty = true;
       const screenOn = $('.screen-on');
       if (screenOn) {
         screenOn.style.clipPath = `polygon(${this.glass.map(([x, y]) => {
@@ -653,9 +836,9 @@
         gsap.set(veil, open);
         tl.set(veil, open, 0);
       }
-      tl.fromTo(plane, { y: () => -CRANE_IN * geo.ch }, { y: 0, duration: 0.22, ease: 'power2.out' }, 0)
+      tl.fromTo(plane, { y: () => -CRANE_IN * geo.ch * (narrow.matches ? 0.75 : 1) }, { y: 0, duration: 0.22, ease: 'power2.out' }, 0)
         .fromTo(img, { scale: 0.78 }, { scale: APPROACH_SCALE, duration: 0.22, ease: 'power2.out' }, 0)
-        .fromTo($('.zoom-bg-blur'), { opacity: 1 }, { opacity: 0, duration: 0.09, ease: 'power1.out' }, 0);
+        .fromTo($('.zoom-bg-blur'), { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.09, ease: 'power1.out' }, 0);
     },
 
     beats(tl, ctx) {
@@ -666,19 +849,31 @@
       const pages = [1, 2, 3].map((n) => ui.querySelector(`.sui-page--${n}`));
       const pageDots = ui.querySelectorAll('.sui-dots i');
       const strips = $$('.strip');
+      const uiBar = $('.sui-bar');
       this.refs = { ui };
+      const invalidateUISize = () => { this.uiSizeDirty = true; };
+      this.uiSizeObserver?.disconnect();
+      if (typeof ResizeObserver !== 'undefined') {
+        this.uiSizeObserver = new ResizeObserver(invalidateUISize);
+        this.uiSizeObserver.observe(ui);
+      }
+      window.addEventListener('resize', invalidateUISize, { passive: true });
+      document.fonts?.addEventListener('loadingdone', invalidateUISize);
+      document.fonts?.ready.then(invalidateUISize);
 
-      gsap.set([screenOn, spill], { opacity: 0 });
+      // autoAlpha: once faded out they leave rendering entirely (Firefox keeps
+      // invisible will-change layers otherwise, inside the zooming frame).
+      gsap.set([screenOn, spill], { autoAlpha: 0 });
       gsap.set(ui, { autoAlpha: 0 });
       gsap.set(pages, { opacity: 0, x: 24 });
-      gsap.set(strips, { opacity: 0 });
+      gsap.set(strips, { autoAlpha: 0 });
 
       // The display's backlight catches as the camera slows toward it,
       // then, once the camera has settled, the display boots fully — the
       // Bosch mark resolves, with a restrained glow on the dashboard.
-      tl.to(screenOn, { opacity: 0.35, duration: 0.06, ease: 'power1.out' }, 0.07)
-        .to(screenOn, { opacity: 1, duration: 0.09, ease: 'power2.inOut' }, 0.17)
-        .to(spill, { opacity: 1, duration: 0.1, ease: 'power2.out' }, 0.17);
+      tl.to(screenOn, { autoAlpha: 0.35, duration: 0.06, ease: 'power1.out' }, 0.07)
+        .to(screenOn, { autoAlpha: 1, duration: 0.09, ease: 'power2.inOut' }, 0.17)
+        .to(spill, { autoAlpha: 1, duration: 0.1, ease: 'power2.out' }, 0.17);
 
       // The slate, over the booted display. It docks as the camera leans in.
       const dock = slateBeats(tl, $, { at: 0.23, dockAt: 0.4 });
@@ -688,7 +883,7 @@
       // phone's. Then the Bosch screen hands over to the work.
       const glassW = (this.glass[1][0] + this.glass[2][0] - this.glass[0][0] - this.glass[3][0]) / 2;
       const pushScale = () => {
-        const target = geo.cw < 720 ? 0.9 * geo.cw : Math.min(0.58 * geo.cw, 860);
+        const target = Math.min(geo.cw * (geo.ch > geo.cw ? 0.84 : 0.58), geo.ch * 0.58 * glassW / 167);
         return target / (glassW * geo.scale);
       };
       tl.to(img, {
@@ -699,6 +894,12 @@
         ease: 'power2.inOut',
       }, 0.4)
         .to(ui, { autoAlpha: 1, duration: 0.04, ease: 'power1.out' }, 0.48);
+
+      // The opaque work interface has replaced the boot logo. Clear that
+      // underlying image now, so fading the interface later cannot expose it.
+      tl.fromTo(screenOn, { autoAlpha: 1 }, {
+        autoAlpha: 0, duration: 0.02, ease: 'none', immediateRender: false,
+      }, 0.52);
 
       // The pages. Each slides in like an interface would, its dot lights
       // in the status bar, and its content plays through.
@@ -745,19 +946,65 @@
       // Meanwhile the car carries the data: pulses along its own light
       // strips — out from the display, back to it, and in from the
       // driver's side — for as long as the display shows the work.
-      tl.to(strips, { opacity: 1, duration: 0.02 }, 0.52)
+      tl.to(strips, { autoAlpha: 1, duration: 0.02 }, 0.52)
         .fromTo($$('.strip--out .pulse'), { '--t': 0 }, { '--t': 1, duration: 0.05, stagger: 0.025, repeat: 4, ease: 'none' }, 0.53)
         .fromTo($$('.strip--back .pulse'), { '--t': 0 }, { '--t': 1, duration: 0.05, stagger: 0.025, repeat: 4, ease: 'none' }, 0.545)
         .fromTo($$('.strip--in .pulse'), { '--t': 0 }, { '--t': 1, duration: 0.03, repeat: 7, ease: 'none' }, 0.535)
-        .to(strips, { opacity: 0, duration: 0.02 }, 0.8);
+        .to(strips, { autoAlpha: 0, duration: 0.02 }, 0.8);
 
-      // (to 0.8: the last page holds.) The work gives way to the Bosch
-      // screen, the camera eases back to the dashboard, the display powers
-      // down, and then the darkness closes.
-      tl.to(ui, { autoAlpha: 0, duration: 0.03, ease: 'power1.in' }, 0.8)
-        .to(img, { scale: APPROACH_SCALE, x: 0, y: 0, duration: 0.07, ease: 'power2.inOut' }, 0.8)
-        .to(dock, { opacity: 0, duration: 0.02, ease: 'power1.in' }, 0.86)
-        .to([screenOn, spill], { opacity: 0, duration: 0.04, ease: 'power1.in' }, 0.87);
+      // Fill both viewport axes with the glass, including portrait phones.
+      // The extra inset takes the bezel beyond every corner before handoff.
+      // A bounded image layer is reused; only its compositor transform moves.
+      const nearScale = () => {
+        return Math.max(geo.cw / (297 * geo.scale), geo.ch / (167 * geo.scale)) * 1.16;
+      };
+      tl.to(img, {
+        scale: nearScale,
+        x: () => geo.cw / 2 - geo.ox,
+        y: () => geo.ch * 0.5 - geo.oy,
+        duration: BOSCH_HANDOFF.zoomEnd - BOSCH_HANDOFF.zoomStart,
+        ease: 'sine.inOut',
+      }, BOSCH_HANDOFF.zoomStart)
+        .to(pages[2], { opacity: 0, x: -18, duration: 0.05, ease: 'sine.inOut' }, 0.825)
+        .to(uiBar, { opacity: 0, duration: 0.04, ease: 'sine.inOut' }, 0.835)
+        .to(strips, { autoAlpha: 0.85, duration: 0.02 }, 0.82)
+        .fromTo($('.strip--out .pulse'), { '--t': 0 }, { '--t': 1, duration: 0.09, ease: 'power1.inOut' }, 0.82)
+        .to(strips, { autoAlpha: 0, duration: 0.035 }, 0.84)
+        .to(dock, { opacity: 0, duration: 0.035, ease: 'sine.inOut' }, 0.84)
+        .to(spill, { autoAlpha: 0, duration: 0.035, ease: 'sine.inOut' }, 0.84)
+        .to(ui, { autoAlpha: 0, duration: 0.035, ease: 'sine.inOut' }, 0.84);
+    },
+
+    // Replace only the display surface as its UI clears. Its measured polygon
+    // follows the camera all the way offscreen, without fading the cockpit.
+    outro(tl, { $ }) {
+      const next = document.getElementById('chapter-beyond');
+      const stage = next?.querySelector('.story-stage');
+      tl.to({}, { duration: 1 }, 0);
+      if (stage && document.documentElement.classList.contains('has-story')) {
+        const layer = document.createElement('div');
+        const portrait = document.createElement('div');
+        const matte = document.createElement('div');
+        const cover = document.createElement('div');
+        layer.className = 'scene-bridge scene-bridge--portrait';
+        portrait.className = 'scene-bridge__portrait';
+        matte.className = 'scene-bridge__matte';
+        cover.className = 'scene-bridge__cover';
+        layer.setAttribute('aria-hidden', 'true');
+        portrait.append(matte, cover);
+        layer.appendChild(portrait);
+        document.body.appendChild(layer);
+        gsap.set(portrait, { autoAlpha: 0 });
+        gsap.set(stage, { opacity: 0 });
+        gsap.set(layer, { autoAlpha: 1 });
+        window.SceneKit.boschPortrait = { layer, stage, portal: portrait };
+        tl.to(portrait, {
+          autoAlpha: 1,
+          duration: BOSCH_HANDOFF.portalReady - BOSCH_HANDOFF.portalStart,
+          ease: 'sine.inOut',
+        }, BOSCH_HANDOFF.portalStart)
+          .set(stage, { opacity: 1 }, BOSCH_HANDOFF.zoomEnd);
+      }
     },
 
     // The interface is drawn in screen space and laid onto the display's
@@ -765,15 +1012,33 @@
     // screen — in perspective, through the lean-in and back.
     render({ screenPoint }) {
       const ui = this.refs && this.refs.ui;
-      if (!ui || gsap.getProperty(ui, 'opacity') === 0) return;
+      if (!ui) return;
+      // The camera changes the projected quad, not this untransformed box.
+      // Layout, fonts and ResizeObserver invalidate its dimensions.
+      if (this.uiSizeDirty || !this.uiSize) {
+        this.uiSize = [ui.offsetWidth, ui.offsetHeight];
+        this.uiSizeDirty = false;
+      }
       const corners = this.glass.map(([x, y]) => screenPoint(x, y));
-      ui.style.transform = quadMatrix(ui.offsetWidth, ui.offsetHeight, corners);
+      ui.style.transform = quadMatrix(this.uiSize[0], this.uiSize[1], corners);
+      const clip = `polygon(${corners.map(([x, y]) => `${x.toFixed(2)}px ${y.toFixed(2)}px`).join(',')})`;
+      const bridge = window.SceneKit.boschPortrait;
+      if (bridge?.portal) bridge.portal.style.clipPath = clip;
+      if (window.PortraitState) {
+        const xs = corners.map(([x]) => x);
+        const ys = corners.map(([, y]) => y);
+        window.PortraitState.dashboardRect = {
+          x: Math.min(...xs), y: Math.min(...ys),
+          width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys),
+        };
+        window.PortraitState.dashboardClip = clip;
+      }
     },
   };
 
   // Shared with js/story.js, so chapters 03–06 open with the same slate and
   // dock, and sit the cursor glow out of their transitions the same way.
-  window.SceneKit = { slateBeats, trackTransitions };
+  window.SceneKit = { slateBeats, trackTransitions, driveSharedScene, scrollPosition: () => sharedScroll.y };
 
   /* ---------- The hero lifting away ----------
    * The hero is a curtain over the BMW scene, which starts a screen early,
@@ -816,16 +1081,19 @@
     }
   }
 
-  // Everything here reads real layout (vh units, pin measurements). Running it
-  // before the window has fully loaded and painted at least once can capture a
-  // collapsed 0-size viewport on some setups, wedging the pin permanently.
-  // Deferring to `load` (with an immediate fallback if we're already past it)
-  // guarantees fonts, images and layout are settled first.
+  // Everything here reads real layout (vh units, pin measurements), so it waits
+  // for a painted, non-zero viewport (a collapsed 0-size one would wedge the
+  // pins). It no longer waits for window `load`, which also waits for every
+  // image and web font: anyone who scrolled in during a slow load saw the
+  // chapters' raw markup (titles and callouts over a dark car) until it fired.
+  // Layout is remeasured on every refresh, and ScrollTrigger refreshes itself
+  // once fonts and images have arrived (`load`).
   function init() {
     setupHeroExit();
     setupPhotoScene(BMW_SCENE);
     setupPhotoScene(BOSCH_SCENE);
     ScrollTrigger.refresh();
+    document.documentElement.classList.remove('scenes-pending');
   }
 
   // Guard against initializing while the viewport is momentarily 0×0 (a
@@ -841,14 +1109,12 @@
   }
 
   function start() {
-    whenViewportReady(init);
+    // Deferred scripts run once the document is parsed; two frames later
+    // its layout has been painted at least once.
+    requestAnimationFrame(() => requestAnimationFrame(() => whenViewportReady(init)));
   }
 
-  if (document.readyState === 'complete') {
-    start();
-  } else {
-    window.addEventListener('load', start, { once: true });
-  }
+  start();
 
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') ScrollTrigger.refresh();

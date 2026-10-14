@@ -60,6 +60,9 @@ export function part({
 
   const mesh = new THREE.Mesh(geo, mat);
   mesh.receiveShadow = true;
+  // Read by the lab's shader preparation, which compiles shadow programs
+  // for every part that will cast one once it has been built.
+  mesh.userData.shadowCaster = shadow;
 
   const root = new THREE.Group();
   root.add(mesh);
