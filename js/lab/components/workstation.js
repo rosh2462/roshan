@@ -5,6 +5,7 @@ import { part, solid, staggered } from '../kit.js';
 import { place, screenPlane, officeChair, monitor, keyboard, mouse, lamp, mug, headset, controller, box } from '../shapes.js';
 import { pictureMaterial, mappedMaterial } from '../materials.js';
 import { blenderScreen, unityScreen, codeScreen, keyboardTexture } from '../screens.js';
+import { neuroMazePreview } from '../preview.js';
 
 /* The central workstation — where the glowing sphere used to be. A beech
  * table with two monitors, a keyboard and mouse, a lamp, a mug, and a VR
@@ -13,7 +14,8 @@ import { blenderScreen, unityScreen, codeScreen, keyboardTexture } from '../scre
  *
  * Its main monitor is the story's hinge: while the lab is being built it
  * shows Blender; when the scene goes to Unity the picture cross-fades to the
- * Unity editor; and in the last stage it is the object that gets selected. */
+ * Unity editor; and in the last stage it is the object that gets selected —
+ * and, selected, it powers on into a NeuroMaze preview that opens chapter 04. */
 export function createWorkstation({ materials }) {
   const [tx, , tz] = LAYOUT.workstation;
   const top = LAYOUT.tableTop;
@@ -46,6 +48,10 @@ export function createWorkstation({ materials }) {
   unityMesh.renderOrder = 2;
   unityMesh.visible = false;
   monitorGroup.add(unityMesh);
+  // NeuroMaze, over both, from the moment the monitor is selected.
+  const preview = neuroMazePreview(screenPlane(mon, mx, top, mz));
+  preview.mesh.position.z = 0.003;
+  monitorGroup.add(preview.mesh);
 
   // ---- the second monitor, keyboard, mouse ------------------------------
   const mon2 = monitor(0.86, 0.52);
@@ -84,6 +90,7 @@ export function createWorkstation({ materials }) {
   const target = {
     group: monitorGroup,
     unityMat,
+    preview,
     // centre of the screen (world) and the bezel it sits in
     center: new THREE.Vector3(mx, top + 0.15 + 0.03 + 0.3, mz + 0.03),
     bezel: { w: 1.06, h: bezelH, d: 0.045, cy: top + 0.15 + bezelH / 2, z: mz },
@@ -103,6 +110,8 @@ export function createWorkstation({ materials }) {
       const s = smooth(seg(L, ...SCHEDULE.screens));
       unityMesh.visible = s > 0.001;
       unityMat.opacity = s;
+      preview.setOn(smooth(seg(L, ...SCHEDULE.preview)));
     },
+    animate(t) { preview.animate(t); },
   };
 }

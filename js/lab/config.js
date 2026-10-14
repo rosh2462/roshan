@@ -69,6 +69,7 @@ export const SCHEDULE = {
   approach: [0.72, 0.9],
   hover: [0.89, 0.93],
   select: [0.93, 0.97],
+  preview: [0.935, 0.975], // the selected monitor powers on into NeuroMaze
 };
 
 // The camera: a narrow lens far away, so parallel edges stay near-parallel

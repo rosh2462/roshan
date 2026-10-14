@@ -9,12 +9,16 @@ import { seg, smooth, easeOutCubic } from '../timeline.js';
  * there too — a thin ray from the lower right of the frame reaches the main
  * monitor (hover: a fine outline appears), then the monitor is picked
  * (select: the outline firms up, the monitor lifts a hair and its screen
- * brightens, everything else falls slightly back, and a small label names
- * it). That is all: the same three things an XR ray interactor does —
- * point, highlight, select — and nothing decorative.
+ * powers on into a NeuroMaze preview, everything else falls slightly back,
+ * and a small label names it). The same three things an XR ray interactor
+ * does — point, highlight, select.
+ *
+ * The visitor can then use it: hovering lifts the preview's play button, and
+ * a click/tap on the monitor (or its label, also a keyboard button) presses
+ * it — a flash — and `onOpen` dives into chapter 04.
  *
  * Every value is a function of L, so scrolling back un-selects it. */
-export function createInteraction({ workstation, stage, onChange = () => {}, isAvailable = () => true }) {
+export function createInteraction({ workstation, stage, onChange = () => {}, onOpen = () => {}, isAvailable = () => true }) {
   const t = workstation.target;
   const b = t.bezel;
   const group = new THREE.Group();
@@ -50,14 +54,13 @@ export function createInteraction({ workstation, stage, onChange = () => {}, isA
   tag.type = 'button';
   tag.disabled = true;
   tag.tabIndex = -1;
-  tag.setAttribute('aria-label', 'Select monitor');
-  tag.setAttribute('aria-pressed', 'false');
+  tag.setAttribute('aria-label', 'Open NeuroMaze in chapter 04, Creative works');
+  const verb = matchMedia('(pointer: coarse)').matches ? 'Tap' : 'Click';
   tag.innerHTML =
-    '<span class="lab-tag__box"><i class="lab-tag__dot"></i><span class="lab-tag__name">Monitor</span><span class="lab-tag__state">Selected</span></span>';
+    `<span class="lab-tag__box"><i class="lab-tag__dot"></i><span class="lab-tag__name">NeuroMaze</span><span class="lab-tag__state">${verb} to open</span></span>`;
   // Keep the keyboard control outside the decorative aria-hidden canvas.
   stage.parentElement.appendChild(tag);
   const box = tag.firstElementChild;
-  const stateLabel = box.querySelector('.lab-tag__state');
   let disposed = false;
   let labelWidth = box.offsetWidth || 190;
   const measureLabel = () => {
@@ -88,8 +91,6 @@ export function createInteraction({ workstation, stage, onChange = () => {}, isA
   let inputRevision = 0;
   let posedInputRevision = -1;
   let manualHover = null;
-  let manualSelect = null;
-  let selected = false;
   let pointerDown = null;
   let labelClickAllowed = false;
   let pointerFrame = 0;
@@ -103,10 +104,24 @@ export function createInteraction({ workstation, stage, onChange = () => {}, isA
 
   const available = () => !disposed && currentCamera && isAvailable() && realProgress >= SCHEDULE.hover[0];
   const changeInput = () => { inputRevision++; onChange(); };
-  const toggleSelection = () => {
-    if (!available()) return;
-    manualSelect = !selected;
-    manualHover = true;
+  // A short press first, so the flash reads before the page starts to move.
+  let openTimer = 0;
+  const open = () => {
+    if (!available() || openTimer) return;
+    t.preview.press();
+    tag.classList.add('is-opening');
+    onChange();
+    openTimer = setTimeout(() => {
+      openTimer = 0;
+      tag.classList.remove('is-opening');
+      if (!disposed) onOpen();
+    }, 220);
+  };
+  const setHover = (value) => {
+    if (value === manualHover) return;
+    manualHover = value;
+    t.preview.setHover(value === true);
+    surface.style.cursor = value ? 'pointer' : '';
     changeInput();
   };
   function hitTest(event) {
@@ -131,13 +146,12 @@ export function createInteraction({ workstation, stage, onChange = () => {}, isA
     pointerFrame = requestAnimationFrame(() => {
       pointerFrame = 0;
       if (!pointer || !available()) return;
-      const hover = hitTest(pointer);
-      if (hover !== manualHover) { manualHover = hover; changeInput(); }
+      setHover(hitTest(pointer));
     });
   }
   function leavePointer() {
     pointer = null;
-    if (manualHover !== null) { manualHover = null; changeInput(); }
+    setHover(null);
   }
   function beginPointer(event) {
     labelClickAllowed = false;
@@ -154,13 +168,13 @@ export function createInteraction({ workstation, stage, onChange = () => {}, isA
         performance.now() - down.at > 500 || Math.hypot(event.clientX - down.x, event.clientY - down.y) > 8 ||
         !(down.label ? tag.contains(event.target) : hitTest(event))) return;
     if (down.label) { labelClickAllowed = true; return; }
-    toggleSelection();
+    open();
   }
   const cancelPointer = () => { pointerDown = null; labelClickAllowed = false; };
   const clickLabel = (event) => {
     if (event.detail > 0 && 'PointerEvent' in window && !labelClickAllowed) return;
     labelClickAllowed = false;
-    toggleSelection();
+    open();
   };
   const delegate = (handler) => (event) => { if (!tag.contains(event.target)) handler(event); };
   const delegatedMove = delegate(movePointer);
@@ -188,9 +202,11 @@ export function createInteraction({ workstation, stage, onChange = () => {}, isA
       pointerDown = null;
       labelClickAllowed = false;
       // Scroll is the author of the story. A forward/reverse gesture clears
-      // visitor input so the original construction/selection stays reversible.
-      if (manualHover !== null || manualSelect !== null) {
-        manualHover = manualSelect = null;
+      // visitor hover so the original construction/selection stays reversible.
+      if (manualHover !== null) {
+        manualHover = null;
+        t.preview.setHover(false);
+        surface.style.cursor = '';
         inputRevision++;
       }
     }
@@ -203,9 +219,8 @@ export function createInteraction({ workstation, stage, onChange = () => {}, isA
     lastAvailable = inputAvailable;
     posedInputRevision = inputRevision;
     const activeInput = L >= SCHEDULE.hover[0];
-    const select = activeInput && manualSelect !== null ? Number(manualSelect) : smooth(seg(L, ...SCHEDULE.select));
+    const select = smooth(seg(L, ...SCHEDULE.select));
     const hover = Math.max(select, activeInput && manualHover !== null ? Number(manualHover) : smooth(seg(L, ...SCHEDULE.hover)));
-    selected = select >= 0.5;
 
     // outline: fine on hover, firm on select
     const th = 0.005 + 0.009 * select;
@@ -236,15 +251,12 @@ export function createInteraction({ workstation, stage, onChange = () => {}, isA
     dot.scale.setScalar(1 - 0.35 * select);
 
     // label, pinned beside the monitor's upper-right corner
-    const labelOpacity = activeInput && manualSelect !== null ? 1 : select;
+    const labelOpacity = select;
     tag.style.opacity = String(labelOpacity);
     const controlAvailable = inputAvailable && activeInput && labelOpacity > 0.001;
     tag.disabled = !controlAvailable;
     tag.tabIndex = controlAvailable ? 0 : -1;
     tag.classList.toggle('is-interactive', controlAvailable);
-    tag.setAttribute('aria-pressed', String(selected));
-    tag.setAttribute('aria-label', selected ? 'Deselect monitor' : 'Select monitor');
-    stateLabel.textContent = selected ? 'Selected' : 'Select';
     if (labelOpacity > 0.001) {
       if (!labelVisible) measureLabel();
       anchor.set(t.x + b.w / 2, b.cy + b.h / 2 + t.group.position.y, b.z).project(camera);
@@ -269,9 +281,11 @@ export function createInteraction({ workstation, stage, onChange = () => {}, isA
 
   return {
     group, update,
-    stats: () => ({ manualHover, manualSelect }),
+    stats: () => ({ manualHover }),
     dispose() {
       disposed = true;
+      clearTimeout(openTimer);
+      surface.style.cursor = '';
       labelObserver?.disconnect();
       window.removeEventListener('resize', measureLabel);
       document.fonts?.removeEventListener('loadingdone', measureLabel);

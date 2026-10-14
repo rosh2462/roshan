@@ -105,6 +105,13 @@ export async function startLab({ canvas, stage, state, pause: yieldToPage = null
   let requestInteractionFrame = () => {};
   const interaction = createInteraction({ workstation, stage,
     onChange: () => requestInteractionFrame(),
+    // The NeuroMaze preview opens chapter 04: js/story.js dives through the
+    // monitor's match cut; without it (reduced motion) the page just goes there.
+    onOpen: () => {
+      if (window.SceneKit?.workHandoff?.dive?.()) return;
+      const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      document.getElementById('chapter-work')?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    },
     isAvailable: () => !disposed && contextAvailable && !document.hidden && (!driven || shouldRun()),
   });
 
@@ -165,6 +172,7 @@ export async function startLab({ canvas, stage, state, pause: yieldToPage = null
     const unity = smooth(seg(progress, ...SCHEDULE.unity));
     if (changed) grid.update(progress);
     atmosphere.update(progress, t);
+    workstation.animate(t);
     if (changed) {
       floor.update(progress);
       walls.update(progress, t);

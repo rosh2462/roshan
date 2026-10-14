@@ -3214,6 +3214,30 @@ a:focus-visible, button:focus-visible {
    44-pixel touch target. */
 .lab-tag.is-interactive .lab-tag__box::after { content: ''; position: absolute; inset: -8px -6px; }
 .lab-tag:focus-visible .lab-tag__box { outline: 2px solid var(--accent); outline-offset: 6px; }
+/* The label invites a press: its dot pings (transform/opacity only), and it
+   answers the press while the screen flashes and the dive begins. */
+.lab-tag__dot { position: relative; }
+.lab-tag__dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: lab-tag-ping 1.8s ease-out infinite;
+}
+@keyframes lab-tag-ping {
+  0% { transform: scale(1); opacity: 0.7; }
+  70%, 100% { transform: scale(2.8); opacity: 0; }
+}
+.lab-tag__box { transition: background-color 0.2s ease, border-color 0.2s ease; }
+.lab-tag.is-interactive:hover .lab-tag__box,
+.lab-tag.is-opening .lab-tag__box {
+  border-color: rgba(var(--accent-rgb), 1);
+  background: rgba(var(--accent-rgb), 0.16);
+}
+@media (prefers-reduced-motion: reduce) {
+  .lab-tag__dot::after { animation: none; opacity: 0; }
+}
 @media (prefers-reduced-motion: reduce) and (min-width: 721px) and (pointer: fine) {
   #bmw-chapter :is(.photo-plane, .zoom-bg-layer) {
     background-size: min(100%, calc(var(--stage-h) * 1.2705882353)) auto;

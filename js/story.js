@@ -611,6 +611,37 @@
         layer.appendChild(frame);
         const pose = { p: 0 };
         const handoff = window.SceneKit.workHandoff = { progress: 0, origin: null, compact, available: false };
+        // Pressing the lab's NeuroMaze preview glides through this same
+        // match cut and lands as the poster settles, rather than jumping.
+        // Any wheel, touch, key or press from the visitor takes over again.
+        let dive = null;
+        const interrupts = ['wheel', 'touchstart', 'keydown', 'pointerdown'];
+        const releaseDive = () => {
+          dive?.kill();
+          dive = null;
+          interrupts.forEach((type) => window.removeEventListener(type, releaseDive, true));
+        };
+        handoff.dive = () => {
+          if (dive) return true;
+          const works = target._sceneRange;
+          const goal = compactScreen || !works ? range.end + 2
+            : Math.max(range.end + 2, works.start + (works.end - works.start) * 0.235);
+          const from = window.scrollY;
+          if (goal <= from + 4) return false;
+          const proxy = { y: from };
+          dive = gsap.to(proxy, {
+            y: goal,
+            // Gentle at both ends and even through the middle, where the
+            // monitor's zoom lives, so the zoom itself takes over a second.
+            duration: Math.min(3, 1.8 + (goal - from) / 3000),
+            ease: 'sine.inOut',
+            onUpdate: () => window.scrollTo(0, proxy.y),
+            onComplete: releaseDive,
+          });
+          interrupts.forEach((type) => window.addEventListener(type, releaseDive, { capture: true, passive: true }));
+          return true;
+        };
+        cleanups.push(releaseDive);
         let rect = null;
         const render = () => {
           const lab = window.HiWiLab;
