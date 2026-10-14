@@ -12,13 +12,24 @@
   const state = window.BMWBridgeState = {
     progress: 0, visible: false, ready: false, phase: 'bmw', start: 0, end: 0,
     noAdapt: true,
-    source: null, target: null, viewport: { width: 1, height: 1 },
+    source: null, target: null, viewport: { width: innerWidth, height: innerHeight },
   };
   let experience, layer, source, target, canvas, loading = false, failed = false;
   let sourceFrame, targetFrame, sourceVeil, targetVeil;
   let targetScreen, targetSpill;
-  let lastProgress = -1, layoutKey = '', deferEntry = false;
+  let lastProgress = -1, layoutKey = '', deferEntry = false, fadeUntil = 0;
   let lastSourceMask = null;
+  // A late entry crossfades over the native scenes instead of being skipped,
+  // as long as the points have not yet scattered far from the car.
+  const LATE_ENTRY_LIMIT = .45, LATE_FADE_MS = 350;
+  // A quarter of the way into the BMW chapter, preparation stops waiting for
+  // scroll pauses: a visitor scrolling straight through would arrive first.
+  // (BMW's range begins at the opening, which owns the first seconds.)
+  const near = () => {
+    const a = bmw._sceneRange;
+    return Boolean(a && state.end > 0 && window.SceneKit
+      && window.SceneKit.scrollPosition() > a.start + (state.start - a.start) * .25);
+  };
   const originalScreen = bosch.querySelector('.screen-on');
   const originalSpill = bosch.querySelector('.screen-spill');
   const style = (node, key, value) => {
@@ -38,8 +49,9 @@
 
   function clear() {
     state.visible = false;
+    fadeUntil = 0;
     root.classList.remove('is-bmw-particle-bridge');
-    layer?.classList.remove('is-active');
+    layer?.classList.remove('is-active', 'is-late');
     experience?.setActive(false);
   }
 
@@ -149,14 +161,17 @@
     state.progress = p;
     state.phase = p <= .1 ? 'headlights' : p < .4 ? 'fragmentation' : p < .55 ? 'spatial-flow'
       : p < .7 ? 'convergence' : p < .85 ? 'reconstruction' : p < .95 ? 'sharp-dashboard' : 'dashboard';
-    if (!loading && !failed && !motion.matches && y > state.start - state.viewport.height * 2.5
-      && y < state.end + state.viewport.height) load();
+    if (!loading && !failed && !motion.matches && near() && y < state.end + state.viewport.height) load();
     if (deferEntry && (p === 0 || p === 1)) deferEntry = false;
     const active = state.ready && !failed && !motion.matches && !deferEntry && y >= state.start && y <= state.end;
     if (!active) { clear(); return; }
     state.visible = !document.hidden;
     layer.classList.add('is-active');
-    root.classList.add('is-bmw-particle-bridge');
+    // During a late entry the native scenes stay visible underneath until
+    // the overlay has faded in over them.
+    const fading = fadeUntil > performance.now();
+    if (!fading) layer.classList.remove('is-late');
+    root.classList.toggle('is-bmw-particle-bridge', !fading);
     if (p !== lastProgress) {
       lastProgress = p;
       // The source contributes no pixels after .34. Keep its last mask
@@ -194,7 +209,7 @@
       if (!probe) throw new Error('WebGL 2 unavailable');
       probe.getExtension('WEBGL_lose_context')?.loseContext();
       const idle = window.SceneIdle;
-      const pause = () => idle?.quiet(300, 1000);
+      const pause = () => (near() ? null : idle?.quiet(300, 1000));
       const [bundle, cache] = await Promise.all([window.loadScene3D(), loadPoints()]);
       await pause();
       const data = decode(cache);
@@ -209,13 +224,20 @@
       layout(true);
       experience = bundle.startBMWBridge({ canvas, state, data, onError: fallback,
         // Without parallel compilation the driver links while the page idles.
-        settle: () => idle?.quiet(400, 1500) });
+        settle: () => (near() ? idle?.quiet(60, 250) : idle?.quiet(400, 1500)) });
       window.BMWBridgeExperience = experience;
       canvas.addEventListener('webglcontextlost', (event) => { event.preventDefault(); fallback('WebGL context lost'); }, { once: true });
       await experience.ready;
       if (failed) return;
-      // Do not replace a partially played fallback if a connection was slow.
-      deferEntry = state.progress > .02 && state.progress < .98;
+      // Early in the pass, fade in over the native scenes. Past that, do not
+      // replace a partially played fallback; the next entry gets the effect.
+      const p = state.progress;
+      if (p > .02 && p < LATE_ENTRY_LIMIT) {
+        fadeUntil = performance.now() + LATE_FADE_MS;
+        layer.classList.add('is-late');
+        setTimeout(sync, LATE_FADE_MS + 20);
+      }
+      deferEntry = p >= LATE_ENTRY_LIMIT && p < .98;
       state.ready = true;
       sync();
     } catch (error) { fallback(error); }

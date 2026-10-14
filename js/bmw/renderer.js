@@ -121,39 +121,43 @@ const vertexShader = /* glsl */ `
     // where the light has not reached yet.
     float detachAt = 0.155 + metric * 0.32 + aSeed.x * 0.03;
     float detach = ease(clamp((uProgress - detachAt) / 0.20, 0.0, 1.0));
-    float journey = ease(clamp((uProgress - 0.32) / 0.30, 0.0, 1.0));
-    float lane = floor(aSeed.x * 3.0) - 1.0;
-    float along = aSeed.y - 0.5;
-    float depth = aSeed.z - 0.5;
-    float extent = min(uViewport.x, uViewport.y);
-    // Fixed, incomplete arcs form folded canyon walls around an off-center
-    // opening. Angles never spin, repeat or wrap; every ID keeps its wall.
-    float angle = -2.90 + aSeed.y * 5.24;
-    float fold = sin(angle * 1.65 + lane * 0.55) * 0.15
-      + sin(angle * 2.65 + lane * 0.90) * 0.075;
-    float radius = 0.80 + lane * 0.10 + fold;
-    vec2 wall = vec2(
-      uViewport.x * (cos(angle) * 0.39 * radius
-        + sin(angle * 1.40 + lane * 0.50) * 0.065 + lane * 0.015),
-      uViewport.y * (sin(angle) * 0.43 * radius
-        + cos(angle * 2.00 + lane * 0.70) * 0.045)
-    );
-    // Advancing the camera decreases positive world depth monotonically.
-    // Perspective division pushes nearby folds out faster than distant folds,
-    // while their unbroken interior preserves a readable route through space.
-    float worldZ = 1.25 + aSeed.z * 3.20 + (lane + 1.0) * 0.16 - journey * 0.90;
-    float perspective = 1.55 / (worldZ + 0.38);
-    vec2 opening = vec2(uViewport.x * (0.07 + journey * 0.07),
-      uViewport.y * (0.015 + journey * 0.035));
-    vec2 ribbon = opening + wall * perspective;
-    vec2 normal = vec2(-sin(angle), cos(angle));
-    vec2 formed = mix(source, ribbon, detach);
-    formed += normal * sin(detach * 3.14159265) * extent * depth * 0.10;
     // The original night photograph is dark: a low classification threshold
     // recognizes its cockpit edges/strips rather than delaying almost all of it.
     float structure = smoothstep(0.035, 0.20, aSeed.w);
     float targetStart = 0.55 + (1.0 - structure) * 0.035;
     float targetEnd = 0.76 + (1.0 - structure) * 0.09;
+    // Each point's flight freezes where its assembly begins, so a point never
+    // wraps through the tunnel while it is travelling to the dashboard.
+    float journey = ease(clamp((min(uProgress, targetStart) - 0.26) / 0.33, 0.0, 1.0));
+    float lane = floor(aSeed.x * 3.0) - 1.0;
+    float along = aSeed.y - 0.5;
+    float depth = aSeed.z - 0.5;
+    float extent = min(uViewport.x, uViewport.y);
+    // A warp tunnel the camera flies through: every point keeps a fixed
+    // radius and a depth slot, the camera advances along the axis, and
+    // perspective division throws near points past the viewer's edges.
+    // Depth is recycled with fades at both ends, so the stream never ends.
+    float span = 6.0;
+    float nearZ = 0.22;
+    float baseAngle = aSeed.y * 6.2831853;
+    // Walls, not a uniform cloud: a narrow radial band with slow folds keeps
+    // a clear opening ahead while the walls stream past on every side.
+    float tunnelRadius = 0.88 + aSeed.x * 0.5
+      + sin(baseAngle * 3.0 + lane * 1.7) * 0.12 + sin(baseAngle * 5.0 - lane) * 0.06;
+    float angle = baseAngle + journey * (0.7 + aSeed.z * 0.9);
+    float worldZ = nearZ + mod(0.6 + aSeed.z * span - journey * 8.5, span);
+    float perspective = 1.0 / worldZ;
+    // The vanishing point travels from the car to the Bosch display.
+    vec2 vanish = mix(photoPoint(vec2(0.5, 0.52), uSource),
+      photoPoint(vec2(0.5, 0.42), uTarget), journey);
+    vec2 spoke = vec2(cos(angle), sin(angle)) * tunnelRadius * perspective * extent * 0.55;
+    spoke *= min(1.0, max(uViewport.x, uViewport.y) * 1.3 / max(1.0, length(spoke)));
+    vec2 tunnel = vanish + spoke;
+    vec2 normal = vec2(-sin(angle), cos(angle));
+    vec2 formed = mix(source, tunnel, detach);
+    formed += normal * sin(detach * 3.14159265) * extent * depth * 0.10;
+    float flightFade = (1.0 - smoothstep(span * 0.7, span + nearZ, worldZ))
+      * smoothstep(nearZ, nearZ + 0.30, worldZ);
     float gathering = uProgress >= 0.85 ? 1.0
       : ease(clamp((uProgress - targetStart) / (targetEnd - targetStart), 0.0, 1.0));
     formed = mix(formed, target, gathering);
@@ -169,18 +173,23 @@ const vertexShader = /* glsl */ `
     vec2 outward = delta / max(1.0, distance);
     formed += (outward * 0.78 + vec2(-outward.y, outward.x) * 0.36)
       * 12.0 * influence * influence * uPointerStrength * motion;
-    float z = (2.0 - worldZ) * extent * 0.14 * detach * (1.0 - gathering);
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(formed, z, 1.0);
-    float foreground = clamp(perspective * 0.90, 0.55, 1.65);
-    float variation = 0.70 + pow(aSeed.y, 6.0) * 0.70;
-    float size = mix(uPointSize, uPointSize * variation * foreground, detach);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(formed, 0.0, 1.0);
+    // Near points grow and brighten as they rush past; distant ones stay fine.
+    float nearness = clamp(perspective * 1.2, 0.0, 3.0);
+    float variation = 0.75 + aSeed.y * 0.5;
+    float flightSize = clamp(uPointSize * (0.6 + nearness * 1.6) * variation, 1.6, 10.0);
+    float size = mix(uPointSize, flightSize, detach);
     size = mix(size, uPointSize, gathering);
-    // Subpixel sprites shimmer as the camera advances. Keep a small stable
-    // raster footprint, with depth still carried by size, opacity and travel.
     gl_PointSize = min(uPointLimit, max(1.45, size) * uPixelRatio);
-    vec3 coolWhite = vec3(0.66, 0.78, 0.92);
-    vec3 quietRed = vec3(0.38, 0.016, 0.024);
-    vec3 streamColor = mix(coolWhite, quietRed, step(0.95, aSeed.z));
+    vec3 coolWhite = vec3(0.72, 0.84, 1.0);
+    vec3 lampBlue = vec3(0.32, 0.58, 1.0);
+    vec3 boschRed = vec3(0.95, 0.12, 0.16);
+    // Headlamp light carries the car's own colour into the stream; a few
+    // red sparks pick up the Bosch accent as the display comes closer.
+    vec3 streamColor = mix(coolWhite, lampBlue, smoothstep(0.35, 1.0, aSeed.y) * 0.65);
+    streamColor = mix(streamColor, aSourceColor * 1.5 + 0.08, 0.18);
+    streamColor = mix(streamColor, boschRed, step(0.93, aSeed.z) * smoothstep(0.2, 0.8, journey));
+    streamColor *= 0.8 + 0.6 * min(nearness, 2.0);
     float energyFront = sin(release * 3.14159265) * (1.0 - detach);
     vec3 energizedSource = mix(aSourceColor, coolWhite, energyFront * 0.16);
     vColor = mix(energizedSource, streamColor, detach);
@@ -194,7 +203,7 @@ const vertexShader = /* glsl */ `
     // particularly where the portrait viewport crops the steering wheel.
     vAlpha *= mix(frameAlpha(source, uSourceFrame), 1.0, detach);
     vAlpha *= mix(1.0, frameAlpha(target, uTargetFrame), gathering);
-    vAlpha *= mix(1.0, 0.55 + clamp(perspective * 0.62, 0.0, 1.0) * 0.45, detach * (1.0 - gathering));
+    vAlpha *= mix(1.0, flightFade * (0.78 + 0.22 * min(nearness, 1.0)), detach * (1.0 - gathering));
     // A tiny viewport-edge fade avoids hard sprite clipping on tall phones.
     // Points outside the native crop remain outside rather than being clamped.
     vec2 edge = uViewport * 0.5 - abs(formed);
@@ -211,13 +220,16 @@ const fragmentShader = /* glsl */ `
   void main() {
     float radius = length(gl_PointCoord - vec2(0.5));
     float crisp = 1.0 - smoothstep(0.37, 0.50, radius);
-    float core = 1.0 - smoothstep(0.08, 0.34, radius);
-    float softEdge = (1.0 - smoothstep(0.20, 0.50, radius)) * 0.09;
-    float sprite = mix(core + softEdge, crisp, vSettled);
+    float core = 1.0 - smoothstep(0.0, 0.22, radius);
+    float halo = exp(-radius * radius * 18.0) * 0.55;
+    float sprite = mix(core + halo, crisp, vSettled);
     float alpha = min(1.0, sprite) * vAlpha * uOpacity;
-    if (alpha < 0.008) discard;
-    gl_FragColor = vec4(vColor, alpha);
+    if (alpha < 0.004) discard;
+    gl_FragColor = vec4(vColor, 1.0);
     #include <colorspace_fragment>
+    // Premultiplied output: settled points cover like the photograph, while
+    // points in flight write no coverage and so add up as light.
+    gl_FragColor = vec4(gl_FragColor.rgb * alpha, alpha * vSettled);
   }
 `;
 
@@ -266,7 +278,10 @@ export function startBMWBridge({ canvas, state, data, onError, settle }) {
     uOpacity: { value: 0 },
   };
   const material = new THREE.ShaderMaterial({ uniforms, vertexShader, fragmentShader,
-    transparent: true, depthTest: false, depthWrite: false, toneMapped: false });
+    transparent: true, depthTest: false, depthWrite: false, toneMapped: false,
+    blending: THREE.CustomBlending, blendEquation: THREE.AddEquation,
+    blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+    blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneMinusSrcAlphaFactor });
   const points = new THREE.Points(geometry, material);
   points.frustumCulled = false;
   const scene = new THREE.Scene();

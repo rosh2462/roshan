@@ -16,6 +16,8 @@
   contain: layout paint style;
 }
 .bmw-bridge.is-active { visibility: visible; opacity: 1; }
+/* Ready only after the pass began: crossfade in over the native scenes. */
+.bmw-bridge.is-late { transition: opacity .35s ease-out; }
 .bmw-bridge__source,
 .bmw-bridge__target,
 .bmw-bridge__canvas {

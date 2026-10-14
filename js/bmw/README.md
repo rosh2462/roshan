@@ -31,8 +31,8 @@ portrait/lab loaders for this feature are their cache-version literals.
 | --- | --- |
 | 0–.10 | Original car, restrained headlight lift |
 | .10–.40 | Distance-delayed release from both headlamps through the body; points lift away in the same wave, so the car comes apart outward from its lamps |
-| .40–.55 | Unequal curved depth folds and forward perspective travel |
-| .55–.70 | Trajectories decelerate toward cockpit targets |
+| .26–.59 | Warp-tunnel flight: the camera advances through recycled tunnel walls; near points grow, brighten and stream past the edges while the vanishing point moves from the car to the Bosch display |
+| .55–.70 | Each point leaves the tunnel where it is and decelerates toward its cockpit target |
 | .70–.85 | Bright dashboard structure settles first, then dark surfaces |
 | .85–.95 | Settled dots resolve into the unchanged sharp photo |
 | .95–1 | Native dashboard presentation, no particle draws |
@@ -46,7 +46,8 @@ Source pixels disappear through two advancing radial masks, matching the
 shader's distance-based release. Particle identity never changes. Flight uses
 continuous perspective division with no wrapped coordinates or spinning angles.
 Ambient drift and input displacement are bounded and vanish before assembly
-completes. The original photos, not particle sampling, determine endpoint
+completes. Points in flight are written premultiplied with zero coverage, so
+they add up as light; settled points cover normally, like the photographs. The original photos, not particle sampling, determine endpoint
 image resolution.
 
 ## Budgets and fallbacks
@@ -57,8 +58,12 @@ image resolution.
 - Two sustained-slow-frame quality reductions; idle endpoints/offscreen/hidden
   documents do not run the particle loop.
 - Native image animation remains available until initialization succeeds.
-- Slow loading during an already-started handoff defers the enhancement until
-  the next entry instead of replacing a half-played fallback.
+- Loading normally happens in an idle pause after the opening. Once the visitor
+  is a quarter of the way into the BMW chapter it stops waiting for pauses, so
+  a visitor scrolling straight through still gets the effect.
+- If it only becomes ready after the handoff began, it crossfades in over the
+  native scenes while progress is below .45; later than that, it defers to the
+  next entry instead of replacing a half-played fallback.
 - Initial/runtime rendering errors and context loss retire the overlay and
   restore the native scenes. Reduced motion skips the enhancement entirely.
 
