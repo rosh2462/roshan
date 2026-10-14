@@ -95,6 +95,7 @@ const vertexShader = /* glsl */ `
   varying vec3 vColor;
   varying float vAlpha;
   varying float vSettled;
+  varying float vBlur;
   float ease(float t) {
     return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
   }
@@ -124,91 +125,85 @@ const vertexShader = /* glsl */ `
     // The original night photograph is dark: a low classification threshold
     // recognizes its cockpit edges/strips rather than delaying almost all of it.
     float structure = smoothstep(0.035, 0.20, aSeed.w);
-    float targetStart = 0.55 + (1.0 - structure) * 0.035;
-    float targetEnd = 0.76 + (1.0 - structure) * 0.09;
-    // Each point's flight freezes where its assembly begins, so a point never
-    // wraps through the tunnel while it is travelling to the dashboard.
-    float journey = ease(clamp((min(uProgress, targetStart) - 0.26) / 0.33, 0.0, 1.0));
-    float lane = floor(aSeed.x * 3.0) - 1.0;
     float along = aSeed.y - 0.5;
     float depth = aSeed.z - 0.5;
     float extent = min(uViewport.x, uViewport.y);
-    // A warp tunnel the camera flies through: every point keeps a fixed
-    // radius and a depth slot, the camera advances along the axis, and
-    // perspective division throws near points past the viewer's edges.
-    // Depth is recycled with fades at both ends, so the stream never ends.
-    float span = 6.0;
-    float nearZ = 0.22;
-    float baseAngle = aSeed.y * 6.2831853;
-    // Walls, not a uniform cloud: a narrow radial band with slow folds keeps
-    // a clear opening ahead while the walls stream past on every side.
-    float tunnelRadius = 0.88 + aSeed.x * 0.5
-      + sin(baseAngle * 3.0 + lane * 1.7) * 0.12 + sin(baseAngle * 5.0 - lane) * 0.06;
-    float angle = baseAngle + journey * (0.7 + aSeed.z * 0.9);
-    float worldZ = nearZ + mod(0.6 + aSeed.z * span - journey * 8.5, span);
-    float perspective = 1.0 / worldZ;
-    // The vanishing point travels from the car to the Bosch display.
-    vec2 vanish = mix(photoPoint(vec2(0.5, 0.52), uSource),
-      photoPoint(vec2(0.5, 0.42), uTarget), journey);
-    vec2 spoke = vec2(cos(angle), sin(angle)) * tunnelRadius * perspective * extent * 0.55;
-    spoke *= min(1.0, max(uViewport.x, uViewport.y) * 1.3 / max(1.0, length(spoke)));
-    vec2 tunnel = vanish + spoke;
-    vec2 normal = vec2(-sin(angle), cos(angle));
-    vec2 formed = mix(source, tunnel, detach);
-    formed += normal * sin(detach * 3.14159265) * extent * depth * 0.10;
-    float flightFade = (1.0 - smoothstep(span * 0.7, span + nearZ, worldZ))
-      * smoothstep(nearZ, nearZ + 0.30, worldZ);
-    float gathering = uProgress >= 0.85 ? 1.0
-      : ease(clamp((uProgress - targetStart) / (targetEnd - targetStart), 0.0, 1.0));
-    formed = mix(formed, target, gathering);
-    formed += vec2((aSeed.x - 0.5) * extent * 0.075, depth * extent * 0.055)
-      * sin(gathering * 3.14159265);
+
+    // One camera move, one direction of travel. Released points become a
+    // shallow volume around the car; the camera pushes in through the badge,
+    // so everything streams outward from a single focus and passes the
+    // viewer, the way a dolly shot reads on film.
+    vec2 carFocus = photoPoint(vec2(0.485, 0.50), uSource);
+    float push = clamp((uProgress - 0.30) / 0.30, 0.0, 1.0);
+    push = push * push * (3.0 - 2.0 * push);
+    float pointZ = 3.0 + depth * 1.0 * detach;
+    float dist = pointZ - push * 3.5;
+    float scale = 3.0 / max(dist, 0.05);
+    // Released points rise a touch, like sparks lifting off the paint.
+    vec2 lift = vec2(along * 0.6, 0.4 + aSeed.x) * extent * 0.03 * detach;
+    vec2 car = carFocus + (source + lift - carFocus) * scale;
+    // Close to the lens, points fall out of focus into soft discs.
+    float blur = smoothstep(1.1, 0.3, dist);
+    // 0 while ahead of the camera, 1 once passed (fully transparent at .5).
+    float passed = smoothstep(0.45, 0.12, dist);
+
+    // The cockpit is approached head on: it emerges small at the Bosch
+    // display, then grows and decelerates into place (a dolly that lands).
+    vec2 dashFocus = photoPoint(vec2(0.553, 0.482), uTarget);
+    float arrive = clamp((uProgress - 0.42) / 0.40, 0.0, 1.0);
+    float landing = 1.0 - pow(1.0 - arrive, 3.0);
+    float dashZ = mix(6.0, 1.0, landing) + depth * 0.8 * (1.0 - landing);
+    vec2 dash = dashFocus + (target - dashFocus) / dashZ;
+    // Bright structure appears first; dark surfaces fill in behind it.
+    float join = smoothstep(0.44 + (1.0 - structure) * 0.08, 0.54 + (1.0 - structure) * 0.10, uProgress);
+
+    bool onCar = passed < 0.5;
+    vec2 formed = onCar ? car : dash;
+    float gathering = onCar ? 0.0 : landing;
     float motion = uMotionStrength * (1.0 - gathering);
-    float phase = along * 6.2 + depth * 2.5 + lane * 0.7;
+    float phase = along * 6.2 + depth * 2.5;
     formed += vec2(sin(uTime * 0.31 + phase), cos(uTime * 0.26 + phase * 1.15))
       * clamp(extent * 0.006, 2.0, 4.0) * motion;
+    // The cursor parts the particles and lights them as it passes.
     vec2 delta = formed - uPointer;
     float distance = length(delta);
-    float influence = 1.0 - smoothstep(0.0, clamp(extent * 0.18, 80.0, 160.0), distance);
+    float influence = 1.0 - smoothstep(0.0, clamp(extent * 0.20, 90.0, 190.0), distance);
+    float touch = influence * influence * uPointerStrength * motion;
     vec2 outward = delta / max(1.0, distance);
-    formed += (outward * 0.78 + vec2(-outward.y, outward.x) * 0.36)
-      * 12.0 * influence * influence * uPointerStrength * motion;
+    formed += (outward * 0.8 + vec2(-outward.y, outward.x) * 0.35) * 22.0 * touch;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(formed, 0.0, 1.0);
-    // Near points grow and brighten as they rush past; distant ones stay fine.
-    float nearness = clamp(perspective * 1.2, 0.0, 3.0);
-    float variation = 0.75 + aSeed.y * 0.5;
-    float flightSize = clamp(uPointSize * (0.6 + nearness * 1.6) * variation, 1.6, 10.0);
-    float size = mix(uPointSize, flightSize, detach);
-    size = mix(size, uPointSize, gathering);
+
+    float variation = mix(1.0, 0.8 + aSeed.y * 0.4, detach);
+    float carSize = uPointSize * pow(min(scale, 7.0), 0.8) * variation + blur * extent * 0.012;
+    float size = onCar ? carSize : uPointSize;
     gl_PointSize = min(uPointLimit, max(1.45, size) * uPixelRatio);
+    vBlur = onCar ? blur : 0.0;
+
     vec3 coolWhite = vec3(0.72, 0.84, 1.0);
-    vec3 lampBlue = vec3(0.32, 0.58, 1.0);
-    vec3 boschRed = vec3(0.95, 0.12, 0.16);
-    // Headlamp light carries the car's own colour into the stream; a few
-    // red sparks pick up the Bosch accent as the display comes closer.
-    vec3 streamColor = mix(coolWhite, lampBlue, smoothstep(0.35, 1.0, aSeed.y) * 0.65);
-    streamColor = mix(streamColor, aSourceColor * 1.5 + 0.08, 0.18);
-    streamColor = mix(streamColor, boschRed, step(0.93, aSeed.z) * smoothstep(0.2, 0.8, journey));
-    streamColor *= 0.8 + 0.6 * min(nearness, 2.0);
     float energyFront = sin(release * 3.14159265) * (1.0 - detach);
     vec3 energizedSource = mix(aSourceColor, coolWhite, energyFront * 0.16);
-    vColor = mix(energizedSource, streamColor, detach);
+    // In flight the car keeps its own colours, lifted so its dark body still
+    // reads as a faint volume of light around the bright chrome and lamps.
+    vec3 carColor = mix(energizedSource, max(aSourceColor * 1.45, coolWhite * 0.13), detach);
     // A restrained temporary tint keeps the early settled structure visible;
     // it returns to exact photograph RGB before the native image handoff.
     vec3 readableTarget = max(aTargetColor, vec3(0.030, 0.035, 0.042));
     readableTarget = mix(readableTarget, aTargetColor, smoothstep(0.76, 0.85, uProgress));
-    vColor = mix(vColor, readableTarget, smoothstep(0.55, 0.98, gathering));
-    vAlpha = release * (1.0 - smoothstep(0.85, 0.95, uProgress));
+    vec3 dashColor = mix(readableTarget * 2.0 + coolWhite * 0.07, readableTarget, landing);
+    vColor = (onCar ? carColor : dashColor) * (1.0 + touch * 0.8);
+
+    float carAlpha = mix(frameAlpha(source, uSourceFrame), 1.0, detach)
+      * mix(1.0, 0.22, blur) * (1.0 - smoothstep(0.0, 0.5, passed));
     // Match the native photograph's scaled frame and exact edge feathering,
     // particularly where the portrait viewport crops the steering wheel.
-    vAlpha *= mix(frameAlpha(source, uSourceFrame), 1.0, detach);
-    vAlpha *= mix(1.0, frameAlpha(target, uTargetFrame), gathering);
-    vAlpha *= mix(1.0, flightFade * (0.78 + 0.22 * min(nearness, 1.0)), detach * (1.0 - gathering));
+    float dashAlpha = frameAlpha(dash, uTargetFrame) * join * smoothstep(0.5, 1.0, passed);
+    vAlpha = release * (1.0 - smoothstep(0.85, 0.95, uProgress)) * (onCar ? carAlpha : dashAlpha);
     // A tiny viewport-edge fade avoids hard sprite clipping on tall phones.
     // Points outside the native crop remain outside rather than being clamped.
     vec2 edge = uViewport * 0.5 - abs(formed);
     vAlpha *= smoothstep(0.0, extent * 0.03, min(edge.x, edge.y));
-    vSettled = mix(1.0, 0.0, detach) * (1.0 - gathering) + gathering;
+    // Settled points cover like the photographs; points in flight add light.
+    vSettled = onCar ? 1.0 - detach : landing * landing;
   }
 `;
 
@@ -217,12 +212,17 @@ const fragmentShader = /* glsl */ `
   varying vec3 vColor;
   varying float vAlpha;
   varying float vSettled;
+  varying float vBlur;
   void main() {
     float radius = length(gl_PointCoord - vec2(0.5));
     float crisp = 1.0 - smoothstep(0.37, 0.50, radius);
     float core = 1.0 - smoothstep(0.0, 0.22, radius);
     float halo = exp(-radius * radius * 18.0) * 0.55;
-    float sprite = mix(core + halo, crisp, vSettled);
+    // Out-of-focus points render as flat discs with a faint bright rim,
+    // like lens bokeh, rather than as larger dots.
+    float disc = (1.0 - smoothstep(0.30, 0.50, radius)) * 0.6
+      + smoothstep(0.30, 0.42, radius) * (1.0 - smoothstep(0.42, 0.50, radius)) * 0.12;
+    float sprite = mix(mix(core + halo, disc, vBlur), crisp, vSettled);
     float alpha = min(1.0, sprite) * vAlpha * uOpacity;
     if (alpha < 0.004) discard;
     gl_FragColor = vec4(vColor, 1.0);
@@ -552,7 +552,7 @@ export function startBMWBridge({ canvas, state, data, onError, settle }) {
   function stats() {
     const p = progress();
     const phase = !enabled || !state.visible ? 'hidden' : p <= 0.10 ? 'waiting'
-      : p < 0.40 ? 'bmw-release' : p < 0.55 ? 'ribbon-journey'
+      : p < 0.40 ? 'bmw-release' : p < 0.55 ? 'push-in'
       : p < 0.85 ? 'cockpit-assembly' : p < 0.95 ? 'native-crossfade' : 'cockpit';
     return {
       ready: prepared && !disposed && !contextLost,

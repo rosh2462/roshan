@@ -31,8 +31,8 @@ portrait/lab loaders for this feature are their cache-version literals.
 | --- | --- |
 | 0–.10 | Original car, restrained headlight lift |
 | .10–.40 | Distance-delayed release from both headlamps through the body; points lift away in the same wave, so the car comes apart outward from its lamps |
-| .26–.59 | Warp-tunnel flight: the camera advances through recycled tunnel walls; near points grow, brighten and stream past the edges while the vanishing point moves from the car to the Bosch display |
-| .55–.70 | Each point leaves the tunnel where it is and decelerates toward its cockpit target |
+| .30–.56 | Dolly-in: the released car is a shallow point volume and the camera pushes in through the badge; points stream outward from one focus, fall out of focus into soft bokeh discs near the lens and pass the viewer |
+| .42–.82 | Landing: the cockpit emerges small at the Bosch display, bright structure first, and grows and decelerates into place |
 | .70–.85 | Bright dashboard structure settles first, then dark surfaces |
 | .85–.95 | Settled dots resolve into the unchanged sharp photo |
 | .95–1 | Native dashboard presentation, no particle draws |
@@ -46,7 +46,9 @@ Source pixels disappear through two advancing radial masks, matching the
 shader's distance-based release. Particle identity never changes. Flight uses
 continuous perspective division with no wrapped coordinates or spinning angles.
 Ambient drift and input displacement are bounded and vanish before assembly
-completes. Points in flight are written premultiplied with zero coverage, so
+completes; while points are in flight the cursor (or a finger) parts them and
+lights them up. A point switches from its car role to its cockpit role only
+after it has passed the camera, at zero opacity, so nothing visibly jumps. Points in flight are written premultiplied with zero coverage, so
 they add up as light; settled points cover normally, like the photographs. The original photos, not particle sampling, determine endpoint
 image resolution.
 
