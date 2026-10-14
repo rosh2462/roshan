@@ -31,7 +31,7 @@ portrait/lab loaders for this feature are their cache-version literals.
 | --- | --- |
 | 0–.10 | Original car, restrained headlight lift |
 | .10–.40 | Distance-delayed release from both headlamps through the body; points lift away in the same wave, so the car comes apart outward from its lamps |
-| .16–.80 | Each point leaves in the same headlamp wave and travels to a cockpit point in the same place in the layout (left stays left, top stays top), so the car reshapes into the dashboard. Paths rise slightly and follow one shared, slow flow field; a slight camera orbit reveals a shallow depth mid-flight and returns to the native framing |
+| .16–.68 | Light streams: points leave in the headlamp wave and each lamp's stream swings out and up like a wing before folding into the cockpit. Pairing is by timing, so the first points to leave (the lamps) land first, on the Bosch display, and the cabin fills in from the display outward; each point glints as it lands. The camera cranes up as the photographs do: the car sinks while the cockpit settles in from above |
 | .85–.95 | Settled dots resolve into the unchanged sharp photo |
 | .95–1 | Native dashboard presentation, no particle draws |
 
@@ -47,9 +47,10 @@ Ambient drift and input displacement are bounded and vanish before assembly
 completes; while points are in flight the cursor (or a finger) gently parts
 them and lights them up.
 
-Scrolling back does not rewind the particles: the overlay crossfades (.45s)
-to the native photographic crane, which reads well in either direction. The
-next forward pass from above the bridge plays the particles again. Points in flight are written premultiplied with zero coverage, so
+Scrolling back plays the same story in reverse: the cockpit dissolves from
+its edges into light that streams back into the car, and the headlamps relight
+last. The streams carry a little inertia from the eased scroll velocity: they
+stretch behind a fast scroll and settle when it stops. Points in flight are written premultiplied with zero coverage, so
 they add up as light; settled points cover normally, like the photographs. The original photos, not particle sampling, determine endpoint
 image resolution.
 

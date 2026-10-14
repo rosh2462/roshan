@@ -31,34 +31,55 @@ function seededRandom(seed) {
   };
 }
 
-// Pairs each car sample with a cockpit sample in the same place in the layout:
-// both sets are cut into equal-count columns left to right, then ordered top
-// to bottom within each column, and matched rank for rank. Left stays left and
-// top stays top, so the car visibly reshapes into the dashboard instead of
-// every point crossing the frame to a random partner.
-function pairByLayout(data, count) {
-  const columns = Math.max(1, Math.round(Math.sqrt(count) * 1.4));
-  const order = (uv) => {
-    const byX = Array.from({ length: count }, (_, i) => i).sort((a, b) => uv[a * 2] - uv[b * 2]);
-    const result = [];
-    for (let c = 0; c < columns; c++) {
-      const column = byX.slice(Math.floor(c * count / columns), Math.floor((c + 1) * count / columns));
-      column.sort((a, b) => uv[a * 2 + 1] - uv[b * 2 + 1]);
-      result.push(...column);
-    }
-    return result;
-  };
-  const sources = order(data.source);
-  const targets = order(data.target);
+// Pairs car and cockpit samples by timing. Car points leave in the headlamp
+// wave (nearest a lamp first); cockpit points are filled from the Bosch display
+// outward. Matching the two orders rank for rank makes the headlamps' light
+// become the display, then the cabin around it. Each lamp keeps to its own
+// side of the display where the two orders allow it, so the streams stay as
+// two clean wings instead of crossing.
+const LAMPS = [[0.1514, 0.5138], [0.8185, 0.5151]];
+const DISPLAY = [0.553, 0.482];
+function pairByLight(data, count) {
+  const sourceKey = new Float32Array(count);
+  const sourceLeft = new Uint8Array(count);
+  const targetKey = new Float32Array(count);
+  const targetLeft = new Uint8Array(count);
+  for (let i = 0; i < count; i++) {
+    const u = data.source[i * 2];
+    const v = data.source[i * 2 + 1];
+    // Same aspect-corrected distance as the shader's release metric.
+    const [left, right] = LAMPS.map(([x, y]) => Math.hypot(u - x, (v - y) * 1.77777778));
+    sourceKey[i] = Math.min(left, right);
+    sourceLeft[i] = left <= right ? 1 : 0;
+    const tu = data.target[i * 2];
+    const tv = data.target[i * 2 + 1];
+    targetKey[i] = Math.hypot(tu - DISPLAY[0], (tv - DISPLAY[1]) * 1.7768);
+    targetLeft[i] = tu < DISPLAY[0] ? 1 : 0;
+  }
+  const byKey = (key) => Array.from({ length: count }, (_, i) => i).sort((a, b) => key[a] - key[b]);
+  const sources = byKey(sourceKey);
+  const targets = byKey(targetKey);
+  const rank = new Uint32Array(count);
+  targets.forEach((t, k) => { rank[t] = k; });
+  const queues = [targets.filter((t) => !targetLeft[t]), targets.filter((t) => targetLeft[t])];
+  const heads = [0, 0];
+  const slack = Math.max(16, Math.round(count * 0.04));
   const pair = new Uint32Array(count);
-  for (let k = 0; k < count; k++) pair[sources[k]] = targets[k];
+  sources.forEach((source, k) => {
+    const own = sourceLeft[source];
+    const other = 1 - own;
+    const mine = queues[own][heads[own]];
+    const take = mine !== undefined && (rank[mine] <= k + slack || heads[other] >= queues[other].length)
+      ? own : other;
+    pair[source] = queues[take][heads[take]++];
+  });
   return pair;
 }
 
 // The paired photo samples are immutable. The shuffled cache makes each quality
 // prefix representative; no image readback, texture or 3D model is needed here.
 function makeGeometry(data, count) {
-  const pair = pairByLayout(data, count);
+  const pair = pairByLight(data, count);
   const positions = new Float32Array(count * 3);
   const targets = new Float32Array(count * 2);
   const sourceColors = new Float32Array(count * 3);
@@ -111,6 +132,7 @@ const vertexShader = /* glsl */ `
   uniform float uTime;
   uniform float uMotionStrength;
   uniform float uPointerStrength;
+  uniform float uVelocity;
   uniform float uPixelRatio;
   uniform float uPointSize;
   uniform float uPointLimit;
@@ -144,37 +166,36 @@ const vertexShader = /* glsl */ `
     float metric = min(min(length(lampLeft), length(lampRight)), 0.56);
     // Exactly matches the owner's native BMW image release mask.
     float release = smoothstep(0.10 + metric * 0.30, 0.155 + metric * 0.30, uProgress);
-    // Each point leaves in the same wave that releases it, so the car comes
-    // apart outward from its headlamps, keeping its shape a moment longer
-    // where the light has not reached yet.
-    float leave = 0.155 + metric * 0.32 + aSeed.x * 0.03;
-    float m = clamp((uProgress - leave) / 0.40, 0.0, 1.0);
-    float travel = ease(m);
-    float arc = sin(m * 3.14159265);
+    float extent = min(uViewport.x, uViewport.y);
     float along = aSeed.y - 0.5;
     float depth = aSeed.z - 0.5;
-    float extent = min(uViewport.x, uViewport.y);
-    // Neighbouring points share one slow flow field, so the cloud moves in
-    // soft, coherent currents rather than as noise. Every point also rises a
-    // little on its way, like a lift between the two shots.
-    vec2 mid = mix(source, target, 0.5) / extent;
-    vec2 flow = vec2(sin(mid.y * 3.1 + 1.7) + 0.5 * sin(mid.y * 7.3 - 0.4),
-      sin(mid.x * 2.3 - 0.6) + 0.5 * sin(mid.x * 5.9 + 2.1));
-    vec2 path = mix(source, target, travel)
-      + flow * extent * 0.06 * arc
-      + vec2(0.0, extent * 0.05 * (0.6 + aSeed.y * 0.8)) * arc
-      + vec2(along, depth) * extent * 0.025 * arc;
-    // Points spread into a shallow volume mid-flight, and a slow, slight
-    // camera orbit reveals that depth before returning to the native framing.
-    float orbit = sin(smoothstep(0.18, 0.84, uProgress) * 3.14159265);
-    float yaw = orbit * 0.14;
-    float pitch = orbit * 0.05;
-    vec3 q = vec3(path, depth * extent * 0.45 * arc);
-    q = vec3(q.x * cos(yaw) + q.z * sin(yaw), q.y, q.z * cos(yaw) - q.x * sin(yaw));
-    q = vec3(q.x, q.y * cos(pitch) - q.z * sin(pitch), q.y * sin(pitch) + q.z * cos(pitch));
-    float focal = extent * 2.4;
-    float perspective = focal / max(focal - q.z, focal * 0.4);
-    vec2 formed = q.xy * perspective;
+    // The camera cranes up between the shots, as the photographs do: the car
+    // sinks out of the frame while the cockpit settles in from above.
+    float sink = smoothstep(0.33, 0.72, uProgress);
+    float settle = clamp((uProgress - 0.30) / 0.54, 0.0, 1.0);
+    settle = 1.0 - (1.0 - settle) * (1.0 - settle) * (1.0 - settle);
+    vec2 from = source - vec2(0.0, uViewport.y * 0.32 * sink);
+    vec2 to = target + vec2(0.0, uViewport.y * 0.28 * (1.0 - settle));
+    // Points leave in the headlamp wave, so the car still comes apart outward
+    // from its lamps; they were paired to land from the display outward.
+    float leave = 0.155 + metric * 0.50 + aSeed.x * 0.03;
+    float m = clamp((uProgress - leave) / 0.20, 0.0, 1.0);
+    float travel = ease(m);
+    float arc = sin(m * 3.14159265);
+    // Two wings of light: each lamp's stream swings out to its own side and
+    // up before folding into the dashboard.
+    float side = sign(position.x - 0.485);
+    vec2 path = mix(from, to, travel)
+      + vec2(side * extent * 0.10, extent * 0.08) * arc * (0.8 + aSeed.y * 0.4);
+    vec2 field = mix(from, to, 0.5) / extent;
+    path += vec2(sin(field.y * 4.1 + 1.3), sin(field.x * 3.3 - 0.7)) * extent * 0.018 * arc;
+    // The streams have a little weight: scrolling quickly stretches them out
+    // behind their heads, and they catch up and settle when scrolling stops.
+    vec2 heading = normalize(to - from + vec2(0.0, 0.001));
+    path -= heading * clamp(uVelocity, -3.0, 3.0) * extent * 0.03 * arc;
+    // Mid-flight the points swoop gently toward the viewer.
+    float swoop = 1.0 + arc * (0.06 + aSeed.z * 0.10);
+    vec2 formed = path * swoop;
     float gathering = smoothstep(0.75, 1.0, m);
     float motion = uMotionStrength * (1.0 - gathering);
     float phase = along * 6.2 + depth * 2.5;
@@ -189,25 +210,30 @@ const vertexShader = /* glsl */ `
     formed += (outward * 0.8 + vec2(-outward.y, outward.x) * 0.35) * 14.0 * touch;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(formed, 0.0, 1.0);
 
-    float size = uPointSize * perspective * (1.0 + 0.2 * arc);
+    float size = uPointSize * swoop * (1.0 + 0.25 * arc);
     gl_PointSize = min(uPointLimit, max(1.2, size) * uPixelRatio);
 
     vec3 coolWhite = vec3(0.72, 0.84, 1.0);
-    float energyFront = sin(release * 3.14159265) * (1.0 - smoothstep(0.0, 0.2, m));
+    float energyFront = sin(release * 3.14159265) * (1.0 - smoothstep(0.0, 0.15, m));
     vec3 energizedSource = mix(aSourceColor, coolWhite, energyFront * 0.16);
     // A restrained temporary tint keeps the early settled structure visible;
     // it returns to exact photograph RGB before the native image handoff.
     vec3 readableTarget = max(aTargetColor, vec3(0.030, 0.035, 0.042));
     readableTarget = mix(readableTarget, aTargetColor, smoothstep(0.76, 0.85, uProgress));
-    vColor = mix(energizedSource, readableTarget, smoothstep(0.2, 0.8, m));
-    // In flight, dark points keep a faint presence and all glow a little.
-    vColor = max(vColor, vec3(0.05, 0.06, 0.075) * arc) * (1.0 + 0.3 * arc + touch * 0.5);
+    // In flight every point carries a little of the headlamps' cool light.
+    vec3 light = mix(aSourceColor, coolWhite, 0.55) * 1.1 + 0.03;
+    vColor = mix(energizedSource, light, smoothstep(0.0, 0.3, m));
+    vColor = mix(vColor, readableTarget, smoothstep(0.7, 1.0, m));
+    // Each point glints as it lands, so the cockpit twinkles on from the
+    // display outward; it is back to its photo colour once at rest.
+    float glint = smoothstep(0.75, 0.92, m) * (1.0 - smoothstep(0.92, 1.0, m));
+    vColor *= 1.0 + glint * 0.9 + touch * 0.5;
 
     vAlpha = release * (1.0 - smoothstep(0.85, 0.95, uProgress));
     // Match the native photographs' scaled frames and exact edge feathering,
     // particularly where the portrait viewport crops the steering wheel.
-    vAlpha *= mix(frameAlpha(source, uSourceFrame), 1.0, smoothstep(0.0, 0.25, m));
-    vAlpha *= mix(1.0, frameAlpha(target, uTargetFrame), smoothstep(0.75, 1.0, m));
+    vAlpha *= mix(frameAlpha(from, uSourceFrame), 1.0, smoothstep(0.0, 0.2, m));
+    vAlpha *= mix(1.0, frameAlpha(to, uTargetFrame), smoothstep(0.8, 1.0, m));
     // A tiny viewport-edge fade avoids hard sprite clipping on tall phones.
     vec2 edge = uViewport * 0.5 - abs(formed);
     vAlpha *= smoothstep(0.0, extent * 0.03, min(edge.x, edge.y));
@@ -274,7 +300,7 @@ export function startBMWBridge({ canvas, state, data, onError, settle }) {
   const pointLimit = context.getParameter(context.ALIASED_POINT_SIZE_RANGE)[1];
   const uniforms = {
     uProgress: { value: 0 }, uTime: { value: 0 }, uMotionStrength: { value: 0 },
-    uPointerStrength: { value: 0 }, uPixelRatio: { value: dpr },
+    uPointerStrength: { value: 0 }, uVelocity: { value: 0 }, uPixelRatio: { value: dpr },
     uPointSize: { value: quality.pointSize }, uPointLimit: { value: pointLimit },
     uViewport: { value: new THREE.Vector2(1, 1) }, uPointer: { value: new THREE.Vector2() },
     uSource: { value: new THREE.Vector4() }, uTarget: { value: new THREE.Vector4() },
@@ -315,6 +341,8 @@ export function startBMWBridge({ canvas, state, data, onError, settle }) {
   let slowFrames = 0;
   let qualityReductions = 0;
   let lastError = null;
+  let velocity = 0;
+  let velocityProgress = null;
   const ambientInterval = 1000 / quality.ambientFps;
   const pointer = new THREE.Vector2();
   const pointerTarget = new THREE.Vector2();
@@ -328,7 +356,10 @@ export function startBMWBridge({ canvas, state, data, onError, settle }) {
   function active() { return available() && enabled && state.visible && progress() > 0.10 && progress() < 0.95; }
   function animated() { return active() && motionEnabled && progress() > 0.11 && progress() < 0.85; }
   function releasePointer() { pointerActive = false; pointerExpires = 0; }
-  function resetClock() { lastTick = 0; previousTick = 0; nextAmbientTick = 0; }
+  function resetClock() {
+    lastTick = 0; previousTick = 0; nextAmbientTick = 0;
+    velocity = 0; velocityProgress = null;
+  }
 
   function requestFrame() {
     if (!raf && available() && (needsClear || (dirty && active()) || animated())) raf = requestAnimationFrame(draw);
@@ -426,6 +457,14 @@ export function startBMWBridge({ canvas, state, data, onError, settle }) {
     pointerStrength += (pointerGoal - pointerStrength) * (1 - Math.exp(-dt * (pointerGoal ? 14 : 4.3)));
     if (!pointerGoal && pointerStrength < 0.001) pointerStrength = 0;
     const p = progress();
+    // Progress per second, eased, so the streams lag a fast scroll and then
+    // settle; ambient frames keep running while it decays.
+    if (velocityProgress !== null && dt > 0) {
+      velocity += ((p - velocityProgress) / dt - velocity) * (1 - Math.exp(-dt * 5));
+      if (Math.abs(velocity) < 0.002) velocity = 0;
+    }
+    velocityProgress = p;
+    uniforms.uVelocity.value = motionEnabled ? velocity : 0;
     uniforms.uProgress.value = p;
     uniforms.uTime.value = motionTime;
     uniforms.uPixelRatio.value = dpr;
@@ -556,7 +595,7 @@ export function startBMWBridge({ canvas, state, data, onError, settle }) {
   function stats() {
     const p = progress();
     const phase = !enabled || !state.visible ? 'hidden' : p <= 0.10 ? 'waiting'
-      : p < 0.40 ? 'bmw-release' : p < 0.55 ? 'flow'
+      : p < 0.40 ? 'bmw-release' : p < 0.55 ? 'light-streams'
       : p < 0.85 ? 'cockpit-assembly' : p < 0.95 ? 'native-crossfade' : 'cockpit';
     return {
       ready: prepared && !disposed && !contextLost,

@@ -17,10 +17,7 @@
 }
 .bmw-bridge.is-active { visibility: visible; opacity: 1; }
 /* Ready only after the pass began: crossfade in over the native scenes. */
-.bmw-bridge.is-late { transition: opacity .35s ease-out; }
-/* Scrolling back: fade out over the native crane, then leave rendering. */
-.bmw-bridge.is-leaving { transition: opacity .45s ease-out, visibility 0s linear .45s; }
-.bmw-bridge__source,
+.bmw-bridge.is-late { transition: opacity .35s ease-out; }.bmw-bridge__source,
 .bmw-bridge__target,
 .bmw-bridge__canvas {
   position: absolute;

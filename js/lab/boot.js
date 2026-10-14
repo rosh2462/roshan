@@ -20,7 +20,7 @@
   const section = document.getElementById('chapter-beyond');
   if (!canvas || !stage || !section) return;
 
-  const bundleUrl = new URL('lab.bundle.js?v=35', document.currentScript.src).href;
+  const bundleUrl = new URL('lab.bundle.js?v=36', document.currentScript.src).href;
   const state = (window.HiWiLabState = window.HiWiLabState || { progress: 0 });
   state.noAdapt = true;
 
