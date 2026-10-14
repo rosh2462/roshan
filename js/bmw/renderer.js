@@ -14,8 +14,9 @@ function chooseQuality() {
   return {
     low,
     count: memory <= 2 ? 4000 : low ? 7000 : 16000,
-    dpr: memory <= 2 ? 1 : low ? 1.25 : 1.5,
-    pointSize: low ? 1.9 : 1.8,
+    // Phones are viewed at 3x: a 1.25x canvas upscaled into visible blocks.
+    dpr: memory <= 2 ? 1 : mobile ? 2 : low ? 1.25 : 1.5,
+    pointSize: mobile ? 1.6 : low ? 1.8 : 1.7,
     ambientFps: low ? 30 : 45,
   };
 }
@@ -30,9 +31,34 @@ function seededRandom(seed) {
   };
 }
 
+// Pairs each car sample with a cockpit sample in the same place in the layout:
+// both sets are cut into equal-count columns left to right, then ordered top
+// to bottom within each column, and matched rank for rank. Left stays left and
+// top stays top, so the car visibly reshapes into the dashboard instead of
+// every point crossing the frame to a random partner.
+function pairByLayout(data, count) {
+  const columns = Math.max(1, Math.round(Math.sqrt(count) * 1.4));
+  const order = (uv) => {
+    const byX = Array.from({ length: count }, (_, i) => i).sort((a, b) => uv[a * 2] - uv[b * 2]);
+    const result = [];
+    for (let c = 0; c < columns; c++) {
+      const column = byX.slice(Math.floor(c * count / columns), Math.floor((c + 1) * count / columns));
+      column.sort((a, b) => uv[a * 2 + 1] - uv[b * 2 + 1]);
+      result.push(...column);
+    }
+    return result;
+  };
+  const sources = order(data.source);
+  const targets = order(data.target);
+  const pair = new Uint32Array(count);
+  for (let k = 0; k < count; k++) pair[sources[k]] = targets[k];
+  return pair;
+}
+
 // The paired photo samples are immutable. The shuffled cache makes each quality
 // prefix representative; no image readback, texture or 3D model is needed here.
 function makeGeometry(data, count) {
+  const pair = pairByLayout(data, count);
   const positions = new Float32Array(count * 3);
   const targets = new Float32Array(count * 2);
   const sourceColors = new Float32Array(count * 3);
@@ -43,25 +69,27 @@ function makeGeometry(data, count) {
   for (let index = 0; index < count; index++) {
     const sourceU = data.source[index * 2];
     const sourceV = data.source[index * 2 + 1];
-    const targetU = data.target[index * 2];
-    const targetV = data.target[index * 2 + 1];
+    const partner = pair[index];
+    const targetU = data.target[partner * 2];
+    const targetV = data.target[partner * 2 + 1];
     if (![sourceU, sourceV, targetU, targetV].every(Number.isFinite)) {
       throw new Error('BMW bridge has an invalid photo sample');
     }
     positions.set([sourceU, sourceV, 0], index * 3);
     targets.set([targetU, targetV], index * 2);
     const offset = index * 3;
+    const at = partner * 3;
     const source = data.sourceColors;
     const target = data.targetColors;
     if (![source[offset], source[offset + 1], source[offset + 2],
-      target[offset], target[offset + 1], target[offset + 2]].every(Number.isFinite)) {
+      target[at], target[at + 1], target[at + 2]].every(Number.isFinite)) {
       throw new Error('BMW bridge has an invalid sample color');
     }
     color.setRGB(source[offset], source[offset + 1], source[offset + 2], THREE.SRGBColorSpace);
     sourceColors.set([color.r, color.g, color.b], offset);
-    color.setRGB(target[offset], target[offset + 1], target[offset + 2], THREE.SRGBColorSpace);
+    color.setRGB(target[at], target[at + 1], target[at + 2], THREE.SRGBColorSpace);
     targetColors.set([color.r, color.g, color.b], offset);
-    const luminance = target[offset] * 0.2126 + target[offset + 1] * 0.7152 + target[offset + 2] * 0.0722;
+    const luminance = target[at] * 0.2126 + target[at + 1] * 0.7152 + target[at + 2] * 0.0722;
     seeds.set([random(), random(), random(), luminance], index * 4);
   }
   const geometry = new THREE.BufferGeometry();
@@ -95,7 +123,6 @@ const vertexShader = /* glsl */ `
   varying vec3 vColor;
   varying float vAlpha;
   varying float vSettled;
-  varying float vBlur;
   float ease(float t) {
     return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
   }
@@ -117,93 +144,75 @@ const vertexShader = /* glsl */ `
     float metric = min(min(length(lampLeft), length(lampRight)), 0.56);
     // Exactly matches the owner's native BMW image release mask.
     float release = smoothstep(0.10 + metric * 0.30, 0.155 + metric * 0.30, uProgress);
-    // Points lift away in the same wave that releases them: the car comes
+    // Each point leaves in the same wave that releases it, so the car comes
     // apart outward from its headlamps, keeping its shape a moment longer
     // where the light has not reached yet.
-    float detachAt = 0.155 + metric * 0.32 + aSeed.x * 0.03;
-    float detach = ease(clamp((uProgress - detachAt) / 0.20, 0.0, 1.0));
-    // The original night photograph is dark: a low classification threshold
-    // recognizes its cockpit edges/strips rather than delaying almost all of it.
-    float structure = smoothstep(0.035, 0.20, aSeed.w);
+    float leave = 0.155 + metric * 0.32 + aSeed.x * 0.03;
+    float m = clamp((uProgress - leave) / 0.40, 0.0, 1.0);
+    float travel = ease(m);
+    float arc = sin(m * 3.14159265);
     float along = aSeed.y - 0.5;
     float depth = aSeed.z - 0.5;
     float extent = min(uViewport.x, uViewport.y);
-
-    // One camera move, one direction of travel. Released points become a
-    // shallow volume around the car; the camera pushes in through the badge,
-    // so everything streams outward from a single focus and passes the
-    // viewer, the way a dolly shot reads on film.
-    vec2 carFocus = photoPoint(vec2(0.485, 0.50), uSource);
-    float push = clamp((uProgress - 0.30) / 0.30, 0.0, 1.0);
-    push = push * push * (3.0 - 2.0 * push);
-    float pointZ = 3.0 + depth * 1.0 * detach;
-    float dist = pointZ - push * 3.5;
-    float scale = 3.0 / max(dist, 0.05);
-    // Released points rise a touch, like sparks lifting off the paint.
-    vec2 lift = vec2(along * 0.6, 0.4 + aSeed.x) * extent * 0.03 * detach;
-    vec2 car = carFocus + (source + lift - carFocus) * scale;
-    // Close to the lens, points fall out of focus into soft discs.
-    float blur = smoothstep(1.1, 0.3, dist);
-    // 0 while ahead of the camera, 1 once passed (fully transparent at .5).
-    float passed = smoothstep(0.45, 0.12, dist);
-
-    // The cockpit is approached head on: it emerges small at the Bosch
-    // display, then grows and decelerates into place (a dolly that lands).
-    vec2 dashFocus = photoPoint(vec2(0.553, 0.482), uTarget);
-    float arrive = clamp((uProgress - 0.42) / 0.40, 0.0, 1.0);
-    float landing = 1.0 - pow(1.0 - arrive, 3.0);
-    float dashZ = mix(6.0, 1.0, landing) + depth * 0.8 * (1.0 - landing);
-    vec2 dash = dashFocus + (target - dashFocus) / dashZ;
-    // Bright structure appears first; dark surfaces fill in behind it.
-    float join = smoothstep(0.44 + (1.0 - structure) * 0.08, 0.54 + (1.0 - structure) * 0.10, uProgress);
-
-    bool onCar = passed < 0.5;
-    vec2 formed = onCar ? car : dash;
-    float gathering = onCar ? 0.0 : landing;
+    // Neighbouring points share one slow flow field, so the cloud moves in
+    // soft, coherent currents rather than as noise. Every point also rises a
+    // little on its way, like a lift between the two shots.
+    vec2 mid = mix(source, target, 0.5) / extent;
+    vec2 flow = vec2(sin(mid.y * 3.1 + 1.7) + 0.5 * sin(mid.y * 7.3 - 0.4),
+      sin(mid.x * 2.3 - 0.6) + 0.5 * sin(mid.x * 5.9 + 2.1));
+    vec2 path = mix(source, target, travel)
+      + flow * extent * 0.06 * arc
+      + vec2(0.0, extent * 0.05 * (0.6 + aSeed.y * 0.8)) * arc
+      + vec2(along, depth) * extent * 0.025 * arc;
+    // Points spread into a shallow volume mid-flight, and a slow, slight
+    // camera orbit reveals that depth before returning to the native framing.
+    float orbit = sin(smoothstep(0.18, 0.84, uProgress) * 3.14159265);
+    float yaw = orbit * 0.14;
+    float pitch = orbit * 0.05;
+    vec3 q = vec3(path, depth * extent * 0.45 * arc);
+    q = vec3(q.x * cos(yaw) + q.z * sin(yaw), q.y, q.z * cos(yaw) - q.x * sin(yaw));
+    q = vec3(q.x, q.y * cos(pitch) - q.z * sin(pitch), q.y * sin(pitch) + q.z * cos(pitch));
+    float focal = extent * 2.4;
+    float perspective = focal / max(focal - q.z, focal * 0.4);
+    vec2 formed = q.xy * perspective;
+    float gathering = smoothstep(0.75, 1.0, m);
     float motion = uMotionStrength * (1.0 - gathering);
     float phase = along * 6.2 + depth * 2.5;
     formed += vec2(sin(uTime * 0.31 + phase), cos(uTime * 0.26 + phase * 1.15))
-      * clamp(extent * 0.006, 2.0, 4.0) * motion;
-    // The cursor parts the particles and lights them as it passes.
+      * clamp(extent * 0.004, 1.5, 3.0) * motion;
+    // The cursor (or a finger) gently parts the points and lights them.
     vec2 delta = formed - uPointer;
     float distance = length(delta);
-    float influence = 1.0 - smoothstep(0.0, clamp(extent * 0.20, 90.0, 190.0), distance);
+    float influence = 1.0 - smoothstep(0.0, clamp(extent * 0.18, 80.0, 170.0), distance);
     float touch = influence * influence * uPointerStrength * motion;
     vec2 outward = delta / max(1.0, distance);
-    formed += (outward * 0.8 + vec2(-outward.y, outward.x) * 0.35) * 22.0 * touch;
+    formed += (outward * 0.8 + vec2(-outward.y, outward.x) * 0.35) * 14.0 * touch;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(formed, 0.0, 1.0);
 
-    float variation = mix(1.0, 0.8 + aSeed.y * 0.4, detach);
-    float carSize = uPointSize * pow(min(scale, 7.0), 0.8) * variation + blur * extent * 0.012;
-    float size = onCar ? carSize : uPointSize;
-    gl_PointSize = min(uPointLimit, max(1.45, size) * uPixelRatio);
-    vBlur = onCar ? blur : 0.0;
+    float size = uPointSize * perspective * (1.0 + 0.2 * arc);
+    gl_PointSize = min(uPointLimit, max(1.2, size) * uPixelRatio);
 
     vec3 coolWhite = vec3(0.72, 0.84, 1.0);
-    float energyFront = sin(release * 3.14159265) * (1.0 - detach);
+    float energyFront = sin(release * 3.14159265) * (1.0 - smoothstep(0.0, 0.2, m));
     vec3 energizedSource = mix(aSourceColor, coolWhite, energyFront * 0.16);
-    // In flight the car keeps its own colours, lifted so its dark body still
-    // reads as a faint volume of light around the bright chrome and lamps.
-    vec3 carColor = mix(energizedSource, max(aSourceColor * 1.45, coolWhite * 0.13), detach);
     // A restrained temporary tint keeps the early settled structure visible;
     // it returns to exact photograph RGB before the native image handoff.
     vec3 readableTarget = max(aTargetColor, vec3(0.030, 0.035, 0.042));
     readableTarget = mix(readableTarget, aTargetColor, smoothstep(0.76, 0.85, uProgress));
-    vec3 dashColor = mix(readableTarget * 2.0 + coolWhite * 0.07, readableTarget, landing);
-    vColor = (onCar ? carColor : dashColor) * (1.0 + touch * 0.8);
+    vColor = mix(energizedSource, readableTarget, smoothstep(0.2, 0.8, m));
+    // In flight, dark points keep a faint presence and all glow a little.
+    vColor = max(vColor, vec3(0.05, 0.06, 0.075) * arc) * (1.0 + 0.3 * arc + touch * 0.5);
 
-    float carAlpha = mix(frameAlpha(source, uSourceFrame), 1.0, detach)
-      * mix(1.0, 0.22, blur) * (1.0 - smoothstep(0.0, 0.5, passed));
-    // Match the native photograph's scaled frame and exact edge feathering,
+    vAlpha = release * (1.0 - smoothstep(0.85, 0.95, uProgress));
+    // Match the native photographs' scaled frames and exact edge feathering,
     // particularly where the portrait viewport crops the steering wheel.
-    float dashAlpha = frameAlpha(dash, uTargetFrame) * join * smoothstep(0.5, 1.0, passed);
-    vAlpha = release * (1.0 - smoothstep(0.85, 0.95, uProgress)) * (onCar ? carAlpha : dashAlpha);
+    vAlpha *= mix(frameAlpha(source, uSourceFrame), 1.0, smoothstep(0.0, 0.25, m));
+    vAlpha *= mix(1.0, frameAlpha(target, uTargetFrame), smoothstep(0.75, 1.0, m));
     // A tiny viewport-edge fade avoids hard sprite clipping on tall phones.
-    // Points outside the native crop remain outside rather than being clamped.
     vec2 edge = uViewport * 0.5 - abs(formed);
     vAlpha *= smoothstep(0.0, extent * 0.03, min(edge.x, edge.y));
-    // Settled points cover like the photographs; points in flight add light.
-    vSettled = onCar ? 1.0 - detach : landing * landing;
+    // Settled points cover like the photographs; in flight they partly add up as light.
+    vSettled = 1.0 - arc * 0.7;
   }
 `;
 
@@ -212,17 +221,12 @@ const fragmentShader = /* glsl */ `
   varying vec3 vColor;
   varying float vAlpha;
   varying float vSettled;
-  varying float vBlur;
   void main() {
     float radius = length(gl_PointCoord - vec2(0.5));
     float crisp = 1.0 - smoothstep(0.37, 0.50, radius);
     float core = 1.0 - smoothstep(0.0, 0.22, radius);
     float halo = exp(-radius * radius * 18.0) * 0.55;
-    // Out-of-focus points render as flat discs with a faint bright rim,
-    // like lens bokeh, rather than as larger dots.
-    float disc = (1.0 - smoothstep(0.30, 0.50, radius)) * 0.6
-      + smoothstep(0.30, 0.42, radius) * (1.0 - smoothstep(0.42, 0.50, radius)) * 0.12;
-    float sprite = mix(mix(core + halo, disc, vBlur), crisp, vSettled);
+    float sprite = mix(core + halo, crisp, vSettled);
     float alpha = min(1.0, sprite) * vAlpha * uOpacity;
     if (alpha < 0.004) discard;
     gl_FragColor = vec4(vColor, 1.0);
@@ -552,7 +556,7 @@ export function startBMWBridge({ canvas, state, data, onError, settle }) {
   function stats() {
     const p = progress();
     const phase = !enabled || !state.visible ? 'hidden' : p <= 0.10 ? 'waiting'
-      : p < 0.40 ? 'bmw-release' : p < 0.55 ? 'push-in'
+      : p < 0.40 ? 'bmw-release' : p < 0.55 ? 'flow'
       : p < 0.85 ? 'cockpit-assembly' : p < 0.95 ? 'native-crossfade' : 'cockpit';
     return {
       ready: prepared && !disposed && !contextLost,

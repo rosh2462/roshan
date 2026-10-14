@@ -766,9 +766,9 @@
     // space. The page shows the @2x.webp upscales of them — exactly twice
     // the size, so the same coordinates hold (only the ratio matters).
     image: { w: 941, h: 1672 },
-    // On a phone, fill the frame's height rather than fitting its width
-    // (see fitScale): the cabin is what the crane passes through.
-    coverNarrow: 1.3,
+    // Fitted by width on a phone too (no coverNarrow): the photo runs the
+    // full dashboard edge to edge, and covering the height cropped the wheel
+    // and the passenger side off a portrait screen.
     // Lower than BMW's 45%: the dashboard sits higher in this frame, and
     // this keeps it clear of the slate above it on laptop-height screens.
     focusY: 0.42,

@@ -1,5 +1,5 @@
 (() => {
-  const bundleUrl = new URL('../lab/lab.bundle.js?v=34', document.currentScript.src).href;
+  const bundleUrl = new URL('../lab/lab.bundle.js?v=35', document.currentScript.src).href;
   let bundlePromise;
 
   // Background preparation (downloads, GPU programs, texture uploads) waits

@@ -19,6 +19,11 @@
   let targetScreen, targetSpill;
   let lastProgress = -1, layoutKey = '', deferEntry = false, fadeUntil = 0;
   let lastSourceMask = null;
+  // The particles are a forward reveal. Scrolling back hands the frame to the
+  // native photographic crane, which reads well in either direction, rather
+  // than rewinding the particle choreography.
+  let lastY = null, rewinding = false, leaving = false;
+  const LEAVE_MS = 450;
   // A late entry crossfades over the native scenes instead of being skipped,
   // as long as the points have not yet scattered far from the car.
   const LATE_ENTRY_LIMIT = .45, LATE_FADE_MS = 350;
@@ -163,9 +168,31 @@
       : p < .7 ? 'convergence' : p < .85 ? 'reconstruction' : p < .95 ? 'sharp-dashboard' : 'dashboard';
     if (!loading && !failed && !motion.matches && near() && y < state.end + state.viewport.height) load();
     if (deferEntry && (p === 0 || p === 1)) deferEntry = false;
-    const active = state.ready && !failed && !motion.matches && !deferEntry && y >= state.start && y <= state.end;
-    if (!active) { clear(); return; }
+    // Below the bridge, coming back means rewinding; above it, the next pass
+    // is forward again. Inside it, any real step backwards starts a rewind.
+    if (y > state.end) rewinding = true;
+    else if (y < state.start) rewinding = false;
+    else if (lastY !== null && y < lastY - 2) rewinding = true;
+    lastY = y;
+    if (leaving) return;
+    const inside = y >= state.start && y <= state.end;
+    const active = state.ready && !failed && !motion.matches && !deferEntry && !rewinding && inside;
+    if (!active) {
+      if (rewinding && inside && layer?.classList.contains('is-active')) {
+        // Crossfade to the native crane, holding the last particle frame
+        // while it fades rather than blanking the canvas first.
+        leaving = true;
+        layer.classList.add('is-leaving');
+        layer.classList.remove('is-active', 'is-late');
+        root.classList.remove('is-bmw-particle-bridge');
+        setTimeout(() => { leaving = false; sync(); }, LEAVE_MS + 30);
+        return;
+      }
+      clear();
+      return;
+    }
     state.visible = !document.hidden;
+    layer.classList.remove('is-leaving');
     layer.classList.add('is-active');
     // During a late entry the native scenes stay visible underneath until
     // the overlay has faded in over them.
