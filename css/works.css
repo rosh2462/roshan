@@ -1,8 +1,13 @@
-/* ================= 04 · Creative works: the game library and the player =================
-   A console-style library: the featured game fills the stage, the
-   collection is a row of covers beneath it, and any game opens into a
-   full-screen player (js/works.js). Without scripts the covers are links and
-   the posters below them read as an ordinary page. */
+/* ================= 04 · Creative works: the shelf and the player =================
+   A shelf of game cards; each opens a full-screen player (js/works.js).
+   Without scripts the cards are links and the posters below them read as
+   an ordinary page. */
+
+@property --amb {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: rgba(244, 207, 142, 0.12);
+}
 
 .visually-hidden {
   position: absolute !important;
@@ -21,210 +26,31 @@
 html { scrollbar-gutter: stable; }
 html.is-player-open body { overflow: hidden; }
 
-/* ---- the library ---- */
+/* ---- the shelf ---- */
 .story--works {
-  --card-w: min(13.5vw, 190px, calc(var(--stage-h) * 0.21));
-  --edge: clamp(24px, 6vw, 96px);
-  --entry-glow: 255, 51, 85;
+  --card-w: min(25vw, 336px, calc((var(--stage-h) - 300px) * 0.8));
 }
-.library-backdrop, .library-feature { display: none; }
-
-/* In page flow (phones, short windows, reduced motion): the featured game's
-   art as a rounded banner, the row of covers right under it, and the
-   featured game's details below them. */
-.has-works .library {
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 0 16px 64px;
-}
-.has-works .library-backdrop {
-  display: block;
-  position: relative;
-  aspect-ratio: 16 / 9;
-  max-height: 46vh;
-  width: 100%;
-  overflow: hidden;
-  border-radius: 22px;
-  background: #06060a;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 26px 60px -24px rgba(var(--entry-glow), 0.5);
-  transition: box-shadow 0.8s ease;
-}
-.has-works .library-feature { display: block; order: 3; padding: 0 6px; }
-.has-works .library .shelf { order: 2; }
-.library-backdrop__img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0;
-  transform: scale(1.06);
-  transition: opacity 0.9s ease, transform 2.6s var(--ease-fluid);
-}
-.library-backdrop__img.is-current { opacity: 1; transform: scale(1); }
-/* Both captures carry the game's own text low in the frame (a subtitle, a
-   dialogue box): taller than the frame and pinned to its top, it falls off
-   the bottom edge. */
-.library-backdrop__img[data-work="0"] { height: 122%; object-position: 50% 0; }
-.library-backdrop__img[data-work="1"] { height: 132%; object-position: 50% 0; }
-.library-backdrop::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to top, rgba(6, 6, 10, 0.6), transparent 45%);
-}
-
-.library-label {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 0 0 20px;
-  font-family: 'Space Grotesk', 'Inter', sans-serif;
-  font-size: 0.7rem;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.6);
-}
-.library-label span {
-  padding: 6px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 999px;
-  letter-spacing: 0.14em;
-  color: rgba(255, 255, 255, 0.72);
-}
-/* The three entries share one cell, so changing game never moves the
-   buttons beneath them. */
-.library-entries { display: grid; }
-.library-entry {
-  grid-area: 1 / 1;
-  opacity: 0;
-  visibility: hidden;
-  transform: translate3d(0, 14px, 0);
-  transition: opacity 0.35s ease, transform 0.6s var(--ease-fluid), visibility 0s linear 0.35s;
-}
-.library-entry.is-current {
-  opacity: 1;
-  visibility: visible;
-  transform: none;
-  transition: opacity 0.6s ease 0.1s, transform 0.9s var(--ease-fluid) 0.1s, visibility 0s;
-}
-.library-genre {
-  display: flex;
-  gap: 12px;
-  margin: 0;
-  font-family: 'Space Grotesk', 'Inter', sans-serif;
-  font-size: 0.72rem;
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: rgb(var(--entry-glow));
-}
-.library-genre b { font-weight: 600; color: rgba(255, 255, 255, 0.5); }
-.library-title {
-  margin: 14px 0 0;
-  font-family: 'Space Grotesk', 'Inter', sans-serif;
-  font-size: clamp(2.5rem, 5.2vw, 4.5rem);
-  font-weight: 700;
-  line-height: 0.98;
-  letter-spacing: -0.03em;
-  color: #fff;
-  text-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
-}
-.library-title--logo img {
-  display: block;
-  width: min(420px, 34vw, 80vw);
-  height: auto;
-  margin-top: 6px;
-  filter: drop-shadow(0 8px 22px rgba(0, 0, 0, 0.6));
-}
-.library-blurb {
-  max-width: 460px;
-  margin: 18px 0 0;
-  font-size: clamp(0.95rem, 1.15vw, 1.06rem);
-  line-height: 1.55;
-  color: rgba(255, 255, 255, 0.8);
-  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.6);
-}
-.library-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 18px 0 0;
-  padding: 0;
-  list-style: none;
-}
-.library-meta li {
-  padding: 6px 11px;
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.07);
-  font-size: 0.72rem;
-  color: rgba(255, 255, 255, 0.8);
-}
-.library-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 26px;
-}
-.library-open {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0;
-  padding: 13px 24px 13px 18px;
-  border: 0;
-  border-radius: 999px;
-  background: #fff;
-  color: #0b0b10;
-  font-family: 'Space Grotesk', 'Inter', sans-serif;
-  font-size: 0.92rem;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 10px 30px rgba(var(--entry-glow), 0.35);
-  transition: transform 0.35s var(--ease-fluid), box-shadow 0.5s ease;
-}
-.library-open svg { width: 18px; height: 18px; fill: currentColor; }
-.library-open:hover { transform: translateY(-2px) scale(1.03); box-shadow: 0 16px 40px rgba(var(--entry-glow), 0.55); }
-.library-open:active { transform: scale(0.97); }
-.library-open:focus-visible, .library-link:focus-visible { outline: 2px solid rgb(var(--entry-glow)); outline-offset: 4px; }
-.library-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 18px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 999px;
-  background: rgba(10, 10, 14, 0.35);
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: #fff;
-  transition: background 0.25s ease, border-color 0.25s ease;
-}
-.library-link i { font-style: normal; }
-.library-link:hover { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.55); }
-.library-link[hidden] { display: none; }
-
-/* ---- the row of covers ---- */
 .shelf {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 18px;
-  padding: 0 24px 64px;
+  gap: clamp(26px, 4.5vh, 46px);
+  padding: 0 24px 96px;
 }
-.has-works .shelf { padding: 0; }
+.shelf-ambient { display: none; }
+.has-story .shelf-ambient {
+  display: block;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 62% 50% at 50% 58%, var(--amb), transparent 72%);
+  transition: --amb 0.9s ease;
+}
 .shelf-cards {
   display: flex;
   justify-content: center;
-  gap: clamp(16px, 1.8vw, 26px);
+  gap: clamp(18px, 2.8vw, 44px);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -234,8 +60,9 @@ html.is-player-open body { overflow: hidden; }
 .shelf-cards li:nth-child(3) .game-card { --n: 2; }
 .shelf-hint {
   margin: 0;
+  text-align: center;
   font-family: 'Space Grotesk', 'Inter', sans-serif;
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
@@ -249,63 +76,24 @@ html.is-player-open body { overflow: hidden; }
   margin: 0 12px 2px 0;
   vertical-align: middle;
   border-radius: 50%;
-  background: rgb(var(--entry-glow));
+  background: var(--accent);
   animation: works-ping-dot 2.4s ease-out infinite;
 }
 @keyframes works-ping-dot {
-  0% { box-shadow: 0 0 0 0 rgba(var(--entry-glow), 0.55); }
-  70%, 100% { box-shadow: 0 0 0 9px rgba(var(--entry-glow), 0); }
+  0% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0.55); }
+  70%, 100% { box-shadow: 0 0 0 9px rgba(var(--accent-rgb), 0); }
 }
 
-/* Desktop, as a pinned scene: the featured game fills the stage and the
-   covers sit along its foot, like a console's library. */
 @media (min-width: 721px) and (min-height: 601px) {
-  .has-story.has-works .story--works .library {
+  .has-story .story--works .shelf {
     position: absolute;
     inset: 0;
-    display: block;
-    max-width: none;
-    margin: 0;
-    padding: 0;
+    justify-content: center;
+    padding: 92px 24px 40px;
   }
-  .has-story.has-works .story--works .library-backdrop {
-    position: absolute;
-    inset: 0;
-    aspect-ratio: auto;
-    max-height: none;
-    border-radius: 0;
-    box-shadow: none;
-  }
-  .has-story .story--works .library-backdrop::after {
-    background:
-      linear-gradient(90deg, rgba(6, 6, 10, 0.95) 0%, rgba(6, 6, 10, 0.8) 30%, rgba(6, 6, 10, 0.3) 62%, rgba(6, 6, 10, 0.4) 100%),
-      linear-gradient(to top, rgba(6, 6, 10, 0.96) 0%, rgba(6, 6, 10, 0.45) 36%, transparent 56%),
-      linear-gradient(to bottom, rgba(6, 6, 10, 0.7) 0%, transparent 24%);
-  }
-  .has-story.has-works .story--works .library-feature {
-    position: absolute;
-    left: var(--edge);
-    top: max(122px, 15vh);
-    width: min(560px, 46vw);
-    padding: 0;
-  }
-  .has-story.has-works .story--works .shelf {
-    position: absolute;
-    left: var(--edge);
-    right: var(--edge);
-    bottom: clamp(30px, 5.5vh, 64px);
-    flex-direction: row;
-    align-items: flex-end;
-    gap: 28px;
-  }
-  .has-story .story--works .shelf-cards { justify-content: flex-start; padding-top: 14px; }
-  .has-story .story--works .shelf-hint { padding-bottom: 6px; }
-}
-@media (min-width: 721px) and (max-height: 780px) {
-  .library-blurb { display: none; }
 }
 
-/* ---- a cover ---- */
+/* ---- a game card ---- */
 .game-card {
   --px: 0.5;
   --py: 0.5;
@@ -314,24 +102,24 @@ html.is-player-open body { overflow: hidden; }
   display: block;
   width: var(--card-w);
   aspect-ratio: 4 / 5;
-  border-radius: 16px;
+  border-radius: 22px;
   color: #fff;
   text-decoration: none;
   outline: none;
   -webkit-tap-highlight-color: transparent;
 }
-/* A pool of the game's own light beneath the featured cover. */
+/* A pool of the game's own light on the floor beneath it. */
 .game-card::after {
   content: '';
   position: absolute;
-  left: 6%;
-  right: 6%;
-  bottom: -26px;
-  height: 34px;
-  background: radial-gradient(ellipse at 50% 0%, rgba(var(--card-glow), 0.5), transparent 70%);
-  opacity: 0;
+  left: 8%;
+  right: 8%;
+  bottom: -34px;
+  height: 44px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(var(--card-glow), 0.42), transparent 70%);
+  opacity: 0.4;
   pointer-events: none;
-  transition: opacity 0.6s ease;
+  transition: opacity 0.6s ease, transform 0.6s var(--ease-fluid);
 }
 .game-card__tilt {
   position: absolute;
@@ -339,30 +127,28 @@ html.is-player-open body { overflow: hidden; }
   overflow: hidden;
   border-radius: inherit;
   background: #0d0d12;
-  box-shadow: 0 22px 44px -20px rgba(0, 0, 0, 0.9);
-  transform-origin: 50% 100%;
-  transform: perspective(900px) translate3d(0, var(--lift, 0px), 0)
-    rotateX(calc((0.5 - var(--py)) * 12deg)) rotateY(calc((var(--px) - 0.5) * 16deg)) scale(calc(var(--press, 1) * var(--sel, 1)));
-  transition: transform 0.7s var(--ease-fluid), box-shadow 0.6s var(--ease-fluid), filter 0.6s ease;
+  box-shadow: 0 26px 50px -20px rgba(0, 0, 0, 0.9);
+  transform: perspective(1000px) translate3d(0, var(--lift, 0px), 0)
+    rotateX(calc((0.5 - var(--py)) * 12deg)) rotateY(calc((var(--px) - 0.5) * 16deg)) scale(var(--press, 1));
+  transition: transform 0.7s var(--ease-fluid), box-shadow 0.6s var(--ease-fluid);
   will-change: transform;
 }
-.has-works .game-card__tilt { filter: brightness(var(--dim, 0.72)) saturate(var(--sat, 0.85)); }
 .game-card__tilt::before {
   content: '';
   position: absolute;
   inset: 0;
   z-index: 3;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: inherit;
   pointer-events: none;
-  transition: border-color 0.4s ease, box-shadow 0.4s ease;
+  transition: border-color 0.4s ease;
 }
 .game-card__tilt::after {
   content: '';
   position: absolute;
   inset: 0;
   z-index: 1;
-  background: linear-gradient(to top, rgba(6, 6, 10, 0.92) 0%, rgba(6, 6, 10, 0.4) 32%, transparent 56%);
+  background: linear-gradient(to top, rgba(6, 6, 10, 0.94) 0%, rgba(6, 6, 10, 0.5) 34%, transparent 60%);
   pointer-events: none;
 }
 .game-card__art {
@@ -371,11 +157,11 @@ html.is-player-open body { overflow: hidden; }
   background-position: center;
   background-size: cover;
   background-repeat: no-repeat;
-  transform: translate3d(calc((0.5 - var(--px)) * 14px), calc((0.5 - var(--py)) * 10px), 0) scale(var(--zoom, 1));
+  transform: translate3d(calc((0.5 - var(--px)) * 18px), calc((0.5 - var(--py)) * 14px), 0) scale(var(--zoom, 1));
   transition: transform 0.9s var(--ease-fluid);
 }
 /* NeuroMaze's capture carries a subtitle low in the frame; keep it below
-   the cover's title. */
+   the card's title. */
 .game-card--neuromaze .game-card__art { background-size: auto 126%; background-position: 50% 0; }
 .game-card__shine {
   position: absolute;
@@ -389,44 +175,49 @@ html.is-player-open body { overflow: hidden; }
 .game-card__meta {
   position: absolute;
   z-index: 2;
-  left: 14px;
-  right: 50px;
-  bottom: 14px;
+  left: 20px;
+  right: 74px;
+  bottom: 20px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 7px;
 }
 .game-card__index {
   font-family: 'Space Grotesk', 'Inter', sans-serif;
-  font-size: 0.62rem;
+  font-size: 0.68rem;
   font-weight: 600;
   letter-spacing: 0.22em;
   color: rgb(var(--card-glow));
 }
 .game-card__title {
   font-family: 'Space Grotesk', 'Inter', sans-serif;
-  font-size: clamp(0.98rem, 1.15vw, 1.15rem);
+  font-size: clamp(1.25rem, 1.8vw, 1.6rem);
   font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: -0.01em;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
 }
-.game-card__genre { display: none; }
+.game-card__genre {
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+}
 .game-card__play {
   position: absolute;
   z-index: 2;
-  right: 12px;
-  bottom: 12px;
+  right: 16px;
+  bottom: 18px;
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 46px;
+  height: 46px;
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 50%;
   background: rgba(12, 12, 16, 0.55);
-  opacity: 0;
-  transform: scale(0.8);
-  transition: transform 0.5s var(--ease-fluid), opacity 0.3s ease, background 0.3s ease, border-color 0.3s ease, box-shadow 0.4s ease;
+  transition: transform 0.5s var(--ease-fluid), background 0.3s ease, border-color 0.3s ease, box-shadow 0.4s ease;
 }
+/* An unhurried invitation: each card's button pings in turn. */
 .game-card__play::after {
   content: '';
   position: absolute;
@@ -434,70 +225,52 @@ html.is-player-open body { overflow: hidden; }
   border-radius: 50%;
   border: 1px solid rgba(var(--card-glow), 0.9);
   opacity: 0;
-  animation: works-ping 2.6s ease-out infinite;
+  animation: works-ping 3.6s ease-out infinite;
+  animation-delay: calc(var(--n) * 1.2s + 1s);
 }
 @keyframes works-ping {
   0% { opacity: 0.9; transform: scale(1); }
   32%, 100% { opacity: 0; transform: scale(1.7); }
 }
-.game-card__play svg { width: 14px; height: 14px; margin-left: 2px; fill: #fff; }
+.game-card__play svg { width: 18px; height: 18px; margin-left: 2px; fill: #fff; }
 
-/* The featured cover: lifted, lit, ringed, its button ready. */
-.game-card.is-selected {
-  --sel: 1.1;
-  --dim: 1;
-  --sat: 1;
+.game-card.is-hover::after,
+.game-card:focus-visible::after { opacity: 1; transform: scaleX(1.08); }
+.game-card.is-hover .game-card__tilt,
+.game-card:focus-visible .game-card__tilt {
+  --lift: -10px;
+  --zoom: 1.06;
+  box-shadow: 0 40px 70px -26px rgba(0, 0, 0, 0.95), 0 20px 64px -14px rgba(var(--card-glow), 0.5);
+  transition: transform 0.28s ease-out, box-shadow 0.6s var(--ease-fluid);
 }
-.game-card.is-selected::after { opacity: 1; }
-.game-card.is-selected .game-card__tilt {
-  box-shadow: 0 30px 60px -24px rgba(0, 0, 0, 0.95), 0 18px 56px -14px rgba(var(--card-glow), 0.55);
-}
-.game-card.is-selected .game-card__tilt::before {
-  border: 2px solid rgba(255, 255, 255, 0.92);
-  box-shadow: inset 0 0 0 3px rgba(var(--card-glow), 0.35);
-}
-.game-card.is-selected .game-card__play { opacity: 1; transform: scale(1); }
-.game-card.is-hover { --dim: 1; --sat: 1; }
-.game-card.is-hover .game-card__tilt {
-  --lift: -6px;
-  transition: transform 0.28s ease-out, box-shadow 0.6s var(--ease-fluid), filter 0.4s ease;
-}
-.game-card.is-hover .game-card__art { --zoom: 1.06; transition-duration: 0.45s; }
+.game-card.is-hover .game-card__art,
+.game-card:focus-visible .game-card__art { --zoom: 1.06; transition-duration: 0.45s; }
+.game-card.is-hover .game-card__tilt::before,
+.game-card:focus-visible .game-card__tilt::before { border-color: rgba(var(--card-glow), 0.6); }
 .game-card.is-hover .game-card__shine { opacity: 1; }
-.game-card.is-hover .game-card__play {
-  opacity: 1;
-  transform: scale(1.1);
+.game-card.is-hover .game-card__play,
+.game-card:focus-visible .game-card__play {
+  transform: scale(1.12);
   border-color: transparent;
   background: rgb(var(--card-glow));
-  box-shadow: 0 0 0 6px rgba(var(--card-glow), 0.18), 0 8px 24px rgba(var(--card-glow), 0.55);
+  box-shadow: 0 0 0 7px rgba(var(--card-glow), 0.18), 0 10px 30px rgba(var(--card-glow), 0.55);
 }
-/* The cover's own lift and ring are its focus state. */
+/* The card's own lift and glow are its focus state. */
 a.game-card:focus-visible { outline: none; }
-.game-card:active .game-card__tilt { --press: 0.96; transition-duration: 0.12s; }
+.game-card:active .game-card__tilt { --press: 0.97; transition-duration: 0.12s; }
 .game-card.is-lifted { visibility: hidden; }
 .game-card.is-landing :is(.game-card__meta, .game-card__play) { animation: works-card-land 0.6s var(--ease-fluid) both; }
 @keyframes works-card-land { from { opacity: 0; translate: 0 8px; } }
 
-/* Phones and short windows: the covers are a row to swipe through; the one
-   in the middle is featured above. */
+/* Phones and short windows: a row of cards to swipe through. */
 @media (max-width: 720px), (max-height: 600px) {
-  .story--works { --card-w: min(40vw, 176px); }
-  .has-works .library { padding: 0 0 56px; gap: 6px; }
-  .has-works .library-feature { margin-top: 4px; }
-  .has-works .library-backdrop { width: auto; margin: 0 16px; aspect-ratio: 2 / 1; }
-  .has-works .library-feature { padding: 0 22px; }
-  .library-label { margin-bottom: 14px; }
-  .library-title { font-size: clamp(2.2rem, 10vw, 3rem); }
-  .library-title--logo img { width: min(300px, 76vw); }
-  .library-blurb { margin-top: 12px; font-size: 0.92rem; }
-  .library-meta { margin-top: 14px; }
-  .library-actions { margin-top: 18px; }
-  .has-works .shelf { gap: 4px; }
+  .story--works { --card-w: min(66vw, 300px, calc((var(--stage-h) - 120px) * 0.8)); }
+  .shelf { padding: 0 0 64px; gap: 8px; }
   .shelf-cards {
     justify-content: flex-start;
     width: 100%;
-    gap: 14px;
-    padding: 18px calc(50% - var(--card-w) / 2) 34px;
+    gap: 16px;
+    padding: 12px calc(50% - var(--card-w) / 2) 52px;
     overflow-x: auto;
     overscroll-behavior-x: contain;
     scroll-snap-type: x mandatory;
@@ -505,6 +278,7 @@ a.game-card:focus-visible { outline: none; }
   }
   .shelf-cards::-webkit-scrollbar { display: none; }
   .shelf-cards li { scroll-snap-align: center; }
+  .game-card__title { font-size: 1.45rem; }
 }
 
 /* ---- the player ---- */
@@ -596,6 +370,9 @@ a.game-card:focus-visible { outline: none; }
 .has-works .player .poster-chrome { top: 84px; left: clamp(24px, 6vw, 96px); right: clamp(24px, 6vw, 96px); }
 .has-works .player .poster-hud { top: clamp(100px, 15vh, 136px); right: clamp(24px, 6vw, 96px); }
 .has-works .player .loop-hud { right: auto; left: clamp(24px, 6vw, 96px); }
+/* Low and right, clear of the moons, like a game's own HUD. */
+.has-works .player .apoc-hud { top: auto; bottom: clamp(64px, 10vh, 104px); }
+.has-works .player .apoc-warning { top: auto; bottom: calc(clamp(64px, 10vh, 104px) + 92px); right: clamp(24px, 6vw, 96px); }
 /* The capture already carries this line as the game's own subtitle. */
 .has-works .player .poster-quote { display: none; }
 .has-works .player .poster--neuromaze.is-active .poster-capture { animation: works-capture-drift 18s ease-in-out infinite alternate; }
@@ -774,134 +551,20 @@ a.game-card:focus-visible { outline: none; }
   /* A tall screen crops the wide scenes to their middle: lift each subject
      clear of the copy, and keep the capture's own subtitle off the screen. */
   .has-works .player .poster--neuromaze .poster-capture { background-size: auto 122%; background-position: 50% 0; }
+  .has-works .player .poster--apocalypse .poster-scene {
+    height: 66%;
+    -webkit-mask-image: linear-gradient(to bottom, #000 78%, transparent);
+    mask-image: linear-gradient(to bottom, #000 78%, transparent);
+  }
   .has-works .player .poster-hud { top: 92px; bottom: auto; right: 22px; }
   .has-works .player .loop-hud { right: auto; left: 22px; }
+  .has-works .player .apoc-warning { top: 176px; bottom: auto; right: 22px; }
 }
 @media (max-height: 600px) {
   .has-works .player .project-facts, .has-works .player .poster-tags { display: none; }
   .has-works .player .poster-content { bottom: 44px; }
   .has-works .player .poster-title { font-size: clamp(2rem, 7vh, 3rem); }
   .has-works .player .poster-desc { max-width: 520px; font-size: 0.86rem; }
-}
-
-/* ---- 02 · Escape Quest: in the game's own maroon and gold ----
-   Taken from its itch.io page: a deep maroon ground (#280507), gold links
-   and buttons (#d2a368 on #b8894e), dark-red rules (#62161b), and the
-   game's hand-drawn logo. Its rooms play on a screen framed like the
-   game's own portrait tiles, while three of the cast look on. */
-.poster--escape { --accent: #d2a368; --accent-rgb: 210, 163, 104; }
-.poster--escape .poster-bg {
-  background:
-    radial-gradient(ellipse 70% 60% at 68% 42%, rgba(98, 22, 27, 0.75), transparent 70%),
-    radial-gradient(ellipse 120% 90% at 30% 100%, #1a0405, transparent 60%),
-    #280507;
-}
-.has-works .player .poster--escape .poster-bg::after,
-.poster--escape .poster-bg::after {
-  background: linear-gradient(90deg, rgba(20, 3, 4, 0.82), rgba(20, 3, 4, 0.35) 42%, transparent 64%);
-}
-/* The screen, and the faces pinned around it. */
-.eq-stage {
-  position: absolute;
-  z-index: 1;
-  top: 46%;
-  right: clamp(30px, 6vw, 110px);
-  width: min(50vw, calc((var(--stage-h) - 300px) * 1.78));
-  aspect-ratio: 16 / 9;
-  transform: translateY(-50%) rotate(1.4deg);
-}
-.eq-screen {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  border-radius: 18px;
-  background: #120203;
-  box-shadow:
-    0 0 0 4px #150304,
-    0 0 0 11px #efe3d4,
-    0 0 0 14px #150304,
-    0 44px 90px rgba(0, 0, 0, 0.6),
-    0 0 140px rgba(210, 163, 104, 0.14);
-}
-.eq-shot {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0;
-}
-.eq-shot--room { opacity: 1; }
-.eq-retry {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 7%;
-  width: max-content;
-  max-width: 90%;
-  margin: 0 auto;
-  padding: 8px 14px;
-  border: 2px solid #150304;
-  border-radius: 10px;
-  background: #f3e9dc;
-  font-family: 'Space Grotesk', 'Inter', sans-serif;
-  font-size: clamp(0.62rem, 0.85vw, 0.8rem);
-  font-weight: 700;
-  white-space: nowrap;
-  color: #1a0506;
-  opacity: 0;
-}
-.eq-face {
-  position: absolute;
-  width: clamp(64px, 7.6vw, 120px);
-  height: auto;
-  filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.55));
-}
-.eq-face--hugh { left: -7%; top: -15%; rotate: -9deg; }
-.eq-face--hood { right: -6%; top: -12%; rotate: 8deg; }
-.eq-face--nanditha { right: 9%; bottom: -19%; rotate: -5deg; }
-
-.poster--escape .poster-content { max-width: min(600px, 40vw); }
-.poster-title--escape { margin-top: 18px; }
-.poster-title--escape img {
-  display: block;
-  width: min(440px, 33vw);
-  height: auto;
-  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.6));
-}
-.poster--escape .poster-eyebrow { color: #d2a368; }
-.poster--escape .project-facts > div { border-top-color: rgba(150, 44, 50, 0.7); }
-.poster--escape .poster-tags { color: rgba(243, 233, 220, 0.66); }
-/* itch.io's own button: gold, with a darker gold beneath the lettering. */
-.poster-cta--escape {
-  border-color: transparent;
-  background: #d2a368;
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  text-shadow: 0 1px 0 #b8894e;
-  box-shadow: 0 4px 0 #8c6337, 0 14px 30px rgba(210, 163, 104, 0.25);
-}
-.poster-cta--escape:hover { background: #ddb37c; border-color: transparent; }
-
-@media (max-width: 720px) {
-  .eq-stage {
-    top: 96px;
-    left: 26px;
-    right: 26px;
-    width: auto;
-    transform: rotate(-1deg);
-  }
-  .eq-screen { border-radius: 14px; }
-  .eq-face { width: 58px; }
-  .eq-face--hugh { left: -3%; top: -12%; }
-  .eq-face--hood { right: -3%; top: -10%; }
-  .eq-face--nanditha { display: none; }
-  .poster--escape .poster-content { max-width: none; }
-  .poster--escape .poster-tags { display: none; }
-  .poster-title--escape img { width: min(300px, 74vw); }
-  .has-works .player .poster--escape .poster-bg::after {
-    background: linear-gradient(to bottom, transparent 40%, rgba(20, 3, 4, 0.75) 62%, rgba(20, 3, 4, 0.96) 100%);
-  }
 }
 
 /* ---- the gate at the end of the lab ---- */
