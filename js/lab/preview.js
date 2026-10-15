@@ -8,9 +8,8 @@ import { NEUROMAZE_SCREEN } from './neuromaze-screen.js';
  * Two painted layers and one small shader. The picture is the real gameplay
  * capture (embedded as a data URI: WebGL cannot read local files when the
  * site is opened from disk) with the poster's grade. The chrome — REC, the
- * title, the "tap/click to play" hint — sits on its own layer so it can
- * leave as the screen becomes chapter 04 (js/story.js's match cut). The
- * shader adds what moves: a CRT power-on, faint scanlines, a play button
+ * title, the "tap/click to play" hint — sits on its own layer, over which
+ * the shader adds what moves: a CRT power-on, faint scanlines, a play button
  * with a slow ping, a hover lift and a flash when it is pressed. */
 
 const FONT = '"Space Grotesk", "Inter", "Segoe UI", system-ui, sans-serif';
@@ -181,8 +180,7 @@ export function neuroMazePreview(geometry) {
     setOn(value) { uniforms.uOn.value = value; },
     setHover(value) { hoverGoal = value ? 1 : 0; },
     press() { tapStart = performance.now(); },
-    // Per frame: time, eased hover, the press flash, and the chrome leaving
-    // as the screen becomes chapter 04.
+    // Per frame: time, eased hover and the press flash.
     animate(t) {
       const dt = Math.min(0.05, Math.max(0, t - last));
       last = t;
@@ -190,8 +188,6 @@ export function neuroMazePreview(geometry) {
       uniforms.uHover.value += (hoverGoal - uniforms.uHover.value) * (1 - Math.exp(-dt * 10));
       uniforms.uTap.value = tapStart < 0 ? 0 : Math.min(1, (performance.now() - tapStart) / 520);
       if (uniforms.uTap.value >= 1) tapStart = -1;
-      const cut = window.SceneKit?.workHandoff?.progress || 0;
-      uniforms.uChromeOpacity.value = 1 - Math.min(1, cut / 0.12);
     },
   };
 }

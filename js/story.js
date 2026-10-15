@@ -20,15 +20,6 @@
 
   document.documentElement.classList.add('has-story');
 
-  // Line drawings are drawn on by their stroke-dashoffset attribute (paths
-  // with pathLength 1 and a dasharray of 1): 1 is undrawn, 0 fully drawn.
-  const drawn = (v) => ({ attr: { 'stroke-dashoffset': v } });
-
-  const seeded = (seed) => () => {
-    seed = (seed * 1664525 + 1013904223) % 4294967296;
-    return seed / 4294967296;
-  };
-
   function setupStory(scene, compact = false) {
     const section = document.getElementById(scene.id);
     const stage = section && section.querySelector('.story-stage');
@@ -44,7 +35,7 @@
     measure();
     ScrollTrigger.addEventListener('refreshInit', measure);
 
-    const shared = scene.id === 'chapter-beyond' || scene.id === 'chapter-work';
+    const shared = scene.id === 'chapter-beyond';
     const scrollConfig = {
         trigger: section,
         start: 'top top',
@@ -108,8 +99,10 @@
    * lit and switched on (Unity), then walked into and used: the camera moves
    * to a workstation and selects its monitor (XR interaction). Each contribution arrives as its own
    * oversized statement while the lab answers it, and scrolling back takes
-   * the lab apart again. The stage dims to black, which hands straight to
-   * the film reel.
+   * the lab apart again. The lab's end is a gate (js/works.js): the selected
+   * monitor previews NeuroMaze, and scrolling waits until it is tapped,
+   * which opens chapter 04's player. Past it, the stage dims to black and
+   * hands straight to the game shelf.
    */
   const BEYOND = {
     id: 'chapter-beyond',
@@ -219,12 +212,11 @@
         tl.to(steps[i], { '--f': 1, duration: span(a, b), ease: 'none' }, at(a));
       });
 
-      // (to 0.92: held on the finished lab.) The stage dims — straight into
-      // the film reel.
+      // (to 0.92: held on the finished lab, with the gate at .905.) The stage
+      // dims — straight into the game shelf.
       const consoleAll = [consoleRoot, kicker, role, $('.console-beats'), stepRail];
       if (compact) {
-        // The monitor begins growing while the lab is still held in view.
-        // Clear its labels before the stage starts travelling past the nav.
+        // Clear the labels before the stage starts travelling past the nav.
         tl.to([kicker, role, $('.console-beats'), stepRail], { opacity: 0, duration: 0.08, ease: 'sine.inOut' }, 0.91);
       } else {
         tl.to(consoleAll, { opacity: 0, duration: 0.055, ease: 'power1.in' }, 0.945);
@@ -234,254 +226,36 @@
   };
 
   /* ---------- Chapter 04 · Creative works ----------
-   * The camera cuts sideways between three full-bleed posters, each filling
-   * the whole frame the way BMW and Bosch do. NeuroMaze plays as a real
-   * gameplay capture, tuning in like a monitor switching on. The Apocalypse
-   * is a wide, cinematic alien horizon with the world drifting past as the
-   * astronaut runs. LoopShoot VR is a live jump shot, the ball arcing to a
-   * lit rim while a synced second player waits across the net. The strip
-   * dims at the end, like a projector switching off.
+   * A shelf of three games. After the slate, the cards are dealt onto it,
+   * rising out of the dark and settling from a slight turn. They hold there,
+   * drifting a little at their own depths while the page moves on, until the
+   * chapter dims. Opening a game, and the full-screen player it opens into,
+   * belong to js/works.js. Coming from the lab's monitor, works.js lands on
+   * this timeline at .42 (its LANDING), once the shelf has settled.
    */
   const WORKS = {
     id: 'chapter-work',
-    transitions: [[0, 0.12], [0.93, 1]],
+    transitions: [[0, 0.16], [0.9, 1]],
     build(tl, { $, $$, geo }) {
-      const rails = $$('.reel-rail');
-      const track = $('.reel-track');
-      const posters = $$('.poster');
-      const copyOf = (p) => [...p.querySelectorAll('.poster-content > *')];
+      const shelf = $('.shelf');
+      const cards = $$('.game-card');
+      const hint = $('.shelf-hint');
+      const ambient = $('.shelf-ambient');
+      const turn = [-5, 0, 5];
+      const drift = [0.03, 0.055, 0.04];
 
-      gsap.set(rails, { opacity: 0 });
-      posters.forEach((p) => gsap.set(copyOf(p), { opacity: 0, y: 24 }));
+      gsap.set(ambient, { opacity: 0 });
+      gsap.set(cards, { opacity: 0, y: () => geo.ch * 0.16, rotation: (i) => turn[i] || 0, scale: 0.94, transformOrigin: '50% 100%' });
+      gsap.set(hint, { opacity: 0, y: 10 });
 
-      const dock = slateBeats(tl, $, { at: 0.01, dockAt: 0.1 });
-      tl.to(rails, { opacity: 1, duration: 0.04, ease: 'power1.out' }, 0.08);
-
-      // The first frame is the lab monitor's match cut; subsequent works
-      // continue sideways once the visitor has had time to read.
-      gsap.set(track, { x: 0 });
-      const advance = (frame, at) => {
-        tl.to(track, { x: () => -frame * geo.cw, duration: 0.08, ease: 'power3.inOut' }, at)
-          .to(rails, { backgroundPositionX: () => `${-frame * geo.cw}px`, duration: 0.08, ease: 'power3.inOut' }, at);
-      };
-      advance(1, 0.42);
-      advance(2, 0.69);
-
-      const arrive = (p, at) => {
-        tl.to(copyOf(p), { opacity: 1, y: 0, duration: 0.035, stagger: 0.006, ease: 'power2.out' }, at);
-      };
-      arrive(posters[0], 0.13);
-      arrive(posters[1], 0.47);
-      arrive(posters[2], 0.74);
-
-      buildNeuroMaze($, tl);
-      buildApocalypse($, $$, tl);
-      buildLoopShoot($, $$, tl);
-
-      tl.to([track, ...rails, dock], { opacity: 0, duration: 0.06, ease: 'power1.in' }, 0.93)
-        .to(track, { x: () => -2.12 * geo.cw, duration: 0.07, ease: 'power1.in' }, 0.93);
+      const dock = slateBeats(tl, $, { at: 0.02, dockAt: 0.16 });
+      tl.to(ambient, { opacity: 1, duration: 0.1, ease: 'power1.out' }, 0.1)
+        .to(cards, { opacity: 1, y: 0, rotation: 0, scale: 1, duration: 0.1, stagger: 0.03, ease: 'power3.out' }, 0.17)
+        .to(hint, { opacity: 1, y: 0, duration: 0.04, ease: 'power2.out' }, 0.3)
+        .to(cards, { y: (i) => -geo.ch * drift[i], duration: 0.5, ease: 'none' }, 0.4)
+        .to([shelf, ambient, dock], { opacity: 0, duration: 0.06, ease: 'power1.in' }, 0.92);
     },
   };
-
-  // 01 · NeuroMaze: the real capture, full-bleed, tuning in like a monitor
-  // switching on before it holds on the game's own red pulse.
-  function buildNeuroMaze($, tl) {
-    const poster = $('.poster--neuromaze');
-    const bg = poster.querySelector('.poster-bg');
-    const capture = $('.poster-capture');
-    const scanlines = $('.poster-scanlines');
-    const rec = $('.poster-rec');
-    const tag = $('.poster-tag');
-    const quote = $('.poster-quote');
-
-    gsap.set(bg, { opacity: 0 });
-    gsap.set(capture, { scale: 1.04 });
-    gsap.set(scanlines, { opacity: 0 });
-    gsap.set([rec, tag, quote], { opacity: 0 });
-
-    tl.to(bg, { opacity: 1, duration: 0.1, ease: 'power2.out' }, 0.02)
-      .to(capture, { scale: 1, duration: 0.1, ease: 'power2.out' }, 0.03)
-      .to(scanlines, { opacity: 0.3, duration: 0.03 }, 0.12)
-      .to([rec, tag], { opacity: 1, duration: 0.025 }, 0.14)
-      .to(quote, { opacity: 1, duration: 0.03, ease: 'power1.out' }, 0.2);
-  }
-
-  // 02 · The Apocalypse: a wide alien horizon, drifting past at three
-  // depths as the astronaut runs, the oxygen gauge counting down.
-  function buildApocalypse($, $$, tl) {
-    const poster = $('.poster--apocalypse');
-    const stars = poster.querySelector('.apoc-stars');
-    const nearMoon = $('.apoc-moon--near');
-    const farMoon = $('.apoc-moon--far');
-    const ridgeBack = $('.apoc-ridge--back');
-    const ridgeMid = $('.apoc-ridge--mid');
-    const ground = $('.apoc-ground');
-    // .apoc-runner itself carries an SVG translate() attribute that places
-    // the whole figure — it only ever fades. The stride and the tank drain
-    // are animated on children that have no attribute of their own.
-    const runner = $('.apoc-runner');
-    const legBack = $('.apoc-leg--back');
-    const legFront = $('.apoc-leg--front');
-    const armBack = $('.apoc-arm--back');
-    const armFront = $('.apoc-arm--front');
-    const tankLevel = $('.apoc-tank-level');
-    const motionLines = $$('.apoc-motion-line');
-    const hud = $('.apoc-hud');
-    const level = $('.apoc-hud-level');
-    const pct = $('.apoc-hud-pct');
-    const warning = $('.apoc-warning');
-
-    buildStars(stars);
-
-    gsap.set([nearMoon, farMoon], { opacity: 0 });
-    gsap.set([ridgeBack, ridgeMid, ground], { opacity: 0 });
-    gsap.set(runner, { opacity: 0 });
-    gsap.set([legBack, armBack], { rotation: -10, svgOrigin: '46 210' });
-    gsap.set([legFront, armFront], { rotation: 10, svgOrigin: '78 214' });
-    gsap.set(motionLines, { opacity: 0 });
-    gsap.set(hud, { opacity: 0, scale: 0.85, transformOrigin: '50% 50%' });
-    gsap.set(warning, { opacity: 0 });
-
-    tl.fromTo(stars, { opacity: 0 }, { opacity: 1, duration: 0.03 }, 0.43)
-      .to([farMoon, nearMoon], { opacity: 1, duration: 0.05, stagger: 0.02, ease: 'power1.out' }, 0.44)
-      .to(ridgeBack, { opacity: 1, duration: 0.04 }, 0.45)
-      .to(ridgeMid, { opacity: 1, duration: 0.04 }, 0.46)
-      .to(ground, { opacity: 1, duration: 0.04 }, 0.47)
-      .to(runner, { opacity: 1, duration: 0.04, ease: 'power2.out' }, 0.48)
-      // The stride: front and back leg/arm pairs swing in opposition, a
-      // full running cycle for as long as the frame holds.
-      .to(legBack, { rotation: 26, duration: 0.05, repeat: 5, yoyo: true, ease: 'sine.inOut', svgOrigin: '46 210' }, 0.5)
-      .to(legFront, { rotation: -22, duration: 0.05, repeat: 5, yoyo: true, ease: 'sine.inOut', svgOrigin: '78 214' }, 0.5)
-      .to(armBack, { rotation: 24, duration: 0.05, repeat: 5, yoyo: true, ease: 'sine.inOut', svgOrigin: '46 210' }, 0.5)
-      .to(armFront, { rotation: -20, duration: 0.05, repeat: 5, yoyo: true, ease: 'sine.inOut', svgOrigin: '78 214' }, 0.5)
-      .fromTo(motionLines, { opacity: 0, x: 10 }, { opacity: 0.55, x: -8, duration: 0.045, repeat: 5, yoyo: true, ease: 'sine.inOut' }, 0.52)
-      .fromTo(ridgeBack, { x: 0 }, { x: -30, duration: 0.24, ease: 'none' }, 0.48)
-      .fromTo(ridgeMid, { x: 0 }, { x: -64, duration: 0.24, ease: 'none' }, 0.48)
-      .fromTo(ground, { x: 0 }, { x: -110, duration: 0.24, ease: 'none' }, 0.48)
-      .to(hud, { opacity: 1, scale: 1, duration: 0.03, ease: 'back.out(2)' }, 0.49)
-      .to({ v: 100 }, {
-        v: 14,
-        duration: 0.2,
-        ease: 'power1.in',
-        onUpdate() { pct.textContent = `${Math.round(this.targets()[0].v)}%`; },
-      }, 0.49)
-      .fromTo(level, { attr: { 'stroke-dashoffset': 0 } }, { attr: { 'stroke-dashoffset': 0.86 }, duration: 0.2, ease: 'power1.in' }, 0.49)
-      // The tank on the pack drains with the corner gauge — the same
-      // number, told twice: once as a HUD, once on the character itself.
-      .to(tankLevel, { scaleY: 0.16, duration: 0.2, ease: 'power1.in' }, 0.49)
-      .to(level, { stroke: '#ff5a4e', duration: 0.02 }, 0.65)
-      .to(warning, { opacity: 1, duration: 0.02 }, 0.66)
-      .to(warning, { opacity: 0.2, duration: 0.04, repeat: 3, yoyo: true, ease: 'none' }, 0.68);
-  }
-
-  // A sky for the poster: a seeded scatter of faint stars above the rim.
-  function buildStars(group) {
-    if (!group || group.childElementCount) return;
-    const rand = seeded(1969);
-    const ns = 'http://www.w3.org/2000/svg';
-    for (let i = 0; i < 60; i += 1) {
-      const star = document.createElementNS(ns, 'circle');
-      star.setAttribute('cx', (rand() * 1600).toFixed(1));
-      star.setAttribute('cy', (rand() * 380).toFixed(1));
-      star.setAttribute('r', (0.7 + rand() * 1.3).toFixed(2));
-      star.setAttribute('opacity', (0.25 + rand() * 0.6).toFixed(2));
-      group.appendChild(star);
-    }
-  }
-
-  // 03 · LoopShoot VR: the release, the arc, the swish, the combo — and a
-  // second player kept in sync across the net the whole time.
-  function buildLoopShoot($, $$, tl) {
-    const poster = $('.poster--loopshoot');
-    const hoopParts = $$('.loop-rim, .loop-backboard, .loop-backboard-square, .loop-net');
-    const floorGrid = poster.querySelector('.court-floor-grid');
-    const glowL = poster.querySelector('.court-glow--l');
-    const glowR = poster.querySelector('.court-glow--r');
-    // .loop-hoop and .loop-remote each carry their own translate()+scale()
-    // attribute — they only ever fade, never get a GSAP transform.
-    const hoop = $('.loop-hoop');
-    const remote = $('.loop-remote');
-    const hands = $('.loop-hands');
-    const glove = $('.loop-glove');
-    const controllerRing = $('.loop-controller-ring');
-    const sync = $('.loop-sync');
-    const arc = $('.loop-arc');
-    const ball = $('.loop-ball');
-    const trailDots = $$('.loop-trail-dot');
-    const releaseRay = $('.loop-ray');
-    const net = $('.loop-net');
-    const hud = $('.loop-hud');
-    const comboN = $('.loop-combo-n');
-    const swish = $('.loop-hud-swish');
-
-    gsap.set([floorGrid, glowL, glowR], { opacity: 0 });
-    gsap.set(hoopParts, { opacity: 0 });
-    gsap.set(hoop, { opacity: 0 });
-    gsap.set([hands, glove], { opacity: 0, y: 16 });
-    gsap.set(controllerRing, { opacity: 0 });
-    gsap.set(remote, { opacity: 0 });
-    gsap.set(sync, { opacity: 0 });
-    gsap.set([arc, releaseRay], { ...drawn(1), opacity: 0 });
-    gsap.set(hud, { opacity: 0, y: -6 });
-    gsap.set(swish, { opacity: 0, scale: 0.7, transformOrigin: '50% 50%' });
-
-    // The shot: close and large at the hand, small and far at the rim —
-    // forced perspective, not a flat 2D toss.
-    const from = { x: 915, y: 600, s: 1.3 };
-    const to = { x: 932, y: 229, s: 0.5 };
-    const bow = 340;
-    const at = (t) => {
-      const x = from.x + (to.x - from.x) * t;
-      const y = from.y + (to.y - from.y) * t - bow * 4 * t * (1 - t);
-      const s = from.s + (to.s - from.s) * t;
-      return { x, y, s };
-    };
-    const place = (t) => {
-      const p = at(t);
-      ball.setAttribute('transform', `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)}) scale(${p.s.toFixed(2)})`);
-      trailDots.forEach((dot, i) => {
-        const tt = Math.max(0, t - (i + 1) * 0.045);
-        const p2 = at(tt);
-        dot.setAttribute('cx', p2.x.toFixed(1));
-        dot.setAttribute('cy', p2.y.toFixed(1));
-        dot.setAttribute('r', (10 * p2.s).toFixed(1));
-        dot.style.opacity = tt <= 0 ? 0 : (0.4 * (1 - i / trailDots.length)).toFixed(2);
-      });
-    };
-    gsap.set(ball, { opacity: 0 });
-    place(0);
-
-    tl.to([floorGrid, glowL, glowR], { opacity: 1, duration: 0.04, ease: 'power1.out' }, 0.7)
-      .to(hoopParts, { opacity: 1, duration: 0.03, stagger: 0.008 }, 0.72)
-      .to(hoop, { opacity: 1, duration: 0.03 }, 0.72)
-      .to([hands, glove], { opacity: 1, y: 0, duration: 0.04, stagger: 0.01, ease: 'power2.out' }, 0.73)
-      .to(controllerRing, { opacity: 1, duration: 0.03 }, 0.75)
-      .to(remote, { opacity: 0.6, duration: 0.03 }, 0.74)
-      .to(sync, { opacity: 0.8, duration: 0.02 }, 0.74)
-      .to(sync, { attr: { 'stroke-dashoffset': -0.6 }, duration: 0.03, ease: 'none', repeat: 5 }, 0.74)
-      .to(remote, { opacity: 0.3, duration: 0.06, repeat: 3, yoyo: true, ease: 'sine.inOut' }, 0.76)
-      // The release: a quick flash off the glove, then the ball leaves.
-      .to(releaseRay, { opacity: 1, ...drawn(0), duration: 0.015, ease: 'power2.out' }, 0.78)
-      .to(releaseRay, { opacity: 0, duration: 0.015 }, 0.796)
-      .to(ball, { opacity: 1, duration: 0.01 }, 0.78)
-      .to(arc, { opacity: 1, duration: 0.01 }, 0.78)
-      .to(arc, { ...drawn(0), duration: 0.07, ease: 'power1.out' }, 0.78)
-      .to({ t: 0 }, {
-        t: 1,
-        duration: 0.07,
-        ease: 'power1.out',
-        onUpdate() { place(this.targets()[0].t); },
-      }, 0.78)
-      .to(arc, { opacity: 0, duration: 0.02 }, 0.855)
-      .to(trailDots, { opacity: 0, duration: 0.02 }, 0.855)
-      .to(net, { scaleY: 1.18, svgOrigin: '100 132', duration: 0.02, ease: 'power2.out' }, 0.85)
-      .to(net, { scaleY: 1, svgOrigin: '100 132', duration: 0.04, ease: 'elastic.out(1, 0.5)' }, 0.872)
-      .to(hud, { opacity: 1, y: 0, duration: 0.02, ease: 'power2.out' }, 0.85)
-      .to(swish, { opacity: 1, scale: 1, duration: 0.02, ease: 'back.out(3)' }, 0.855)
-      .to(swish, { opacity: 0, duration: 0.03, ease: 'power1.in' }, 0.89)
-      .to({ value: 2 }, { value: 3, duration: 0.001, onUpdate() { comboN.textContent = Math.round(this.targets()[0].value); } }, 0.855)
-      .fromTo(comboN, { scale: 1.5 }, { scale: 1, duration: 0.03, ease: 'back.out(3)' }, 0.855);
-  }
 
   /* ---------- Chapter 05 · Education ----------
    * The same stage the hero opened on: one beam, drifting dust. The degree
@@ -570,132 +344,31 @@
     },
   };
 
-  // A portrait or an actual monitor frame survives the cut between chapters.
-  // These layers are fixed only during their short handoff; they never
-  // receive input, and reverse with the rest of the scene.
+  // The dawn's light survives the cut into the closing chapter. The layer is
+  // fixed only during its short handoff; it never receives input, and
+  // reverses with the rest of the scene.
   function setupHandoffs(compact) {
-    const layers = [];
-    const cleanups = [];
-    const add = (kind, targetId) => {
-      const target = document.getElementById(targetId);
-      const compactScreen = compact && kind === 'screen';
-      const labStage = document.querySelector('#chapter-beyond .story-stage');
-      const layer = document.createElement('div');
-      layer.className = `scene-bridge scene-bridge--${kind}${compactScreen ? ' scene-bridge--screen-compact' : ''}`;
-      layer.setAttribute('aria-hidden', 'true');
-      document.body.appendChild(layer);
-      layers.push(layer);
-      let refreshFrame = () => {};
-      const stageHeight = () => (compactScreen ? labStage : document.querySelector('.chapter-zoom-bg')).clientHeight;
-      const boundary = () => target.getBoundingClientRect().top + window.scrollY;
-      const scrollConfig = {
-        trigger: target,
-        // Compact projects use normal page flow. Start the monitor zoom
-        // during the final lab hold, before its sticky stage scrolls away,
-        // and finish before the next heading reaches the navigation.
-        start: () => boundary() - stageHeight() * (compactScreen ? 1.35 : 0.48),
-        end: () => boundary() + (compactScreen ? -Math.max(90, stageHeight() * 0.1) : stageHeight() * 0.68),
-        scrub: kind === 'screen' ? false : compact ? 0.28 : 0.45,
-        invalidateOnRefresh: true,
-        onRefresh: () => refreshFrame(),
-      };
-      const tl = gsap.timeline(kind === 'screen' ? { paused: true } : { scrollTrigger: scrollConfig });
-      const range = kind === 'screen' ? ScrollTrigger.create(scrollConfig) : tl.scrollTrigger;
-      gsap.set(layer, { autoAlpha: 0 });
-      if (kind === 'screen') {
-        tl.to(layer, { autoAlpha: 1, duration: 0.22, ease: 'sine.out' }, 0)
-          .to(layer, { autoAlpha: 0, duration: compactScreen ? 0.22 : 0.3, ease: 'sine.inOut' }, compactScreen ? 0.68 : 0.7);
-        if (compactScreen) tl.to({}, { duration: 1 }, 0);
-        const frame = document.createElement('div');
-        frame.className = 'scene-bridge__screen';
-        layer.appendChild(frame);
-        const pose = { p: 0 };
-        const handoff = window.SceneKit.workHandoff = { progress: 0, origin: null, compact, available: false };
-        // Pressing the lab's NeuroMaze preview glides through this same
-        // match cut and lands as the poster settles, rather than jumping.
-        // Any wheel, touch, key or press from the visitor takes over again.
-        let dive = null;
-        const interrupts = ['wheel', 'touchstart', 'keydown', 'pointerdown'];
-        const releaseDive = () => {
-          dive?.kill();
-          dive = null;
-          interrupts.forEach((type) => window.removeEventListener(type, releaseDive, true));
-        };
-        handoff.dive = () => {
-          if (dive) return true;
-          const works = target._sceneRange;
-          const goal = compactScreen || !works ? range.end + 2
-            : Math.max(range.end + 2, works.start + (works.end - works.start) * 0.235);
-          const from = window.scrollY;
-          if (goal <= from + 4) return false;
-          const proxy = { y: from };
-          dive = gsap.to(proxy, {
-            y: goal,
-            // Gentle at both ends and even through the middle, where the
-            // monitor's zoom lives, so the zoom itself takes over a second.
-            duration: Math.min(3, 1.8 + (goal - from) / 3000),
-            ease: 'sine.inOut',
-            onUpdate: () => window.scrollTo(0, proxy.y),
-            onComplete: releaseDive,
-          });
-          interrupts.forEach((type) => window.addEventListener(type, releaseDive, { capture: true, passive: true }));
-          return true;
-        };
-        cleanups.push(releaseDive);
-        let rect = null;
-        const render = () => {
-          const lab = window.HiWiLab;
-          handoff.progress = tl.progress();
-          // WebGL failure simply leaves the ordinary project entrance intact.
-          frame.hidden = !lab || !lab.stats().drawn;
-          handoff.available = !frame.hidden;
-          if (frame.hidden) {
-            target.dispatchEvent(new Event('sceneprogress'));
-            return;
-          }
-          if (!rect || pose.p < 0.02) rect = lab.screenRect();
-          const w = layer.clientWidth;
-          const h = layer.clientHeight;
-          const p = pose.p;
-          const x = rect.x * (1 - p);
-          const y = rect.y * (1 - p);
-          const width = rect.width + (w - rect.width) * p;
-          const height = rect.height + (h - rect.height) * p;
-          handoff.origin = { x, y, width, height };
-          if (compactScreen) {
-            // Let cover crop the image as the monitor becomes a portrait
-            // viewport, rather than stretching the gameplay out of shape.
-            frame.style.width = `${width}px`;
-            frame.style.height = `${height}px`;
-            frame.style.transform = `translate3d(${x}px,${y}px,0)`;
-          } else {
-            frame.style.transform = `translate3d(${x}px,${y}px,0) scale(${width / w},${height / h})`;
-          }
-          // Whole pixels: a radius change repaints the capture's whole layer.
-          const radius = `${compactScreen ? 0 : Math.round(12 * (1 - p))}px`;
-          if (frame.style.borderRadius !== radius) frame.style.borderRadius = radius;
-          target.dispatchEvent(new Event('sceneprogress'));
-        };
-        tl.fromTo(pose, { p: 0 }, { p: 1, duration: 0.62, ease: 'power2.inOut' }, 0.06);
-        tl.eventCallback('onUpdate', render);
-        refreshFrame = () => { rect = null; render(); };
-        cleanups.push(driveSharedScene(null, tl, range));
-      } else {
-        tl.to(layer, { autoAlpha: 0.6, duration: 0.22, ease: 'sine.out' }, 0)
-          .to(layer, { autoAlpha: 0, duration: 0.3, ease: 'sine.inOut' }, 0.7)
-          .fromTo(layer, { yPercent: 12, scale: 0.8 },
-            { yPercent: 0, scale: 1.25, duration: 1, ease: 'sine.inOut' }, 0);
-      }
-    };
-    add('screen', 'chapter-work');
-    if (!compact) {
-      add('dawn', 'chapter-contact');
-    }
-    return () => {
-      cleanups.forEach((dispose) => dispose());
-      layers.forEach((layer) => layer.remove());
-      window.SceneKit.workHandoff = null;
-    };
+    const target = document.getElementById('chapter-contact');
+    if (compact || !target) return () => {};
+    const layer = document.createElement('div');
+    layer.className = 'scene-bridge scene-bridge--dawn';
+    layer.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(layer);
+    const stageHeight = () => document.querySelector('.chapter-zoom-bg').clientHeight;
+    const boundary = () => target.getBoundingClientRect().top + window.scrollY;
+    const tl = gsap.timeline({ scrollTrigger: {
+      trigger: target,
+      start: () => boundary() - stageHeight() * 0.48,
+      end: () => boundary() + stageHeight() * 0.68,
+      scrub: 0.45,
+      invalidateOnRefresh: true,
+    } });
+    gsap.set(layer, { autoAlpha: 0 });
+    tl.to(layer, { autoAlpha: 0.6, duration: 0.22, ease: 'sine.out' }, 0)
+      .to(layer, { autoAlpha: 0, duration: 0.3, ease: 'sine.inOut' }, 0.7)
+      .fromTo(layer, { yPercent: 12, scale: 0.8 },
+        { yPercent: 0, scale: 1.25, duration: 1, ease: 'sine.inOut' }, 0);
+    return () => layer.remove();
   }
 
   function setupCompactLabExit() {
@@ -730,13 +403,6 @@
     const media = gsap.matchMedia();
     media.add({ compact: '(max-width: 720px), (max-height: 600px)', full: '(min-width: 721px) and (min-height: 601px)' }, (context) => {
       const compact = context.conditions.compact;
-      if (compact) {
-        // These SVG/text values are set directly by the desktop animation,
-        // so restore their static reading state when a window becomes small.
-        document.querySelector('.loop-ball').setAttribute('transform', 'translate(915 600) scale(1.3)');
-        document.querySelector('.loop-combo-n').textContent = '2';
-        document.querySelector('.apoc-hud-pct').textContent = '100%';
-      }
       // Projects and closing chapters read naturally in the normal flow
       // on phones and short screens; the two signature 3D scenes remain.
       const scenes = compact ? [BEYOND] : [BEYOND, WORKS, EDUCATION, CONTACT];

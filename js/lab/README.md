@@ -32,11 +32,12 @@ Once the monitor is selected it powers on (a CRT-style line opening into the
 picture) into a NeuroMaze preview: the real gameplay capture with REC, the
 title and a pulsing play button (`preview.js`). Mouse/pen hover lifts the
 button; a short click/tap on the monitor, or its "NeuroMaze · Click/Tap to open"
-label (also a keyboard button), flashes the screen and dives into chapter 04:
-`js/story.js` glides the page through the existing monitor match cut
-(`SceneKit.workHandoff.dive()`) and lands as the NeuroMaze poster settles. Any
-wheel, touch, key or press during the glide hands control back. Without the
-match cut (reduced motion) the label simply scrolls to the chapter.
+label (also a keyboard button), flashes the screen and pops NeuroMaze out of it
+into chapter 04's full-screen player (`js/works.js`, `WorksPlayer.openFromLab()`;
+`screenRect()` gives the lit picture's place on the page, where the pop
+starts). The end of the lab is a gate: scrolling waits there, with a hint, until
+the monitor is opened; underneath the player the page moves on to the game
+shelf. Without the player the label simply scrolls to the chapter.
 
 Pointer listeners are passive: movement over 8 CSS pixels, pointer
 cancellation, a press over 500 ms, or changed lab scroll progress cancels a

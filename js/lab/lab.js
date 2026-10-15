@@ -105,10 +105,10 @@ export async function startLab({ canvas, stage, state, pause: yieldToPage = null
   let requestInteractionFrame = () => {};
   const interaction = createInteraction({ workstation, stage,
     onChange: () => requestInteractionFrame(),
-    // The NeuroMaze preview opens chapter 04: js/story.js dives through the
-    // monitor's match cut; without it (reduced motion) the page just goes there.
+    // The NeuroMaze preview opens chapter 04: js/works.js pops the game out of
+    // this screen into its full-screen player; without it the page goes there.
     onOpen: () => {
-      if (window.SceneKit?.workHandoff?.dive?.()) return;
+      if (window.WorksPlayer?.openFromLab?.()) return;
       const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
       document.getElementById('chapter-work')?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
     },
@@ -558,14 +558,17 @@ export async function startLab({ canvas, stage, state, pause: yieldToPage = null
     camera,
     quality,
     workstation,
-    // Project the selected monitor into the page for the next chapter's
-    // match cut. Only read during that handoff, never in the render loop.
+    // Project the selected monitor's lit picture into the page, where
+    // js/works.js pops NeuroMaze out of it. Only read when it is pressed,
+    // never in the render loop.
     screenRect() {
-      const t = workstation.target;
-      const b = t.bezel;
+      const mesh = workstation.target.preview.mesh;
       const bounds = stage.getBoundingClientRect();
-      const corners = [-1, 1].flatMap((x) => [-1, 1].map((y) =>
-        new THREE.Vector3(t.x + x * b.w / 2, b.cy + y * b.h / 2 + t.group.position.y, b.z + b.d / 2).project(camera),
+      if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+      const box = mesh.geometry.boundingBox;
+      mesh.updateWorldMatrix(true, false);
+      const corners = [box.min.x, box.max.x].flatMap((x) => [box.min.y, box.max.y].map((y) =>
+        new THREE.Vector3(x, y, (box.min.z + box.max.z) / 2).applyMatrix4(mesh.matrixWorld).project(camera),
       ));
       const xs = corners.map((v) => bounds.left + (v.x * 0.5 + 0.5) * bounds.width);
       const ys = corners.map((v) => bounds.top + (-v.y * 0.5 + 0.5) * bounds.height);

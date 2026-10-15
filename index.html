@@ -35,6 +35,7 @@
 <link rel="stylesheet" href="css/portrait-mask.css?v=7" />
 <link rel="stylesheet" href="css/bmw-bridge.css?v=5" />
 <link rel="stylesheet" href="css/hero-particles.css?v=14" />
+<link rel="stylesheet" href="css/works.css?v=1" />
 <style>#hero .stage-text { opacity: 1; }</style>
 </head>
 <body>
@@ -422,16 +423,15 @@
       </div>
     </section>
 
-    <!-- CHAPTER 04: CREATIVE WORKS — three full-bleed posters, one per work,
-         each filling the entire frame the way BMW and Bosch do: a real
-         capture or a large atmospheric scene behind, a grade for legibility,
-         massive title type low and left. The camera cuts sideways between
-         them; nothing is boxed. Driven by js/story.js (WORKS). -->
+    <!-- CHAPTER 04: CREATIVE WORKS — a game shelf. Three cards (tilting
+         toward the cursor, glowing in their game's colour) each open the
+         full-screen player below, as does the NeuroMaze preview on the
+         lab's monitor; the player is js/works.js. Without scripts the cards
+         are plain links to the posters, which then read as a normal page. -->
     <section class="story story--works" id="chapter-work">
-      <span class="scene-anchor" id="work" style="--at: calc(var(--stage-h) * 0.95)"></span>
+      <span class="scene-anchor" id="work" style="--at: calc(var(--stage-h) * 0.9)"></span>
       <div class="story-stage">
-        <div class="reel-rail reel-rail--top" aria-hidden="true"></div>
-        <div class="reel-rail reel-rail--bottom" aria-hidden="true"></div>
+        <div class="shelf-ambient" aria-hidden="true"></div>
 
         <header class="slate">
           <p class="slate-index">Chapter 04</p>
@@ -440,279 +440,351 @@
         </header>
         <p class="slate-dock" aria-hidden="true"><b>04</b>Creative works<span>Things I've built</span></p>
 
-        <div class="reel-track">
-          <!-- 01 · NeuroMaze: the real capture, full-bleed, tuning in like
-               a monitor switching on. Roshan is one of its four credited
-               developers (micapigment.itch.io/neuromaze). -->
-          <article class="poster poster--neuromaze">
-            <div class="poster-bg">
-              <div class="poster-capture"></div>
-              <div class="poster-grade" aria-hidden="true"></div>
-              <div class="poster-scanlines" aria-hidden="true"></div>
-              <div class="poster-pulse" aria-hidden="true"></div>
-            </div>
-            <div class="poster-chrome" aria-hidden="true">
-              <span class="poster-rec"><i></i>REC</span>
-              <span class="poster-tag">GAMEPLAY CAPTURE — NEUROMAZE.EXE</span>
-            </div>
-            <div class="poster-content">
-              <p class="poster-eyebrow"><span>01 / 03</span>Unity · 3D Horror</p>
-              <h3 class="poster-title poster-title--neuromaze">NeuroMaze</h3>
-              <p class="poster-desc">Escape a robot's brain after a scientist's experiment goes wrong. Nerve-lit corridors, monsters and traps turn every step toward daylight into a race for survival.</p>
-              <dl class="project-facts">
-                <div><dt>Contribution</dt><dd>One of four credited developers.</dd></div>
-                <div><dt>Technical focus</dt><dd>First-person 3D horror in Unity.</dd></div>
-                <div><dt>Outcome</dt><dd>Three playable levels with time and health constraints.</dd></div>
-              </dl>
-              <p class="poster-tags">Unity · 3D · Horror · 4-person team</p>
-              <a class="poster-cta magnetic" href="https://micapigment.itch.io/neuromaze" target="_blank" rel="noopener noreferrer">Play on itch.io <i aria-hidden="true">→</i></a>
-            </div>
-            <p class="poster-quote">&ldquo;Nooo, now these monsters are gone&hellip; I almost died last time.&rdquo;</p>
-          </article>
+        <div class="shelf">
+          <ul class="shelf-cards" aria-label="Creative works">
+          <li>
+            <a class="game-card game-card--neuromaze" href="#play-neuromaze" data-work="0" aria-haspopup="dialog" style="--card-glow: 255, 51, 85;">
+              <span class="game-card__tilt">
+                <span class="game-card__art" aria-hidden="true" style="background-image: url('assets/works/neuromaze-card.webp');"></span>
+                <span class="game-card__shine" aria-hidden="true"></span>
+                <span class="game-card__meta">
+                  <span class="game-card__index">01</span>
+                  <span class="game-card__title">NeuroMaze</span>
+                  <span class="game-card__genre">Unity · 3D Horror</span>
+                </span>
+                <span class="game-card__play" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5.5v13l10.5-6.5z"/></svg></span>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a class="game-card game-card--apocalypse" href="#play-apocalypse" data-work="1" aria-haspopup="dialog" style="--card-glow: 255, 168, 96;">
+              <span class="game-card__tilt">
+                <span class="game-card__art" aria-hidden="true" style="background-image: url('assets/works/apocalypse-card.webp');"></span>
+                <span class="game-card__shine" aria-hidden="true"></span>
+                <span class="game-card__meta">
+                  <span class="game-card__index">02</span>
+                  <span class="game-card__title">The Apocalypse</span>
+                  <span class="game-card__genre">2D Game · Survival</span>
+                </span>
+                <span class="game-card__play" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5.5v13l10.5-6.5z"/></svg></span>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a class="game-card game-card--loopshoot" href="#play-loopshoot" data-work="2" aria-haspopup="dialog" style="--card-glow: 132, 120, 255;">
+              <span class="game-card__tilt">
+                <span class="game-card__art" aria-hidden="true" style="background-image: url('assets/works/loopshoot-card.webp');"></span>
+                <span class="game-card__shine" aria-hidden="true"></span>
+                <span class="game-card__meta">
+                  <span class="game-card__index">03</span>
+                  <span class="game-card__title">LoopShoot VR</span>
+                  <span class="game-card__genre">Unity · VR · Multiplayer</span>
+                </span>
+                <span class="game-card__play" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5.5v13l10.5-6.5z"/></svg></span>
+              </span>
+            </a>
+          </li>
+          </ul>
+          <p class="shelf-hint"><span class="shelf-hint__verb">Click</span> a game to open it</p>
+        </div>
+      </div>
 
-                    <!-- 02 · The Apocalypse: a wide, cinematic alien horizon — the
-               astronaut is the central character, running full-figure
-               through the middle of the frame, an oxygen gauge glowing on
-               the pack itself as it drains. -->
-          <article class="poster poster--apocalypse">
-            <div class="poster-bg">
-              <svg class="poster-scene" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
-                <defs>
-                  <radialGradient id="apocSky" cx="38%" cy="78%" r="95%">
-                    <stop offset="0%" stop-color="#4a2030"></stop>
-                    <stop offset="45%" stop-color="#241429"></stop>
-                    <stop offset="100%" stop-color="#08090f"></stop>
-                  </radialGradient>
-                  <radialGradient id="apocMoon" cx="36%" cy="34%" r="65%">
-                    <stop offset="0%" stop-color="#fff6e8"></stop>
-                    <stop offset="55%" stop-color="#ffd19a"></stop>
-                    <stop offset="100%" stop-color="#c96a3f"></stop>
-                  </radialGradient>
-                  <linearGradient id="apocGround" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="#5c2a24"></stop>
-                    <stop offset="100%" stop-color="#140a0b"></stop>
-                  </linearGradient>
-                  <radialGradient id="apocVisor" cx="35%" cy="30%" r="80%">
-                    <stop offset="0%" stop-color="#bfe6ff"></stop>
-                    <stop offset="45%" stop-color="#4f7aa8"></stop>
-                    <stop offset="100%" stop-color="#182a3c"></stop>
-                  </radialGradient>
-                  <linearGradient id="apocSuit" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="#eef2f5"></stop>
-                    <stop offset="100%" stop-color="#a7b0ba"></stop>
-                  </linearGradient>
-                  <linearGradient id="apocSuitShade" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="#c7ced5"></stop>
-                    <stop offset="100%" stop-color="#7f8892"></stop>
-                  </linearGradient>
-                  <linearGradient id="apocTank" x1="0" y1="1" x2="0" y2="0">
-                    <stop offset="0%" stop-color="#ff8a4c"></stop>
-                    <stop offset="100%" stop-color="#ffd7a8"></stop>
-                  </linearGradient>
-                  <filter id="apocGlow" x="-80%" y="-80%" width="260%" height="260%">
-                    <feGaussianBlur stdDeviation="6" result="b"></feGaussianBlur>
-                    <feMerge><feMergeNode in="b"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
-                  </filter>
-                </defs>
-                <rect x="0" y="0" width="1600" height="900" fill="url(#apocSky)"></rect>
-                <g class="apoc-stars"></g>
-                <circle class="apoc-moon apoc-moon--far" cx="1180" cy="220" r="30" fill="#8a5a7a" opacity="0.55"></circle>
-                <circle class="apoc-moon apoc-moon--near" cx="1330" cy="170" r="88" fill="url(#apocMoon)"></circle>
-                <g class="apoc-ridge apoc-ridge--back" fill="#241422">
-                  <path d="M-40 560l150-100 160 66 190-110 200 100 190-88 220 96 260-58 300 44v612H-40Z"></path>
+      <!-- The player: a full-screen dialog once js/works.js runs. -->
+      <div class="player" id="worksPlayer" aria-label="Creative works">
+        <div class="player__backdrop" aria-hidden="true"></div>
+        <div class="player__window">
+          <div class="player__track">
+        <!-- 01 · NeuroMaze: the real capture, full-bleed, tuning in like
+             a monitor switching on. Roshan is one of its four credited
+             developers (micapigment.itch.io/neuromaze). -->
+        <article class="poster poster--neuromaze" id="play-neuromaze" data-work="0">
+          <div class="poster-bg">
+            <div class="poster-capture"></div>
+            <div class="poster-grade" aria-hidden="true"></div>
+            <div class="poster-scanlines" aria-hidden="true"></div>
+            <div class="poster-pulse" aria-hidden="true"></div>
+          </div>
+          <div class="poster-chrome" aria-hidden="true">
+            <span class="poster-rec"><i></i>REC</span>
+            <span class="poster-tag">GAMEPLAY CAPTURE — NEUROMAZE.EXE</span>
+          </div>
+          <div class="poster-content">
+            <p class="poster-eyebrow"><span>01 / 03</span>Unity · 3D Horror</p>
+            <h3 class="poster-title poster-title--neuromaze">NeuroMaze</h3>
+            <p class="poster-desc">Escape a robot's brain after a scientist's experiment goes wrong. Nerve-lit corridors, monsters and traps turn every step toward daylight into a race for survival.</p>
+            <dl class="project-facts">
+              <div><dt>Contribution</dt><dd>One of four credited developers.</dd></div>
+              <div><dt>Technical focus</dt><dd>First-person 3D horror in Unity.</dd></div>
+              <div><dt>Outcome</dt><dd>Three playable levels with time and health constraints.</dd></div>
+            </dl>
+            <p class="poster-tags">Unity · 3D · Horror · 4-person team</p>
+            <a class="poster-cta magnetic" href="https://micapigment.itch.io/neuromaze" target="_blank" rel="noopener noreferrer">Play on itch.io <i aria-hidden="true">→</i></a>
+          </div>
+          <p class="poster-quote">&ldquo;Nooo, now these monsters are gone&hellip; I almost died last time.&rdquo;</p>
+        </article>
+
+                  <!-- 02 · The Apocalypse: a wide, cinematic alien horizon — the
+             astronaut is the central character, running full-figure
+             through the middle of the frame, an oxygen gauge glowing on
+             the pack itself as it drains. -->
+        <article class="poster poster--apocalypse" id="play-apocalypse" data-work="1">
+          <div class="poster-bg">
+            <svg class="poster-scene" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+              <defs>
+                <radialGradient id="apocSky" cx="38%" cy="78%" r="95%">
+                  <stop offset="0%" stop-color="#4a2030"></stop>
+                  <stop offset="45%" stop-color="#241429"></stop>
+                  <stop offset="100%" stop-color="#08090f"></stop>
+                </radialGradient>
+                <radialGradient id="apocMoon" cx="36%" cy="34%" r="65%">
+                  <stop offset="0%" stop-color="#fff6e8"></stop>
+                  <stop offset="55%" stop-color="#ffd19a"></stop>
+                  <stop offset="100%" stop-color="#c96a3f"></stop>
+                </radialGradient>
+                <linearGradient id="apocGround" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#5c2a24"></stop>
+                  <stop offset="100%" stop-color="#140a0b"></stop>
+                </linearGradient>
+                <radialGradient id="apocVisor" cx="35%" cy="30%" r="80%">
+                  <stop offset="0%" stop-color="#bfe6ff"></stop>
+                  <stop offset="45%" stop-color="#4f7aa8"></stop>
+                  <stop offset="100%" stop-color="#182a3c"></stop>
+                </radialGradient>
+                <linearGradient id="apocSuit" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#eef2f5"></stop>
+                  <stop offset="100%" stop-color="#a7b0ba"></stop>
+                </linearGradient>
+                <linearGradient id="apocSuitShade" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#c7ced5"></stop>
+                  <stop offset="100%" stop-color="#7f8892"></stop>
+                </linearGradient>
+                <linearGradient id="apocTank" x1="0" y1="1" x2="0" y2="0">
+                  <stop offset="0%" stop-color="#ff8a4c"></stop>
+                  <stop offset="100%" stop-color="#ffd7a8"></stop>
+                </linearGradient>
+                <filter id="apocGlow" x="-80%" y="-80%" width="260%" height="260%">
+                  <feGaussianBlur stdDeviation="6" result="b"></feGaussianBlur>
+                  <feMerge><feMergeNode in="b"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
+                </filter>
+              </defs>
+              <rect x="0" y="0" width="1600" height="900" fill="url(#apocSky)"></rect>
+              <g class="apoc-stars"></g>
+              <circle class="apoc-moon apoc-moon--far" cx="1180" cy="220" r="30" fill="#8a5a7a" opacity="0.55"></circle>
+              <circle class="apoc-moon apoc-moon--near" cx="1330" cy="170" r="88" fill="url(#apocMoon)"></circle>
+              <g class="apoc-ridge apoc-ridge--back" fill="#241422">
+                <path d="M-40 560l150-100 160 66 190-110 200 100 190-88 220 96 260-58 300 44v612H-40Z"></path>
+              </g>
+              <g class="apoc-ridge apoc-ridge--mid" fill="#3a1f2c">
+                <path d="M-40 660l190-100 200 76 230-104 250 90 260-70 300 60v588H-40Z"></path>
+              </g>
+              <path class="apoc-ground" fill="url(#apocGround)" d="M-40 740l220-42 260 30 290-46 300 34 320-40 260 24v680H-40Z"></path>
+              <path class="apoc-crack" d="M220 780l58-46-16-52M1180 758l-34-52 24-56" stroke="#1a0c0d" stroke-width="3" fill="none"></path>
+
+              <!-- The astronaut: large, centred, mid-stride — the frame's
+                   one character, not a detail in it. Built at 2× the
+                   scale of the earlier pass and moved clear of the text
+                   scrim, so the whole figure — helmet, tank, stride — is
+                   always plainly legible. -->
+              <g class="apoc-runner" transform="translate(740 360)">
+                <path class="apoc-motion-line" d="M-40 40h100M-64 86h96M-36 132h84" stroke="rgba(255,180,120,0.3)" stroke-width="6" stroke-linecap="round" fill="none"></path>
+
+                <ellipse cx="60" cy="330" rx="72" ry="20" fill="rgba(0,0,0,0.4)"></ellipse>
+
+                <!-- Back leg, trailing. -->
+                <g class="apoc-leg apoc-leg--back">
+                  <path d="M46 210 L18 268 L34 316 L58 314 L46 262 Z" fill="url(#apocSuitShade)"></path>
+                  <path d="M22 306 L48 302 L58 322 L18 326 Z" fill="#3a3f46"></path>
                 </g>
-                <g class="apoc-ridge apoc-ridge--mid" fill="#3a1f2c">
-                  <path d="M-40 660l190-100 200 76 230-104 250 90 260-70 300 60v588H-40Z"></path>
-                </g>
-                <path class="apoc-ground" fill="url(#apocGround)" d="M-40 740l220-42 260 30 290-46 300 34 320-40 260 24v680H-40Z"></path>
-                <path class="apoc-crack" d="M220 780l58-46-16-52M1180 758l-34-52 24-56" stroke="#1a0c0d" stroke-width="3" fill="none"></path>
 
-                <!-- The astronaut: large, centred, mid-stride — the frame's
-                     one character, not a detail in it. Built at 2× the
-                     scale of the earlier pass and moved clear of the text
-                     scrim, so the whole figure — helmet, tank, stride — is
-                     always plainly legible. -->
-                <g class="apoc-runner" transform="translate(740 360)">
-                  <path class="apoc-motion-line" d="M-40 40h100M-64 86h96M-36 132h84" stroke="rgba(255,180,120,0.3)" stroke-width="6" stroke-linecap="round" fill="none"></path>
-
-                  <ellipse cx="60" cy="330" rx="72" ry="20" fill="rgba(0,0,0,0.4)"></ellipse>
-
-                  <!-- Back leg, trailing. -->
-                  <g class="apoc-leg apoc-leg--back">
-                    <path d="M46 210 L18 268 L34 316 L58 314 L46 262 Z" fill="url(#apocSuitShade)"></path>
-                    <path d="M22 306 L48 302 L58 322 L18 326 Z" fill="#3a3f46"></path>
-                  </g>
-
-                  <!-- Front leg, driving forward. -->
-                  <g class="apoc-leg apoc-leg--front">
-                    <path d="M78 214 L108 258 L100 318 L74 320 L68 264 Z" fill="url(#apocSuit)"></path>
-                    <path d="M74 310 L102 308 L110 330 L70 332 Z" fill="#454a52"></path>
-                  </g>
-
-                  <!-- Backpack, the tank's glow set into it. -->
-                  <g class="apoc-pack">
-                    <rect x="18" y="96" width="60" height="104" rx="14" fill="#7d848d"></rect>
-                    <rect x="26" y="106" width="44" height="10" rx="3" fill="#565c63"></rect>
-                    <rect class="apoc-tank-track" x="30" y="122" width="12" height="66" rx="5" fill="rgba(0,0,0,0.35)"></rect>
-                    <rect class="apoc-tank-level" x="30" y="122" width="12" height="66" rx="5" fill="url(#apocTank)" filter="url(#apocGlow)"></rect>
-                    <rect x="50" y="122" width="12" height="66" rx="5" fill="#565c63"></rect>
-                  </g>
-
-                  <!-- Torso, arms swinging. -->
-                  <path d="M32 108 Q60 92 88 108 L94 216 Q60 236 26 216 Z" fill="url(#apocSuit)"></path>
-                  <rect class="apoc-chest-light" x="48" y="140" width="24" height="16" rx="3"></rect>
-
-                  <g class="apoc-arm apoc-arm--back">
-                    <path d="M36 118 Q6 140 4 190" stroke="url(#apocSuitShade)" stroke-width="22" stroke-linecap="round" fill="none"></path>
-                    <circle cx="4" cy="192" r="12" fill="#c7ced5"></circle>
-                  </g>
-                  <g class="apoc-arm apoc-arm--front">
-                    <path d="M84 118 Q118 132 128 176" stroke="url(#apocSuit)" stroke-width="22" stroke-linecap="round" fill="none"></path>
-                    <circle cx="130" cy="178" r="12" fill="#eef2f5"></circle>
-                  </g>
-
-                  <!-- Helmet, the visor catching a highlight. -->
-                  <circle cx="60" cy="56" r="52" fill="#e4e9ee"></circle>
-                  <circle cx="64" cy="58" r="40" fill="url(#apocVisor)"></circle>
-                  <path d="M40 40a34 34 0 0 1 52-10" stroke="rgba(255,255,255,0.6)" stroke-width="6" fill="none" stroke-linecap="round"></path>
-                  <path d="M28 30l-14 -18M92 30l14 -18" stroke="#c3ccd6" stroke-width="6" stroke-linecap="round"></path>
+                <!-- Front leg, driving forward. -->
+                <g class="apoc-leg apoc-leg--front">
+                  <path d="M78 214 L108 258 L100 318 L74 320 L68 264 Z" fill="url(#apocSuit)"></path>
+                  <path d="M74 310 L102 308 L110 330 L70 332 Z" fill="#454a52"></path>
                 </g>
 
-                <!-- The oxygen it's played against, glowing on the pack. -->
-                <text class="apoc-tank-label" x="806" y="454">O₂</text>
-              </svg>
-            </div>
-            <div class="poster-scrim" aria-hidden="true"></div>
-            <div class="poster-content">
-              <p class="poster-eyebrow"><span>02 / 03</span>2D Game</p>
-              <h3 class="poster-title">The Apocalypse</h3>
-              <p class="poster-desc">An astronaut runs across a dying alien world, far from home. The oxygen gauge on the backpack counts down the only resource that matters.</p>
-              <dl class="project-facts">
-                <div><dt>Project scope</dt><dd>2D endless runner with hand-drawn sprites.</dd></div>
-                <div><dt>Design focus</dt><dd>An oxygen gauge carried on the astronaut's pack.</dd></div>
-                <div><dt>Experience</dt><dd>Survival driven by a dwindling oxygen supply.</dd></div>
-              </dl>
-              <p class="poster-tags">Hand-drawn Sprites · 2D · Survival</p>
-            </div>
-            <svg class="poster-hud apoc-hud" viewBox="0 0 120 120" aria-hidden="true">
-              <circle class="apoc-hud-track" cx="60" cy="60" r="46"></circle>
-              <circle class="apoc-hud-level" cx="60" cy="60" r="46" pathLength="1" stroke-dasharray="1" stroke-dashoffset="0"></circle>
-              <text class="apoc-hud-label" x="60" y="56">O₂</text>
-              <text class="apoc-hud-pct" x="60" y="76">100%</text>
+                <!-- Backpack, the tank's glow set into it. -->
+                <g class="apoc-pack">
+                  <rect x="18" y="96" width="60" height="104" rx="14" fill="#7d848d"></rect>
+                  <rect x="26" y="106" width="44" height="10" rx="3" fill="#565c63"></rect>
+                  <rect class="apoc-tank-track" x="30" y="122" width="12" height="66" rx="5" fill="rgba(0,0,0,0.35)"></rect>
+                  <rect class="apoc-tank-level" x="30" y="122" width="12" height="66" rx="5" fill="url(#apocTank)" filter="url(#apocGlow)"></rect>
+                  <rect x="50" y="122" width="12" height="66" rx="5" fill="#565c63"></rect>
+                </g>
+
+                <!-- Torso, arms swinging. -->
+                <path d="M32 108 Q60 92 88 108 L94 216 Q60 236 26 216 Z" fill="url(#apocSuit)"></path>
+                <rect class="apoc-chest-light" x="48" y="140" width="24" height="16" rx="3"></rect>
+
+                <g class="apoc-arm apoc-arm--back">
+                  <path d="M36 118 Q6 140 4 190" stroke="url(#apocSuitShade)" stroke-width="22" stroke-linecap="round" fill="none"></path>
+                  <circle cx="4" cy="192" r="12" fill="#c7ced5"></circle>
+                </g>
+                <g class="apoc-arm apoc-arm--front">
+                  <path d="M84 118 Q118 132 128 176" stroke="url(#apocSuit)" stroke-width="22" stroke-linecap="round" fill="none"></path>
+                  <circle cx="130" cy="178" r="12" fill="#eef2f5"></circle>
+                </g>
+
+                <!-- Helmet, the visor catching a highlight. -->
+                <circle cx="60" cy="56" r="52" fill="#e4e9ee"></circle>
+                <circle cx="64" cy="58" r="40" fill="url(#apocVisor)"></circle>
+                <path d="M40 40a34 34 0 0 1 52-10" stroke="rgba(255,255,255,0.6)" stroke-width="6" fill="none" stroke-linecap="round"></path>
+                <path d="M28 30l-14 -18M92 30l14 -18" stroke="#c3ccd6" stroke-width="6" stroke-linecap="round"></path>
+              </g>
+
+              <!-- The oxygen it's played against, glowing on the pack. -->
+              <text class="apoc-tank-label" x="806" y="454">O₂</text>
             </svg>
-            <p class="apoc-warning">O₂ CRITICAL</p>
-          </article>
+          </div>
+          <div class="poster-scrim" aria-hidden="true"></div>
+          <div class="poster-content">
+            <p class="poster-eyebrow"><span>02 / 03</span>2D Game</p>
+            <h3 class="poster-title">The Apocalypse</h3>
+            <p class="poster-desc">An astronaut runs across a dying alien world, far from home. The oxygen gauge on the backpack counts down the only resource that matters.</p>
+            <dl class="project-facts">
+              <div><dt>Project scope</dt><dd>2D endless runner with hand-drawn sprites.</dd></div>
+              <div><dt>Design focus</dt><dd>An oxygen gauge carried on the astronaut's pack.</dd></div>
+              <div><dt>Experience</dt><dd>Survival driven by a dwindling oxygen supply.</dd></div>
+            </dl>
+            <p class="poster-tags">Hand-drawn Sprites · 2D · Survival</p>
+          </div>
+          <svg class="poster-hud apoc-hud" viewBox="0 0 120 120" aria-hidden="true">
+            <circle class="apoc-hud-track" cx="60" cy="60" r="46"></circle>
+            <circle class="apoc-hud-level" cx="60" cy="60" r="46" pathLength="1" stroke-dasharray="1" stroke-dashoffset="0"></circle>
+            <text class="apoc-hud-label" x="60" y="56">O₂</text>
+            <text class="apoc-hud-pct" x="60" y="76">100%</text>
+          </svg>
+          <p class="apoc-warning">O₂ CRITICAL</p>
+        </article>
 
-                    <!-- 03 · LoopShoot VR: a first-person view inside the headset —
-               a real perspective floor receding to a distant, lit hoop, the
-               player's own hands large in the foreground, the ball arcing
-               away from camera with a genuine comet trail. -->
-          <article class="poster poster--loopshoot">
-            <div class="poster-bg">
-              <div class="courtspace" aria-hidden="true">
-                <div class="court-perspective">
-                  <div class="court-floor-grid"></div>
-                </div>
-                <div class="court-glow court-glow--l"></div>
-                <div class="court-glow court-glow--r"></div>
-                <div class="court-vignette"></div>
+                  <!-- 03 · LoopShoot VR: a first-person view inside the headset —
+             a real perspective floor receding to a distant, lit hoop, the
+             player's own hands large in the foreground, the ball arcing
+             away from camera with a genuine comet trail. -->
+        <article class="poster poster--loopshoot" id="play-loopshoot" data-work="2">
+          <div class="poster-bg">
+            <div class="courtspace" aria-hidden="true">
+              <div class="court-perspective">
+                <div class="court-floor-grid"></div>
               </div>
-
-              <svg class="poster-scene" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-                <defs>
-                  <radialGradient id="loopBall" cx="35%" cy="30%" r="75%">
-                    <stop offset="0%" stop-color="#fff0da"></stop>
-                    <stop offset="55%" stop-color="#e8934a"></stop>
-                    <stop offset="100%" stop-color="#a4551f"></stop>
-                  </radialGradient>
-                  <linearGradient id="loopHandGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="#2c2740"></stop>
-                    <stop offset="100%" stop-color="#0f0d1a"></stop>
-                  </linearGradient>
-                  <filter id="loopGlow" x="-80%" y="-80%" width="260%" height="260%">
-                    <feGaussianBlur stdDeviation="7" result="b"></feGaussianBlur>
-                    <feMerge><feMergeNode in="b"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
-                  </filter>
-                </defs>
-
-                <!-- The hoop, distant and small — real depth, not a diagram
-                     at arm's length. -->
-                <g class="loop-hoop" transform="translate(870 150) scale(0.62)">
-                  <rect x="0" y="0" width="200" height="90" rx="4" class="loop-backboard"></rect>
-                  <rect x="64" y="90" width="72" height="20" class="loop-backboard-square"></rect>
-                  <ellipse class="loop-rim" cx="100" cy="128" rx="54" ry="15" filter="url(#loopGlow)"></ellipse>
-                  <path class="loop-net" d="M60 132l14 68M78 135l10 70M100 136l0 72M122 135l-10 70M140 132l-14 68" stroke-width="2.4" fill="none"></path>
-                </g>
-
-                <!-- The remote player, far across the court — small, so the
-                     floor's perspective reads as real. -->
-                <g class="loop-remote" transform="translate(1220 300) scale(0.5)">
-                  <ellipse cx="60" cy="160" rx="52" ry="15" fill="rgba(0,0,0,0.25)"></ellipse>
-                  <path d="M28 160C22 92 38 40 62 40C86 40 102 92 96 160Z"></path>
-                  <circle cx="62" cy="14" r="26"></circle>
-                  <path d="M42 160Q62 132 82 160" fill="none" stroke-width="3"></path>
-                </g>
-                <path class="loop-sync" pathLength="1" stroke-dasharray="0.02 0.035" d="M420 760Q820 620 1240 340"></path>
-
-                <!-- The shot's own arc, glowing — traced once as the ball
-                     leaves the hand, roughly the path js/story.js's place()
-                     actually sends the ball along. -->
-                <path class="loop-arc" pathLength="1" stroke-dasharray="1" stroke-dashoffset="0" filter="url(#loopGlow)" d="M915 600Q680 140 932 229"></path>
-
-                <!-- The comet trail: fading echoes behind the ball, placed
-                     each frame by js/story.js. -->
-                <g class="loop-trail">
-                  <circle class="loop-trail-dot" r="10"></circle>
-                  <circle class="loop-trail-dot" r="10"></circle>
-                  <circle class="loop-trail-dot" r="10"></circle>
-                  <circle class="loop-trail-dot" r="10"></circle>
-                  <circle class="loop-trail-dot" r="10"></circle>
-                </g>
-                <g class="loop-ball" transform="translate(915 600) scale(1.3)">
-                  <circle r="26" fill="url(#loopBall)"></circle>
-                  <path d="M-26 0H26M0 -26V26M-18 -18Q0 0 -18 18M18 -18Q0 0 18 18" stroke="rgba(60,30,10,0.55)" stroke-width="2" fill="none"></path>
-                </g>
-
-                <!-- The player's own hands and controllers, large in the
-                     foreground — this is what makes it read as first person
-                     rather than a court seen from outside. -->
-                <g class="loop-hands">
-                  <path class="loop-forearm" d="M780 900C760 760 800 660 900 606C1000 552 1140 546 1260 600L1240 690C1140 648 1030 654 950 700C870 746 840 820 850 900Z" fill="url(#loopHandGrad)"></path>
-                  <path class="loop-line" pathLength="1" stroke-dasharray="1" stroke-dashoffset="0" d="M780 900C760 760 800 660 900 606C1000 552 1140 546 1260 600"></path>
-                  <g class="loop-glove">
-                    <ellipse cx="915" cy="612" rx="86" ry="62" fill="#241f38"></ellipse>
-                    <path class="loop-line" pathLength="1" stroke-dasharray="1" stroke-dashoffset="0" d="M845 588Q915 552 985 588Q1000 630 960 664Q915 686 866 664Q832 632 845 588Z"></path>
-                    <ellipse class="loop-glove-glow" cx="915" cy="600" rx="30" ry="16" filter="url(#loopGlow)"></ellipse>
-                    <circle class="loop-glove-button" cx="960" cy="596" r="9"></circle>
-                  </g>
-                  <g class="loop-controller-ring">
-                    <ellipse cx="915" cy="612" rx="118" ry="82" filter="url(#loopGlow)"></ellipse>
-                  </g>
-                </g>
-
-                <!-- The release ray: the HOMER ray from the hand to the
-                     ball, live for the instant the shot leaves. -->
-                <path class="loop-ray" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" filter="url(#loopGlow)" d="M915 600L845 500"></path>
-              </svg>
+              <div class="court-glow court-glow--l"></div>
+              <div class="court-glow court-glow--r"></div>
+              <div class="court-vignette"></div>
             </div>
-            <div class="poster-scrim" aria-hidden="true"></div>
-            <div class="poster-content">
-              <p class="poster-eyebrow"><span>03 / 03</span>Unity · VR</p>
-              <h3 class="poster-title">LoopShoot VR</h3>
-              <p class="poster-desc">Step onto a shared VR basketball court, take the ball in hand, and shoot alongside a second player in real time.</p>
-              <dl class="project-facts">
-                <div><dt>Project scope</dt><dd>Multiplayer VR basketball built in Unity.</dd></div>
-                <div><dt>Technical focus</dt><dd>HOMER navigation and Photon networking.</dd></div>
-                <div><dt>Experience</dt><dd>Real-time shared play with a second player.</dd></div>
-              </dl>
-              <p class="poster-tags">Unity · VR · Multiplayer</p>
+
+            <svg class="poster-scene" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+              <defs>
+                <radialGradient id="loopBall" cx="35%" cy="30%" r="75%">
+                  <stop offset="0%" stop-color="#fff0da"></stop>
+                  <stop offset="55%" stop-color="#e8934a"></stop>
+                  <stop offset="100%" stop-color="#a4551f"></stop>
+                </radialGradient>
+                <linearGradient id="loopHandGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#2c2740"></stop>
+                  <stop offset="100%" stop-color="#0f0d1a"></stop>
+                </linearGradient>
+                <filter id="loopGlow" x="-80%" y="-80%" width="260%" height="260%">
+                  <feGaussianBlur stdDeviation="7" result="b"></feGaussianBlur>
+                  <feMerge><feMergeNode in="b"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
+                </filter>
+              </defs>
+
+              <!-- The hoop, distant and small — real depth, not a diagram
+                   at arm's length. -->
+              <g class="loop-hoop" transform="translate(870 150) scale(0.62)">
+                <rect x="0" y="0" width="200" height="90" rx="4" class="loop-backboard"></rect>
+                <rect x="64" y="90" width="72" height="20" class="loop-backboard-square"></rect>
+                <ellipse class="loop-rim" cx="100" cy="128" rx="54" ry="15" filter="url(#loopGlow)"></ellipse>
+                <path class="loop-net" d="M60 132l14 68M78 135l10 70M100 136l0 72M122 135l-10 70M140 132l-14 68" stroke-width="2.4" fill="none"></path>
+              </g>
+
+              <!-- The remote player, far across the court — small, so the
+                   floor's perspective reads as real. -->
+              <g class="loop-remote" transform="translate(1220 300) scale(0.5)">
+                <ellipse cx="60" cy="160" rx="52" ry="15" fill="rgba(0,0,0,0.25)"></ellipse>
+                <path d="M28 160C22 92 38 40 62 40C86 40 102 92 96 160Z"></path>
+                <circle cx="62" cy="14" r="26"></circle>
+                <path d="M42 160Q62 132 82 160" fill="none" stroke-width="3"></path>
+              </g>
+              <path class="loop-sync" pathLength="1" stroke-dasharray="0.02 0.035" d="M420 760Q820 620 1240 340"></path>
+
+              <!-- The shot's own arc, glowing — traced once as the ball
+                   leaves the hand, roughly the path js/story.js's place()
+                   actually sends the ball along. -->
+              <path class="loop-arc" pathLength="1" stroke-dasharray="1" stroke-dashoffset="0" filter="url(#loopGlow)" d="M915 600Q680 140 932 229"></path>
+
+              <!-- The comet trail: fading echoes behind the ball, placed
+                   each frame by js/story.js. -->
+              <g class="loop-trail">
+                <circle class="loop-trail-dot" r="10"></circle>
+                <circle class="loop-trail-dot" r="10"></circle>
+                <circle class="loop-trail-dot" r="10"></circle>
+                <circle class="loop-trail-dot" r="10"></circle>
+                <circle class="loop-trail-dot" r="10"></circle>
+              </g>
+              <g class="loop-ball" transform="translate(915 600) scale(1.3)">
+                <circle r="26" fill="url(#loopBall)"></circle>
+                <path d="M-26 0H26M0 -26V26M-18 -18Q0 0 -18 18M18 -18Q0 0 18 18" stroke="rgba(60,30,10,0.55)" stroke-width="2" fill="none"></path>
+              </g>
+
+              <!-- The player's own hands and controllers, large in the
+                   foreground — this is what makes it read as first person
+                   rather than a court seen from outside. -->
+              <g class="loop-hands">
+                <path class="loop-forearm" d="M780 900C760 760 800 660 900 606C1000 552 1140 546 1260 600L1240 690C1140 648 1030 654 950 700C870 746 840 820 850 900Z" fill="url(#loopHandGrad)"></path>
+                <path class="loop-line" pathLength="1" stroke-dasharray="1" stroke-dashoffset="0" d="M780 900C760 760 800 660 900 606C1000 552 1140 546 1260 600"></path>
+                <g class="loop-glove">
+                  <ellipse cx="915" cy="612" rx="86" ry="62" fill="#241f38"></ellipse>
+                  <path class="loop-line" pathLength="1" stroke-dasharray="1" stroke-dashoffset="0" d="M845 588Q915 552 985 588Q1000 630 960 664Q915 686 866 664Q832 632 845 588Z"></path>
+                  <ellipse class="loop-glove-glow" cx="915" cy="600" rx="30" ry="16" filter="url(#loopGlow)"></ellipse>
+                  <circle class="loop-glove-button" cx="960" cy="596" r="9"></circle>
+                </g>
+                <g class="loop-controller-ring">
+                  <ellipse cx="915" cy="612" rx="118" ry="82" filter="url(#loopGlow)"></ellipse>
+                </g>
+              </g>
+
+              <!-- The release ray: the HOMER ray from the hand to the
+                   ball, live for the instant the shot leaves. -->
+              <path class="loop-ray" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" filter="url(#loopGlow)" d="M915 600L845 500"></path>
+            </svg>
+          </div>
+          <div class="poster-scrim" aria-hidden="true"></div>
+          <div class="poster-content">
+            <p class="poster-eyebrow"><span>03 / 03</span>Unity · VR</p>
+            <h3 class="poster-title">LoopShoot VR</h3>
+            <p class="poster-desc">Step onto a shared VR basketball court, take the ball in hand, and shoot alongside a second player in real time.</p>
+            <dl class="project-facts">
+              <div><dt>Project scope</dt><dd>Multiplayer VR basketball built in Unity.</dd></div>
+              <div><dt>Technical focus</dt><dd>HOMER navigation and Photon networking.</dd></div>
+              <div><dt>Experience</dt><dd>Real-time shared play with a second player.</dd></div>
+            </dl>
+            <p class="poster-tags">Unity · VR · Multiplayer</p>
+          </div>
+          <div class="poster-hud loop-hud">
+            <span class="loop-hud-label">Combo</span>
+            <span class="loop-hud-value"><b class="loop-combo-n">2</b>×</span>
+            <span class="loop-hud-swish">SWISH!</span>
+          </div>
+        </article>
+          </div>
+          <div class="player__ui">
+            <button class="player__close" type="button" aria-label="Close">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
+            <button class="player__arrow player__arrow--prev" type="button" aria-label="Previous game">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14.5 5.5L8 12l6.5 6.5"/></svg>
+            </button>
+            <button class="player__arrow player__arrow--next" type="button" aria-label="Next game">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9.5 5.5L16 12l-6.5 6.5"/></svg>
+            </button>
+            <div class="player__dots">
+              <button class="player__dot" type="button" data-work="0"><span>NeuroMaze</span><i></i></button>
+              <button class="player__dot" type="button" data-work="1"><span>The Apocalypse</span><i></i></button>
+              <button class="player__dot" type="button" data-work="2"><span>LoopShoot VR</span><i></i></button>
             </div>
-            <div class="poster-hud loop-hud">
-              <span class="loop-hud-label">Combo</span>
-              <span class="loop-hud-value"><b class="loop-combo-n">2</b>×</span>
-              <span class="loop-hud-swish">SWISH!</span>
-            </div>
-          </article>
+            <p class="player__swipe" aria-hidden="true">Swipe for more games · down to close</p>
+            <p class="player__status visually-hidden" aria-live="polite"></p>
+          </div>
         </div>
       </div>
     </section>
@@ -796,6 +868,12 @@
 
   </main>
 
+  <!-- Shown at the end of the lab while chapter 04 is closed (js/works.js). -->
+  <button class="gate-hint" type="button" hidden>
+    <span class="gate-hint__ring" aria-hidden="true"></span>
+    <span class="gate-hint__text"><span class="gate-hint__verb">Tap</span> the monitor to continue</span>
+  </button>
+
 
   <!-- Local particles initialize independently of the chapter animation CDN. -->
   <script src="assets/hero-bmw-points.js?v=1" defer></script>
@@ -805,15 +883,16 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" defer></script>
   <script src="js/chapters.js?v=78" defer></script>
-  <script src="js/story.js?v=51" defer></script>
-  <script src="js/face/boot.js?v=34" defer></script>
+  <script src="js/story.js?v=52" defer></script>
+  <script src="js/works.js?v=1" defer></script>
+  <script src="js/face/boot.js?v=35" defer></script>
   <script src="js/bmw/boot.js?v=9" defer></script>
   <script src="js/bmw-smoke.js?v=53" defer></script>
-  <script src="js/main.js?v=11" defer></script>
+  <script src="js/main.js?v=12" defer></script>
 
   <!-- The HiWi lab (chapter 03, scene B) is real-time 3D. boot.js is tiny; it
        loads js/lab/lab.bundle.js (the lab + three.js, one classic script)
        only once the visitor nears that chapter. -->
-  <script src="js/lab/boot.js?v=37" defer></script>
+  <script src="js/lab/boot.js?v=38" defer></script>
 </body>
 </html>

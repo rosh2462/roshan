@@ -1759,7 +1759,7 @@ p { margin: 0; }
 .has-story .story { margin-top: calc(-1 * var(--stage-h)); pointer-events: none; }
 .has-story .story--beyond { height: calc(6 * var(--stage-h)); }
 .has-story .story--beyond .story-stage { background: #000; }
-.has-story .story--works { height: calc(5.2 * var(--stage-h)); }
+.has-story .story--works { height: calc(3.2 * var(--stage-h)); }
 .has-story .story--education { height: calc(2.1 * var(--stage-h)); }
 .has-story .story--contact { height: calc(1.75 * var(--stage-h)); }
 .has-story .story-stage {
@@ -2156,51 +2156,16 @@ p { margin: 0; }
 
 /* ================= 04 · Creative works ================= */
 .story--works { --accent: var(--accent-b); --accent-rgb: 244, 207, 142; }
-.reel-rail { display: none; }
-.has-story .reel-rail {
-  display: block;
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 22px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  background-image: repeating-linear-gradient(90deg, transparent 0 14px, rgba(255, 255, 255, 0.1) 14px 30px, transparent 30px 44px);
-  background-size: 44px 10px;
-  background-repeat: repeat-x;
-  background-position: 0 50%;
-  pointer-events: none;
-  z-index: 3;
-}
-.has-story .reel-rail--top { top: 0; }
-.has-story .reel-rail--bottom { bottom: 0; }
-
-.reel-track {
-  display: grid;
-  gap: 0;
-}
-.has-story .reel-track {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  width: 300vw;
-}
 .poster {
   position: relative;
   min-height: 88vh;
   overflow: hidden;
 }
-.has-story .poster {
-  flex: none;
-  width: 100vw;
-  height: 100%;
-  min-height: 0;
-  /* Each poster is its own layer, and so is its animated scene, so one
-     poster's motion never repaints its neighbours or its own backdrop. */
-  will-change: transform;
-}
-.has-story .poster-scene,
-.has-story .poster :is(.poster-hud, .apoc-warning, .court-glow, .poster-chrome, .poster-quote) { will-change: transform, opacity; }
+/* In the player (css/works.css) each poster is its own layer, and so is its
+   animated scene, so one poster's motion never repaints its neighbours. */
+.has-works .player .poster { will-change: transform; }
+.has-works .player .poster-scene,
+.has-works .player .poster :is(.poster-hud, .apoc-warning, .court-glow, .poster-chrome, .poster-quote) { will-change: transform, opacity; }
 .poster-bg {
   position: absolute;
   inset: 0;
@@ -2220,12 +2185,6 @@ p { margin: 0; }
   z-index: 2;
   max-width: 640px;
   padding: 120px 24px 60px clamp(24px, 6vw, 88px);
-}
-.has-story .poster-content {
-  position: absolute;
-  left: 0;
-  bottom: clamp(56px, 10vh, 110px);
-  padding: 0 clamp(24px, 6vw, 88px);
 }
 .poster-eyebrow {
   display: flex;
@@ -2297,7 +2256,6 @@ p { margin: 0; }
 }
 .project-facts dt { color: var(--accent); font-weight: 500; }
 .project-facts dd { margin: 0; color: rgba(255, 255, 255, 0.86); }
-.has-story .poster-content { max-width: 760px; bottom: clamp(40px, 7vh, 72px); }
 .poster-title { font-size: clamp(3rem, 6.4vw, 5.6rem); }
 .poster-tags { color: rgba(255, 255, 255, 0.68); }
 .poster-bg::after {
@@ -2395,8 +2353,7 @@ p { margin: 0; }
   pointer-events: none;
 }
 .has-particle-copy.has-story.is-portrait-intro .reveal-copy { pointer-events: auto; }
-.has-particle-copy.has-story :is(.intro-pull, .intro-support, .intro-now),
-.has-particle-copy.has-story .particle-work-target {
+.has-particle-copy.has-story :is(.intro-pull, .intro-support, .intro-now) {
   opacity: var(--particle-copy-alpha, 0) !important;
   transform: none !important;
 }
@@ -2412,7 +2369,7 @@ p { margin: 0; }
 @media (prefers-reduced-motion: reduce) {
   .face-portrait { display: none; }
   .has-face-portrait.has-story .reveal-photo--after { opacity: 1 !important; }
-  .has-particle-copy.has-story :is(.intro-pull, .intro-support, .intro-now, .particle-work-target) {
+  .has-particle-copy.has-story :is(.intro-pull, .intro-support, .intro-now) {
     opacity: 1 !important;
     -webkit-mask-image: none !important;
     mask-image: none !important;
@@ -2436,18 +2393,6 @@ p { margin: 0; }
 .scene-bridge--dawn {
   background: radial-gradient(ellipse 90% 44% at 50% 78%, rgba(255, 206, 140, 0.55), rgba(214, 124, 92, 0.22) 42%, transparent 76%);
   mix-blend-mode: screen;
-}
-.scene-bridge__screen {
-  position: absolute;
-  inset: 0;
-  transform-origin: 0 0;
-  background: #130c10 url('../assets/neuromaze-capture.webp') center / cover no-repeat;
-  box-shadow: 0 0 36px rgba(244, 207, 142, 0.16);
-}
-.scene-bridge--screen-compact .scene-bridge__screen {
-  inset: auto;
-  box-shadow: none;
-  contain: layout paint;
 }
 a:focus-visible, button:focus-visible {
   outline: 2px solid var(--accent-b);
@@ -3014,7 +2959,6 @@ a:focus-visible, button:focus-visible {
 
   .poster-title { font-size: clamp(2.4rem, 10vw, 3.4rem); }
   .poster-desc { font-size: 0.92rem; }
-  .has-story .poster-content { bottom: clamp(40px, 8vh, 72px); }
   .poster-quote { display: none; }
   .poster-hud, .loop-hud { transform: scale(0.82); transform-origin: top right; }
   .loop-hud { transform-origin: top left; }
@@ -3059,14 +3003,11 @@ a:focus-visible, button:focus-visible {
   }
   .has-story .story--works .story-stage { padding-top: 40px; }
   .has-story .story--works .slate-dock,
-  .has-story .story--education .slate-dock,
-  .has-story .reel-rail { display: none; }
-  .has-story .reel-track { position: relative; inset: auto; display: block; width: 100%; }
-  .has-story .poster { width: 100%; height: auto; min-height: 0; background: #0b0c13; }
+  .has-story .story--education .slate-dock { display: none; }
   .poster + .poster { border-top: 1px solid var(--surface-border); }
   .poster-bg { height: clamp(240px, 65vw, 440px); }
   .poster-bg::after { background: linear-gradient(to bottom, transparent 55%, #0b0c13); }
-  .poster-content, .has-story .poster-content {
+  .poster-content {
     position: relative;
     bottom: auto;
     max-width: 760px;

@@ -1,5 +1,5 @@
 (() => {
-  const bundleUrl = new URL('../lab/lab.bundle.js?v=38', document.currentScript.src).href;
+  const bundleUrl = new URL('../lab/lab.bundle.js?v=39', document.currentScript.src).href;
   let bundlePromise;
 
   // Background preparation (downloads, GPU programs, texture uploads) waits
@@ -94,7 +94,6 @@
   };
   const source = document.getElementById('chapter-bosch');
   const section = document.getElementById('chapter-beyond');
-  const work = document.getElementById('chapter-work');
   if (!source || !section || !document.documentElement.classList.contains('has-story') ||
       matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
@@ -112,7 +111,6 @@
   let screenVisible = !document.hidden;
   let sampleTextTargets;
   let textReady = false;
-  let workTarget;
   let layoutKey = '';
   let sampleTimer;
   let sampleGeneration = 0;
@@ -130,24 +128,16 @@
     if (node.style.getPropertyValue(key) !== next) node.style.setProperty(key, next);
   };
 
-  function selectWorkTarget() {
-    const next = work.querySelector(compact.matches ? '.slate-org' : '.poster-title--neuromaze');
-    if (next === workTarget) return;
-    workTarget?.classList.remove('particle-work-target');
-    workTarget = next;
-  }
-
   async function sampleCopy() {
     if (!experience || !sampleTextTargets || failed) return;
     const generation = ++sampleGeneration;
     state.textEnabled = false;
     sync();
     try {
-      selectWorkTarget();
       // Typography is sampled only after fonts/layout change. DOM text remains
       // selectable, accessible and the final sharp surface at every size.
       root.classList.add('has-particle-copy');
-      const data = await sampleTextTargets([...textNodes, workTarget], {
+      const data = await sampleTextTargets(textNodes, {
         maxPoints: experience.stats().textBudget || (compact.matches ? 1800 : 4000),
       });
       if (failed || generation !== sampleGeneration) return;
@@ -162,7 +152,6 @@
       textReady = false;
       state.textEnabled = false;
       root.classList.remove('has-particle-copy');
-      workTarget?.classList.remove('particle-work-target');
       console.warn('Portrait: retaining native text animation.', error);
       sync();
     }
@@ -234,22 +223,11 @@
       cssVar(node, '--portrait-line-alpha', (1 - out).toFixed(4));
       cssVar(node, '--portrait-line-lift', `${(-14 * out * out).toFixed(2)}px`);
     });
-    const handoff = window.SceneKit?.workHandoff;
-    const bridgeProgress = handoff?.progress || 0;
-    // The monitor and the text follow the same smoothed absolute scroll clock.
-    // On desktop the project title finishes with its existing .13–.17 entrance.
-    const range = work?._sceneRange;
-    const finish = range ? range.start + (range.end - range.start) * 0.175 : 0;
-    const bridgeEnd = range ? range.start + state.viewport.height * 0.68 : 0;
-    const tail = range ? clamp((window.SceneKit.scrollPosition() - bridgeEnd) / Math.max(1, finish - bridgeEnd)) : 1;
-    state.workProgress = !handoff?.available || !textReady ? 0 : compact.matches
-      ? clamp((bridgeProgress - 0.38) / 0.62)
-      : bridgeProgress < 1 ? 0.88 * clamp((bridgeProgress - 0.38) / 0.62) : 0.88 + 0.12 * tail;
-    state.workOpacity = smooth((state.workProgress - 0.88) / 0.12);
-    state.workOrigin = handoff?.origin || {
-      x: state.viewport.width * 0.4, y: state.viewport.height * 0.4,
-      width: state.viewport.width * 0.2, height: state.viewport.height * 0.2,
-    };
+    // Chapter 04 opens from the lab's monitor (js/works.js); the particles
+    // are not part of that, so the work-title formation stays off.
+    state.workProgress = 0;
+    state.workOpacity = 0;
+    state.workActive = false;
     state.exitTarget = { x: state.viewport.width * 0.5, y: state.viewport.height * 0.61 };
     state.progress = bosch < 1
       ? 0.22 * smooth((bosch - 0.885) / 0.105)
@@ -257,31 +235,27 @@
     // Let the fully assembled dots settle before the original photo arrives.
     state.photoOpacity = smooth((state.progress - 0.94) / 0.06);
     const inIntro = intro < 0.50;
-    const inWork = state.workProgress > 0 && state.workProgress < 1;
-    state.workActive = !!handoff?.available && textReady && intro > 0.8 && bridgeProgress >= 0.38;
     state.textProgress = [0.12, 0.14, 0.16].map((start) => textReady ? clamp((intro - start) / 0.115) : 0);
     state.textOpacity = state.textProgress.map((progress) => smooth((progress - 0.86) / 0.14));
     const introParticles = inIntro && (state.photoOpacity < 1 || state.textProgress.some((p, i) => p > 0 && state.textOpacity[i] < 1));
     state.visible = state.ready && entered && state.progress > 0 &&
-      (introParticles || inWork) && screenVisible && !failed;
+      introParticles && screenVisible && !failed;
     state.interactive = state.visible && (state.progress < 0.9 ||
-      state.textProgress.some((p) => p > 0 && p < 1) || state.exitProgress > 0 || inWork);
+      state.textProgress.some((p) => p > 0 && p < 1) || state.exitProgress > 0);
     state.phase = !entered ? 'dashboard' : !fullView ? 'dashboard-portal'
       : state.progress < 0.58 ? 'galaxy' : state.progress < 0.9 ? 'assembly'
       : state.progress < 0.94 ? 'settled-particles'
-      : inWork ? 'work-formation' : intro >= 0.50 ? 'lab'
+      : intro >= 0.50 ? 'lab'
       : state.introOpacity < 1 ? 'lab-handoff'
       : state.photoOpacity < 1 ? 'photo-dissolve' : 'portrait';
 
     if (textReady) {
-      workTarget.classList.toggle('particle-work-target', !!handoff?.available);
       // Read moving boxes before changing styles. No glyph sampling, particle
       // loops, or geometry uploads are performed during scrolling.
       // Hidden particles do not consume moving text coordinates. Measure in
       // this same sync before update() whenever they become visible again.
       // The intro copy is pinned while it forms, so its boxes are read once
-      // per visible stretch (and after any layout change), not every frame;
-      // only the project title, which travels into place, is followed live.
+      // per visible stretch (and after any layout change), not every frame.
       if (state.visible) {
         if (textOffsetsKey !== layoutKey || !wasVisible) {
           textOffsetsKey = layoutKey;
@@ -290,14 +264,9 @@
             return { x: rect.x, y: rect.y };
           });
         }
-        if (state.workActive || !state.workOffset.x) {
-          const rect = workTarget.getBoundingClientRect();
-          state.workOffset = { x: rect.x, y: rect.y };
-        }
       }
       wasVisible = state.visible;
       textNodes.forEach((node, i) => cssVar(node, '--particle-copy-alpha', state.textOpacity[i]));
-      cssVar(workTarget, '--particle-copy-alpha', state.workOpacity);
     }
     if (state.exitProgress !== lastExit) {
       lastExit = state.exitProgress;
@@ -319,7 +288,7 @@
     document.documentElement.classList.toggle('is-galaxy-reveal', bosch >= 0.855 && intro < 0.50);
     root.classList.toggle('is-portrait-intro', inIntro);
     if (layer) {
-      style(layer, 'opacity', entered ? String(inIntro ? state.introOpacity : inWork ? 1 : 0) : '0');
+      style(layer, 'opacity', entered ? String(inIntro ? state.introOpacity : 0) : '0');
       layer.style.clipPath = fullView ? 'none' : state.dashboardClip || 'inset(50%)';
     }
     if (black) black.style.opacity = inIntro ? String(1 - state.photoOpacity) : '0';
@@ -342,7 +311,6 @@
     state.visible = false;
     document.documentElement.classList.remove('has-face-portrait');
     root.classList.remove('has-particle-copy');
-    workTarget?.classList.remove('particle-work-target');
     clearTimeout(sampleTimer);
     experience?.dispose();
     layer?.remove();
@@ -421,14 +389,6 @@
 
   source.addEventListener('sceneprogress', sync);
   section.addEventListener('sceneprogress', sync);
-  work?.addEventListener('sceneprogress', sync);
-  // Compact Chapter 4 is ordinary document flow, so its target also moves
-  // when the shared timeline has already reached its endpoint.
-  let scrollFrame = 0;
-  window.addEventListener('scroll', () => {
-    if (!compact.matches || scrollFrame || !textReady || !state.workActive || state.workProgress >= 1) return;
-    scrollFrame = requestAnimationFrame(() => { scrollFrame = 0; sync(); });
-  }, { passive: true });
   window.addEventListener('resize', layout, { passive: true });
   window.visualViewport?.addEventListener('resize', layout, { passive: true });
   document.addEventListener('visibilitychange', () => { screenVisible = !document.hidden; sync(); });

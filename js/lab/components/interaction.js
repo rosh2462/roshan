@@ -15,7 +15,7 @@ import { seg, smooth, easeOutCubic } from '../timeline.js';
  *
  * The visitor can then use it: hovering lifts the preview's play button, and
  * a click/tap on the monitor (or its label, also a keyboard button) presses
- * it — a flash — and `onOpen` dives into chapter 04.
+ * it — a flash — and `onOpen` pops NeuroMaze out into chapter 04's player.
  *
  * Every value is a function of L, so scrolling back un-selects it. */
 export function createInteraction({ workstation, stage, onChange = () => {}, onOpen = () => {}, isAvailable = () => true }) {

@@ -105,7 +105,8 @@
   document.querySelectorAll('a[href^="#"]').forEach(link => {
     const targetId = link.getAttribute('href').slice(1);
     const target = targetId && document.getElementById(targetId);
-    if (!target) return;
+    // Game cards open the works player (js/works.js) instead of scrolling.
+    if (!target || link.hasAttribute('aria-haspopup')) return;
     link.addEventListener('click', event => {
       // Preserve modified clicks and native anchor behavior in other tabs.
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button > 0) return;

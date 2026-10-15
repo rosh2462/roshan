@@ -1,0 +1,655 @@
+/* ================= 04 · Creative works: the shelf and the player =================
+   A shelf of game cards; each opens a full-screen player (js/works.js).
+   Without scripts the cards are links and the posters below them read as
+   an ordinary page. */
+
+@property --amb {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: rgba(244, 207, 142, 0.12);
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* The page keeps its scrollbar's space while the player holds the page
+   still, so nothing underneath shifts as it opens or closes. */
+html { scrollbar-gutter: stable; }
+html.is-player-open body { overflow: hidden; }
+
+/* ---- the shelf ---- */
+.story--works {
+  --card-w: min(25vw, 336px, calc((var(--stage-h) - 300px) * 0.8));
+}
+.shelf {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(26px, 4.5vh, 46px);
+  padding: 0 24px 96px;
+}
+.shelf-ambient { display: none; }
+.has-story .shelf-ambient {
+  display: block;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 62% 50% at 50% 58%, var(--amb), transparent 72%);
+  transition: --amb 0.9s ease;
+}
+.shelf-cards {
+  display: flex;
+  justify-content: center;
+  gap: clamp(18px, 2.8vw, 44px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.shelf-cards li { flex: none; }
+.shelf-cards li:nth-child(2) .game-card { --n: 1; }
+.shelf-cards li:nth-child(3) .game-card { --n: 2; }
+.shelf-hint {
+  margin: 0;
+  text-align: center;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+.shelf-hint::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin: 0 12px 2px 0;
+  vertical-align: middle;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: works-ping-dot 2.4s ease-out infinite;
+}
+@keyframes works-ping-dot {
+  0% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0.55); }
+  70%, 100% { box-shadow: 0 0 0 9px rgba(var(--accent-rgb), 0); }
+}
+
+@media (min-width: 721px) and (min-height: 601px) {
+  .has-story .story--works .shelf {
+    position: absolute;
+    inset: 0;
+    justify-content: center;
+    padding: 92px 24px 40px;
+  }
+}
+
+/* ---- a game card ---- */
+.game-card {
+  --px: 0.5;
+  --py: 0.5;
+  --n: 0;
+  position: relative;
+  display: block;
+  width: var(--card-w);
+  aspect-ratio: 4 / 5;
+  border-radius: 22px;
+  color: #fff;
+  text-decoration: none;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+/* A pool of the game's own light on the floor beneath it. */
+.game-card::after {
+  content: '';
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: -34px;
+  height: 44px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(var(--card-glow), 0.42), transparent 70%);
+  opacity: 0.4;
+  pointer-events: none;
+  transition: opacity 0.6s ease, transform 0.6s var(--ease-fluid);
+}
+.game-card__tilt {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  background: #0d0d12;
+  box-shadow: 0 26px 50px -20px rgba(0, 0, 0, 0.9);
+  transform: perspective(1000px) translate3d(0, var(--lift, 0px), 0)
+    rotateX(calc((0.5 - var(--py)) * 12deg)) rotateY(calc((var(--px) - 0.5) * 16deg)) scale(var(--press, 1));
+  transition: transform 0.7s var(--ease-fluid), box-shadow 0.6s var(--ease-fluid);
+  will-change: transform;
+}
+.game-card__tilt::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: inherit;
+  pointer-events: none;
+  transition: border-color 0.4s ease;
+}
+.game-card__tilt::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(to top, rgba(6, 6, 10, 0.94) 0%, rgba(6, 6, 10, 0.5) 34%, transparent 60%);
+  pointer-events: none;
+}
+.game-card__art {
+  position: absolute;
+  inset: -5%;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  transform: translate3d(calc((0.5 - var(--px)) * 18px), calc((0.5 - var(--py)) * 14px), 0) scale(var(--zoom, 1));
+  transition: transform 0.9s var(--ease-fluid);
+}
+/* NeuroMaze's capture carries a subtitle low in the frame; keep it below
+   the card's title. */
+.game-card--neuromaze .game-card__art { background-size: auto 126%; background-position: 50% 0; }
+.game-card__shine {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: radial-gradient(circle at calc(var(--px) * 100%) calc(var(--py) * 100%), rgba(255, 255, 255, 0.16), transparent 46%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+.game-card__meta {
+  position: absolute;
+  z-index: 2;
+  left: 20px;
+  right: 74px;
+  bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.game-card__index {
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  color: rgb(var(--card-glow));
+}
+.game-card__title {
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: clamp(1.25rem, 1.8vw, 1.6rem);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+.game-card__genre {
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+}
+.game-card__play {
+  position: absolute;
+  z-index: 2;
+  right: 16px;
+  bottom: 18px;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  background: rgba(12, 12, 16, 0.55);
+  transition: transform 0.5s var(--ease-fluid), background 0.3s ease, border-color 0.3s ease, box-shadow 0.4s ease;
+}
+/* An unhurried invitation: each card's button pings in turn. */
+.game-card__play::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 50%;
+  border: 1px solid rgba(var(--card-glow), 0.9);
+  opacity: 0;
+  animation: works-ping 3.6s ease-out infinite;
+  animation-delay: calc(var(--n) * 1.2s + 1s);
+}
+@keyframes works-ping {
+  0% { opacity: 0.9; transform: scale(1); }
+  32%, 100% { opacity: 0; transform: scale(1.7); }
+}
+.game-card__play svg { width: 18px; height: 18px; margin-left: 2px; fill: #fff; }
+
+.game-card.is-hover::after,
+.game-card:focus-visible::after { opacity: 1; transform: scaleX(1.08); }
+.game-card.is-hover .game-card__tilt,
+.game-card:focus-visible .game-card__tilt {
+  --lift: -10px;
+  --zoom: 1.06;
+  box-shadow: 0 40px 70px -26px rgba(0, 0, 0, 0.95), 0 20px 64px -14px rgba(var(--card-glow), 0.5);
+  transition: transform 0.28s ease-out, box-shadow 0.6s var(--ease-fluid);
+}
+.game-card.is-hover .game-card__art,
+.game-card:focus-visible .game-card__art { --zoom: 1.06; transition-duration: 0.45s; }
+.game-card.is-hover .game-card__tilt::before,
+.game-card:focus-visible .game-card__tilt::before { border-color: rgba(var(--card-glow), 0.6); }
+.game-card.is-hover .game-card__shine { opacity: 1; }
+.game-card.is-hover .game-card__play,
+.game-card:focus-visible .game-card__play {
+  transform: scale(1.12);
+  border-color: transparent;
+  background: rgb(var(--card-glow));
+  box-shadow: 0 0 0 7px rgba(var(--card-glow), 0.18), 0 10px 30px rgba(var(--card-glow), 0.55);
+}
+/* The card's own lift and glow are its focus state. */
+a.game-card:focus-visible { outline: none; }
+.game-card:active .game-card__tilt { --press: 0.97; transition-duration: 0.12s; }
+.game-card.is-lifted { visibility: hidden; }
+.game-card.is-landing :is(.game-card__meta, .game-card__play) { animation: works-card-land 0.6s var(--ease-fluid) both; }
+@keyframes works-card-land { from { opacity: 0; translate: 0 8px; } }
+
+/* Phones and short windows: a row of cards to swipe through. */
+@media (max-width: 720px), (max-height: 600px) {
+  .story--works { --card-w: min(66vw, 300px, calc((var(--stage-h) - 120px) * 0.8)); }
+  .shelf { padding: 0 0 64px; gap: 8px; }
+  .shelf-cards {
+    justify-content: flex-start;
+    width: 100%;
+    gap: 16px;
+    padding: 12px calc(50% - var(--card-w) / 2) 52px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+  .shelf-cards::-webkit-scrollbar { display: none; }
+  .shelf-cards li { scroll-snap-align: center; }
+  .game-card__title { font-size: 1.45rem; }
+}
+
+/* ---- the player ---- */
+.player__backdrop, .player__ui { display: none; }
+.has-works .player {
+  --accent: var(--accent-b);
+  --accent-rgb: 244, 207, 142;
+  --glow: 244, 207, 142;
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  visibility: hidden;
+  pointer-events: none;
+  overscroll-behavior: contain;
+}
+.has-works .player.is-open { visibility: visible; pointer-events: auto; }
+.has-works .player:focus { outline: none; }
+.has-works .player__backdrop {
+  display: block;
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 4, 7, 0.9);
+  opacity: 0;
+}
+.has-works .player__window {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  transform-origin: 0 0;
+  background: #050407;
+  touch-action: none;
+}
+.has-works .player.is-animating .player__window { will-change: transform, clip-path; }
+.has-works .player__track {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  will-change: transform;
+}
+.has-works .player .poster {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: #050407;
+}
+/* The game being left dims as it slides away. */
+.has-works .player .poster::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background: #000;
+  opacity: calc(var(--shade, 0) * 0.7);
+  pointer-events: none;
+}
+.has-works .player .poster-bg { position: absolute; inset: 0; height: auto; }
+.has-works .player .poster-bg::after {
+  background: linear-gradient(90deg, rgba(4, 4, 8, 0.68), rgba(4, 4, 8, 0.25) 48%, transparent 75%);
+}
+.has-works .player .poster-content {
+  position: absolute;
+  left: 0;
+  right: auto;
+  bottom: clamp(64px, 10vh, 104px);
+  max-width: 760px;
+  margin: 0;
+  padding: 0 clamp(24px, 6vw, 96px);
+}
+.has-works .player .poster-content > * {
+  opacity: 0;
+  transform: translate3d(0, 22px, 0);
+  transition: opacity 0.25s ease, transform 0.4s ease;
+}
+.has-works .player .poster.is-presented .poster-content > * {
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.7s ease calc(var(--i, 0) * 70ms), transform 1s var(--ease-fluid) calc(var(--i, 0) * 70ms);
+}
+.has-works .player .poster :is(.poster-chrome, .poster-quote, .poster-hud) {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.has-works .player .poster.is-presented :is(.poster-chrome, .poster-quote, .poster-hud) {
+  opacity: 1;
+  transition: opacity 0.8s ease 0.35s;
+}
+.has-works .player .poster-chrome { top: 84px; left: clamp(24px, 6vw, 96px); right: clamp(24px, 6vw, 96px); }
+.has-works .player .poster-hud { top: clamp(100px, 15vh, 136px); right: clamp(24px, 6vw, 96px); }
+.has-works .player .loop-hud { right: auto; left: clamp(24px, 6vw, 96px); }
+/* Low and right, clear of the moons, like a game's own HUD. */
+.has-works .player .apoc-hud { top: auto; bottom: clamp(64px, 10vh, 104px); }
+.has-works .player .apoc-warning { top: auto; bottom: calc(clamp(64px, 10vh, 104px) + 92px); right: clamp(24px, 6vw, 96px); }
+/* The capture already carries this line as the game's own subtitle. */
+.has-works .player .poster-quote { display: none; }
+.has-works .player .poster--neuromaze.is-active .poster-capture { animation: works-capture-drift 18s ease-in-out infinite alternate; }
+@keyframes works-capture-drift {
+  from { transform: scale(1) translate3d(0, 0, 0); }
+  to { transform: scale(1.07) translate3d(-1.4%, -0.9%, 0); }
+}
+
+/* The card's own art, over the window as it leaves or returns to a card. */
+.player__ghost {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 5;
+  background: center / cover no-repeat;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.has-works .player__ui {
+  display: block;
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+.has-works .player__ui.is-visible { opacity: 1; }
+.has-works .player__ui.is-visible :is(button) { pointer-events: auto; }
+.player__close,
+.player__arrow {
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 50%;
+  background: rgba(12, 12, 16, 0.5);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.25s ease, border-color 0.25s ease, transform 0.45s var(--ease-fluid), opacity 0.25s ease;
+}
+.player__close svg,
+.player__arrow svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.player__close {
+  position: absolute;
+  top: max(18px, env(safe-area-inset-top));
+  right: max(18px, env(safe-area-inset-right));
+  width: 48px;
+  height: 48px;
+}
+.player__arrow {
+  position: absolute;
+  top: 50%;
+  width: 56px;
+  height: 56px;
+  margin-top: -28px;
+}
+.player__arrow--prev { left: max(18px, env(safe-area-inset-left)); }
+.player__arrow--next { right: max(18px, env(safe-area-inset-right)); }
+.player__arrow:disabled { opacity: 0; pointer-events: none !important; }
+@media (hover: hover) {
+  .player__close:hover, .player__arrow:hover { background: rgba(255, 255, 255, 0.16); border-color: rgba(255, 255, 255, 0.5); }
+  .player__close:hover { transform: rotate(90deg); }
+  .player__arrow--prev:hover { transform: translateX(-3px); }
+  .player__arrow--next:hover { transform: translateX(3px); }
+}
+.player__close:focus-visible, .player__arrow:focus-visible, .player__dot:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+.player__dots {
+  position: absolute;
+  top: max(18px, env(safe-area-inset-top));
+  left: 50%;
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(12, 12, 16, 0.5);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  transform: translateX(-50%);
+}
+.player__dot {
+  margin: 0;
+  padding: 11px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.62);
+  cursor: pointer;
+  transition: color 0.3s ease, background 0.45s var(--ease-fluid), box-shadow 0.45s ease;
+}
+.player__dot i { display: none; }
+.player__dot:hover { color: #fff; }
+.player__dot[aria-current="true"] {
+  color: #0b0b10;
+  background: #fff;
+  box-shadow: 0 0 22px rgba(var(--glow), 0.45);
+}
+.player__swipe {
+  position: absolute;
+  left: 50%;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  margin: 0;
+  transform: translateX(-50%);
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.46);
+  pointer-events: none;
+}
+
+@media (max-width: 720px) {
+  .player__arrow { display: none; }
+  .player__dots {
+    top: max(12px, env(safe-area-inset-top));
+    left: 18px;
+    right: 84px;
+    gap: 6px;
+    padding: 0;
+    border: 0;
+    background: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    transform: none;
+  }
+  .player__dot { flex: 1; padding: 22px 0; background: none !important; box-shadow: none !important; }
+  .player__dot span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .player__dot i {
+    display: block;
+    height: 3px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.28);
+    transition: background 0.35s ease;
+  }
+  .player__dot[aria-current="true"] i { background: #fff; box-shadow: 0 0 10px rgba(var(--glow), 0.8); }
+
+  .has-works .player .poster-content {
+    right: 0;
+    bottom: calc(max(16px, env(safe-area-inset-bottom)) + 34px);
+    max-width: none;
+    padding: 0 22px;
+  }
+  .has-works .player .poster-title { font-size: clamp(2.3rem, 11vw, 3.2rem); }
+  .has-works .player .poster-desc { margin-top: 12px; font-size: 0.9rem; line-height: 1.5; }
+  .has-works .player .project-facts { margin-top: 12px; font-size: 0.78rem; }
+  .has-works .player .project-facts > div { grid-template-columns: 92px minmax(0, 1fr); gap: 10px; padding: 6px 0; }
+  .has-works .player .poster-cta { margin-top: 16px; padding: 11px 20px; }
+  .has-works .player .poster-bg::after,
+  .has-works .player .poster-scrim {
+    background: linear-gradient(to bottom, rgba(4, 4, 8, 0.4) 0%, transparent 22%, transparent 34%, rgba(4, 4, 8, 0.72) 58%, rgba(4, 4, 8, 0.96) 100%);
+  }
+  .has-works .player .poster-chrome { top: 66px; left: 22px; right: 22px; }
+  /* A tall screen crops the wide scenes to their middle: lift each subject
+     clear of the copy, and keep the capture's own subtitle off the screen. */
+  .has-works .player .poster--neuromaze .poster-capture { background-size: auto 122%; background-position: 50% 0; }
+  .has-works .player .poster--apocalypse .poster-scene {
+    height: 66%;
+    -webkit-mask-image: linear-gradient(to bottom, #000 78%, transparent);
+    mask-image: linear-gradient(to bottom, #000 78%, transparent);
+  }
+  .has-works .player .poster-hud { top: 92px; bottom: auto; right: 22px; }
+  .has-works .player .loop-hud { right: auto; left: 22px; }
+  .has-works .player .apoc-warning { top: 176px; bottom: auto; right: 22px; }
+}
+@media (max-height: 600px) {
+  .has-works .player .project-facts, .has-works .player .poster-tags { display: none; }
+  .has-works .player .poster-content { bottom: 44px; }
+  .has-works .player .poster-title { font-size: clamp(2rem, 7vh, 3rem); }
+  .has-works .player .poster-desc { max-width: 520px; font-size: 0.86rem; }
+}
+
+/* ---- the gate at the end of the lab ---- */
+.gate-hint {
+  position: fixed;
+  z-index: 45;
+  left: 50%;
+  bottom: max(24px, calc(env(safe-area-inset-bottom) + 14px));
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 11px 20px 11px 12px;
+  border: 1px solid rgba(255, 192, 106, 0.42);
+  border-radius: 999px;
+  background: rgba(9, 10, 15, 0.8);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.45);
+  color: #fff4e2;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  transform: translate3d(-50%, 18px, 0);
+  transition: opacity 0.45s ease, transform 0.6s var(--ease-fluid), visibility 0s linear 0.45s, background 0.25s ease;
+}
+.gate-hint[hidden] { display: none; }
+.gate-hint.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translate3d(-50%, 0, 0);
+  transition: opacity 0.45s ease, transform 0.6s var(--ease-fluid), visibility 0s, background 0.25s ease;
+}
+.gate-hint:hover { background: rgba(26, 24, 30, 0.88); }
+.gate-hint:focus-visible { outline: 2px solid #ffc06a; outline-offset: 4px; }
+.gate-hint__ring {
+  position: relative;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid #ffc06a;
+  border-radius: 50%;
+}
+.gate-hint__ring::before {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  background: #ffc06a;
+}
+.gate-hint__ring::after {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  border: 1.5px solid #ffc06a;
+  border-radius: 50%;
+  animation: works-ping 2s ease-out infinite;
+}
+.gate-hint.is-nudge { animation: works-gate-nudge 0.65s cubic-bezier(0.3, 0.7, 0.3, 1); }
+@keyframes works-gate-nudge {
+  0%, 100% { translate: 0 0; }
+  30% { translate: 0 -9px; }
+  62% { translate: 0 2px; }
+}
+/* The step rail is complete by now; the hint takes its place. */
+.is-lab-gated .lab-steps { opacity: 0 !important; transition: opacity 0.3s ease; }
+.lab-tag__box { transform-origin: 0 50%; }
+.lab-tag.is-left .lab-tag__box { transform-origin: 100% 50%; }
+.lab-tag.is-calling .lab-tag__box { animation: works-tag-call 0.9s cubic-bezier(0.3, 0.7, 0.3, 1); }
+@keyframes works-tag-call {
+  0%, 100% { scale: 1; box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0); }
+  30% { scale: 1.08; box-shadow: 0 0 0 10px rgba(var(--accent-rgb), 0.2); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-card__tilt, .game-card__art { transform: none !important; transition: none; }
+  .shelf-hint::before, .game-card__play::after, .gate-hint__ring::after,
+  .has-works .player .poster--neuromaze.is-active .poster-capture { animation: none; }
+  .has-works .player .poster-content > *,
+  .has-works .player .poster :is(.poster-chrome, .poster-quote, .poster-hud) { transition: none; }
+}
