@@ -1,20 +1,23 @@
 (() => {
-  /* ---------- Chapter 04 · Creative works: the shelf and the player ----------
-   * The chapter is a shelf of three games. Each card leans toward the cursor
-   * and glows in its game's colour; opening one pops it out into a
-   * full-screen player — the card's own rounded frame growing until it meets
-   * the edges of the screen — where the work plays as a full-bleed poster.
+  /* ---------- Chapter 04 · Creative works: the library and the player ----------
+   * The chapter is a game library, like a console's: the featured game fills
+   * the stage (its art behind, its details and an Open button in front) and
+   * the collection is a row of covers beneath. Pointing at or focusing a
+   * cover features it; on a phone, the cover swiped to the middle is
+   * featured. Opening a game pops its cover out into a full-screen player —
+   * the cover's own rounded frame growing until it meets the edges of the
+   * screen — where the work plays as a full-bleed poster.
    * The tabs, arrows, arrow keys or a swipe move between games; Esc, the
    * close button or a swipe down sends the player back into its card.
    *
    * The lab's monitor (chapter 03) opens the same player. The end of the lab
    * is a gate: scrolling waits there, with a hint, until the visitor taps or
    * clicks the monitor, which pops NeuroMaze out of the screen at full size.
-   * Underneath, the page moves on to the shelf, so closing the player lands
-   * NeuroMaze in its card and the gate stays open from then on.
+   * Underneath, the page moves on to the library, so closing the player lands
+   * NeuroMaze in its cover and the gate stays open from then on.
    *
    * Without this file the cards are plain links to the posters, which read
-   * as an ordinary page below the shelf.
+   * as an ordinary page below the covers.
    */
   const section = document.getElementById('chapter-work');
   const player = document.getElementById('worksPlayer');
@@ -48,7 +51,11 @@
   const shelf = section.querySelector('.shelf');
   const shelfList = section.querySelector('.shelf-cards');
   const cards = [...section.querySelectorAll('.game-card')];
-  const titles = posters.map((poster) => poster.querySelector('.poster-title')?.textContent.trim() || '');
+  // A title may be a logo (Escape Quest's is hand-drawn): then its alt text.
+  const titles = posters.map((poster) => {
+    const title = poster.querySelector('.poster-title');
+    return title?.textContent.trim() || title?.querySelector('img')?.alt || '';
+  });
   const backgrounds = posters.map((poster) => poster.querySelector('.poster-bg'));
   const count = posters.length;
 
@@ -206,6 +213,7 @@
     openedFromLab = fromLab;
     returnFocus = document.activeElement;
     index = Math.max(0, Math.min(count - 1, i));
+    select(index);
     lockPage(true);
     player.inert = false;
     player.removeAttribute('aria-hidden');
@@ -306,12 +314,13 @@
       setTimeout(() => card.classList.remove('is-landing'), 700);
     }
     state = 'closed';
+    select(index);
     const focusTarget = openedFromLab ? card : (returnFocus && document.contains(returnFocus) ? returnFocus : card);
     focusTarget?.focus?.({ preventScroll: true });
     returnFocus = null;
   }
 
-  // On a phone the shelf is a swipeable row: bring the card being returned
+  // On a phone the covers are a swipeable row: bring the one being returned
   // to into view first, so the player has somewhere to land.
   function revealCard(i) {
     const card = cards[i];
@@ -332,6 +341,7 @@
     if (next !== index) {
       present(index, false);
       index = next;
+      select(next);
       updateNav();
       activate(next);
     }
@@ -472,22 +482,61 @@
     }
   });
 
-  /* ---- the shelf ----------------------------------------------------------- */
-  const setAmbient = (i) => {
+  /* ---- the library ----------------------------------------------------------- */
+  const backdrops = [...section.querySelectorAll('.library-backdrop__img')];
+  const entries = [...section.querySelectorAll('.library-entry')];
+  const openButton = section.querySelector('.library-open');
+  const openName = section.querySelector('.library-open__name');
+  const itchLink = section.querySelector('.library-link');
+  const links = posters.map((poster) => poster.querySelector('.poster-cta')?.href || '');
+  let selected = -1;
+  // Feature a game: its art behind, its details in front, its cover lit.
+  function select(i) {
+    i = Math.max(0, Math.min(count - 1, i));
+    if (i === selected) return;
+    selected = i;
+    cards.forEach((card, j) => {
+      card.classList.toggle('is-selected', j === i);
+      if (j === i) card.setAttribute('aria-current', 'true');
+      else card.removeAttribute('aria-current');
+    });
+    backdrops.forEach((img) => img.classList.toggle('is-current', Number(img.dataset.work) === i));
+    entries.forEach((entry) => entry.classList.toggle('is-current', Number(entry.dataset.work) === i));
     const glow = cards[i]?.style.getPropertyValue('--card-glow').trim();
-    if (glow) section.style.setProperty('--amb', `rgba(${glow}, 0.2)`);
-  };
+    if (glow) section.style.setProperty('--entry-glow', glow);
+    if (openName) openName.textContent = titles[i];
+    if (itchLink) {
+      itchLink.hidden = !links[i];
+      if (links[i]) {
+        itchLink.href = links[i];
+        itchLink.setAttribute('aria-label', `${titles[i]} on itch.io`);
+      }
+    }
+  }
+  function openCard(i) {
+    select(i);
+    const target = cardFrame(i);
+    open(i, { rect: target?.rect, radius: target?.radius, art: artOf(i) });
+  }
+  openButton?.addEventListener('click', () => openCard(Math.max(0, selected)));
   cards.forEach((card, i) => {
     card.addEventListener('click', (event) => {
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button > 0) return;
       event.preventDefault();
-      const target = cardFrame(i);
-      open(i, { rect: target?.rect, radius: target?.radius, art: artOf(i) });
+      openCard(i);
     });
-    card.addEventListener('focus', () => setAmbient(i));
+    card.addEventListener('focus', () => select(i));
+    // Left and right walk the row, as on a console.
+    card.addEventListener('keydown', (event) => {
+      const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+      if (!step || !cards[i + step]) return;
+      event.preventDefault();
+      cards[i + step].focus();
+    });
     card.addEventListener('pointerenter', (event) => {
-      setAmbient(i);
-      if (event.pointerType === 'mouse' && finePointer.matches) card.classList.add('is-hover');
+      if (event.pointerType !== 'mouse' || !finePointer.matches) return;
+      select(i);
+      card.classList.add('is-hover');
     });
     let tiltFrame = 0;
     let px = 0.5;
@@ -512,9 +561,29 @@
       card.style.removeProperty('--py');
     });
   });
+  // On a phone the covers are a row to swipe: the one nearest the middle is
+  // the featured game.
+  let rowFrame = 0;
+  shelfList?.addEventListener('scroll', () => {
+    if (rowFrame) return;
+    rowFrame = requestAnimationFrame(() => {
+      rowFrame = 0;
+      if (shelfList.scrollWidth <= shelfList.clientWidth + 2) return;
+      const middle = shelfList.getBoundingClientRect().left + shelfList.clientWidth / 2;
+      let nearest = 0;
+      let distance = Infinity;
+      cards.forEach((card, j) => {
+        const box = card.getBoundingClientRect();
+        const d = Math.abs(box.left + box.width / 2 - middle);
+        if (d < distance) { distance = d; nearest = j; }
+      });
+      select(nearest);
+    });
+  }, { passive: true });
+  select(0);
 
-  /* ---- after opening from the lab: land on the shelf ---------------------- */
-  const LANDING = 0.42; // chapter progress at which the shelf is settled (js/story.js)
+  /* ---- after opening from the lab: land on the library -------------------- */
+  const LANDING = 0.42; // chapter progress at which the library has settled (js/story.js)
   function shelfY() {
     const stage = section.querySelector('.story-stage');
     const top = section.getBoundingClientRect().top + window.scrollY;
@@ -691,64 +760,44 @@
   window.WorksPlayer = { open: (i = 0) => open(i), openFromLab, close, go: (i) => go(i), get state() { return state; } };
 
   /* ---- each poster's scene, looping while it is on screen ----------------- */
-  const seeded = (seed) => () => {
-    seed = (seed * 1664525 + 1013904223) % 4294967296;
-    return seed / 4294967296;
-  };
   const drawn = (v) => ({ attr: { 'stroke-dashoffset': v } });
 
   function buildLoop(poster) {
-    if (poster.classList.contains('poster--apocalypse')) return apocalypse(poster);
+    if (poster.classList.contains('poster--escape')) return escapeQuest(poster);
     if (poster.classList.contains('poster--loopshoot')) return loopShoot(poster);
     return null; // NeuroMaze moves in CSS: the capture drifts, the pulse beats.
   }
 
-  // 02 · The Apocalypse: the astronaut runs on while the horizon drifts at
-  // three depths and the oxygen drains, warns, and is topped up again.
-  function apocalypse(poster) {
+  // 02 · Escape Quest: its rooms play on the screen (the living room, then
+  // the library and its key) until somebody touches the wrong thing: GAME
+  // OVER, a shake, and the run starts again. The cast looks on, nervously.
+  function escapeQuest(poster) {
     const $ = (sel) => poster.querySelector(sel);
-    const stars = $('.apoc-stars');
-    if (stars && !stars.childElementCount) {
-      const rand = seeded(1969);
-      const ns = 'http://www.w3.org/2000/svg';
-      for (let i = 0; i < 60; i += 1) {
-        const star = document.createElementNS(ns, 'circle');
-        star.setAttribute('cx', (rand() * 1600).toFixed(1));
-        star.setAttribute('cy', (rand() * 380).toFixed(1));
-        star.setAttribute('r', (0.7 + rand() * 1.3).toFixed(2));
-        star.setAttribute('opacity', (0.25 + rand() * 0.6).toFixed(2));
-        stars.appendChild(star);
-      }
-    }
-    const pct = $('.apoc-hud-pct');
-    const level = $('.apoc-hud-level');
-    const tank = $('.apoc-tank-level');
-    const warning = $('.apoc-warning');
+    const screen = $('.eq-screen');
+    const room = $('.eq-shot--room');
+    const library = $('.eq-shot--library');
+    const over = $('.eq-shot--over');
+    const retry = $('.eq-retry');
+    const faces = [...poster.querySelectorAll('.eq-face')];
     const tl = gsap.timeline({ paused: true });
-    const stride = { duration: 0.42, repeat: -1, yoyo: true, ease: 'sine.inOut' };
-    tl.fromTo([$('.apoc-leg--back'), $('.apoc-arm--back')], { rotation: -10 }, { rotation: 25, svgOrigin: '46 210', ...stride }, 0)
-      .fromTo([$('.apoc-leg--front'), $('.apoc-arm--front')], { rotation: 10 }, { rotation: -21, svgOrigin: '78 214', ...stride }, 0)
-      .fromTo(poster.querySelectorAll('.apoc-motion-line'), { opacity: 0.1, x: 10 }, { opacity: 0.55, x: -8, duration: 0.42, repeat: -1, yoyo: true, ease: 'sine.inOut' }, 0)
-      .fromTo($('.apoc-ridge--back'), { x: 0 }, { x: -16, duration: 7, repeat: -1, yoyo: true, ease: 'sine.inOut' }, 0)
-      .fromTo($('.apoc-ridge--mid'), { x: 0 }, { x: -34, duration: 7, repeat: -1, yoyo: true, ease: 'sine.inOut' }, 0)
-      .fromTo($('.apoc-ground'), { x: 0 }, { x: -58, duration: 7, repeat: -1, yoyo: true, ease: 'sine.inOut' }, 0);
-    const oxygen = { v: 100 };
-    const show = () => {
-      pct.textContent = `${Math.round(oxygen.v)}%`;
-      level.setAttribute('stroke-dashoffset', ((100 - oxygen.v) / 100).toFixed(3));
-      gsap.set(tank, { scaleY: Math.max(0.04, oxygen.v / 100) });
-    };
-    const cycle = gsap.timeline({ repeat: -1 });
-    cycle.set(warning, { opacity: 0 }, 0)
-      .set(level, { stroke: '' }, 0)
-      .fromTo(oxygen, { v: 100 }, { v: 14, duration: 7, ease: 'power1.in', onUpdate: show }, 0)
-      .set(level, { stroke: '#ff5a4e' }, 5.6)
-      .fromTo(warning, { opacity: 0 }, { opacity: 1, duration: 0.25, repeat: 5, yoyo: true, ease: 'none' }, 5.6)
-      .to(oxygen, { v: 100, duration: 0.9, ease: 'power2.out', onUpdate: show }, 7.6)
-      .set(level, { stroke: '' }, 7.9)
-      .to(warning, { opacity: 0, duration: 0.2 }, 7.6)
-      .to({}, { duration: 0.6 }, 8.5);
-    tl.add(cycle, 0);
+    // Each room drifts on its own, so no cut ever shows a jump.
+    tl.fromTo(room, { scale: 1 }, { scale: 1.06, duration: 6.6, repeat: -1, yoyo: true, ease: 'sine.inOut' }, 0)
+      .fromTo(library, { scale: 1.06 }, { scale: 1, duration: 5.2, repeat: -1, yoyo: true, ease: 'sine.inOut' }, 0);
+    faces.forEach((face, i) => {
+      tl.fromTo(face, { y: 0 }, { y: -6 - i * 2, duration: 1.7 + i * 0.4, repeat: -1, yoyo: true, ease: 'sine.inOut' }, i * 0.35);
+    });
+    const run = gsap.timeline({ repeat: -1 });
+    run.set([library, over, retry], { opacity: 0 }, 0)
+      .to(library, { opacity: 1, duration: 0.8, ease: 'power1.inOut' }, 4.8)
+      .set(over, { opacity: 1, scale: 1.3 }, 10)
+      .to(over, { scale: 1, duration: 0.5, ease: 'back.out(2.2)' }, 10)
+      .fromTo(screen, { x: 0 }, { x: 6, duration: 0.05, repeat: 7, yoyo: true, ease: 'none', immediateRender: false }, 10)
+      .set(screen, { x: 0 }, 10.45)
+      .to(faces, { scale: 1.16, duration: 0.18, repeat: 1, yoyo: true, ease: 'power2.out', stagger: 0.06 }, 10.02)
+      .fromTo(retry, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.45, ease: 'power2.out' }, 10.8)
+      .to([over, retry, library], { opacity: 0, duration: 0.7, ease: 'power1.inOut' }, 12.8)
+      .to({}, { duration: 0.2 }, 13.5);
+    tl.add(run, 0);
     return tl;
   }
 

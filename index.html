@@ -35,7 +35,7 @@
 <link rel="stylesheet" href="css/portrait-mask.css?v=7" />
 <link rel="stylesheet" href="css/bmw-bridge.css?v=5" />
 <link rel="stylesheet" href="css/hero-particles.css?v=14" />
-<link rel="stylesheet" href="css/works.css?v=1" />
+<link rel="stylesheet" href="css/works.css?v=2" />
 <style>#hero .stage-text { opacity: 1; }</style>
 </head>
 <body>
@@ -423,16 +423,16 @@
       </div>
     </section>
 
-    <!-- CHAPTER 04: CREATIVE WORKS — a game shelf. Three cards (tilting
-         toward the cursor, glowing in their game's colour) each open the
-         full-screen player below, as does the NeuroMaze preview on the
-         lab's monitor; the player is js/works.js. Without scripts the cards
-         are plain links to the posters, which then read as a normal page. -->
+    <!-- CHAPTER 04: CREATIVE WORKS — a game library, like a console's. The
+         featured game fills the stage (its art behind, its title, story and
+         an Open button in front), with the collection as a row of covers
+         beneath. Pointing at or focusing a cover features it; opening one —
+         or the NeuroMaze preview on the lab's monitor — pops the game into
+         the full-screen player below (js/works.js). Without scripts the
+         covers are plain links to the posters, which read as a normal page. -->
     <section class="story story--works" id="chapter-work">
       <span class="scene-anchor" id="work" style="--at: calc(var(--stage-h) * 0.9)"></span>
       <div class="story-stage">
-        <div class="shelf-ambient" aria-hidden="true"></div>
-
         <header class="slate">
           <p class="slate-index">Chapter 04</p>
           <h2 class="slate-org">Creative works</h2>
@@ -440,52 +440,88 @@
         </header>
         <p class="slate-dock" aria-hidden="true"><b>04</b>Creative works<span>Things I've built</span></p>
 
-        <div class="shelf">
-          <ul class="shelf-cards" aria-label="Creative works">
-          <li>
-            <a class="game-card game-card--neuromaze" href="#play-neuromaze" data-work="0" aria-haspopup="dialog" style="--card-glow: 255, 51, 85;">
-              <span class="game-card__tilt">
-                <span class="game-card__art" aria-hidden="true" style="background-image: url('assets/works/neuromaze-card.webp');"></span>
-                <span class="game-card__shine" aria-hidden="true"></span>
-                <span class="game-card__meta">
-                  <span class="game-card__index">01</span>
-                  <span class="game-card__title">NeuroMaze</span>
-                  <span class="game-card__genre">Unity · 3D Horror</span>
+        <div class="library">
+          <div class="library-backdrop" aria-hidden="true">
+            <img class="library-backdrop__img is-current" data-work="0" src="assets/neuromaze-capture.webp" alt="" decoding="async" />
+            <img class="library-backdrop__img" data-work="1" src="assets/works/escapequest-room.webp" alt="" decoding="async" />
+            <img class="library-backdrop__img" data-work="2" src="assets/works/loopshoot-wide.webp" alt="" decoding="async" />
+          </div>
+
+          <div class="library-feature">
+            <p class="library-label">Library <span>3 games</span></p>
+            <div class="library-entries">
+              <div class="library-entry is-current" data-work="0">
+                <p class="library-genre"><b>01</b>Unity · 3D Horror</p>
+                <p class="library-title">NeuroMaze</p>
+                <p class="library-blurb">Escape a robot's brain after a scientist's experiment goes wrong: nerve-lit corridors, monsters and traps.</p>
+                <ul class="library-meta"><li>One of four developers</li><li>First-person horror</li><li>Three levels</li></ul>
+              </div>
+              <div class="library-entry library-entry--escape" data-work="1">
+                <p class="library-genre"><b>02</b>Point &amp; Click · Horror</p>
+                <p class="library-title library-title--logo"><img src="assets/works/escapequest-logo.webp" alt="Escape Quest" width="1037" height="222" decoding="async" /></p>
+                <p class="library-blurb">Five teenagers black out at a party and wake in a mysterious mansion. They are not alone.</p>
+                <ul class="library-meta"><li>Design, development &amp; animation</li><li>Yarn Spinner dialogue</li><li>Bauhaus Gamesfabrik</li></ul>
+              </div>
+              <div class="library-entry" data-work="2">
+                <p class="library-genre"><b>03</b>Unity · VR · Multiplayer</p>
+                <p class="library-title">LoopShoot VR</p>
+                <p class="library-blurb">Take the ball in hand on a shared VR court and shoot alongside a second player in real time.</p>
+                <ul class="library-meta"><li>Photon networking</li><li>HOMER navigation</li><li>Two players</li></ul>
+              </div>
+            </div>
+            <div class="library-actions">
+              <button class="library-open" type="button" data-work="0"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5.5v13l10.5-6.5z"/></svg><span>Open <span class="library-open__name">NeuroMaze</span></span></button>
+              <a class="library-link" href="https://micapigment.itch.io/neuromaze" target="_blank" rel="noopener noreferrer">itch.io <i aria-hidden="true">↗</i></a>
+            </div>
+          </div>
+
+          <div class="shelf">
+            <ul class="shelf-cards" aria-label="Creative works">
+            <li>
+              <a class="game-card game-card--neuromaze" href="#play-neuromaze" data-work="0" aria-haspopup="dialog" style="--card-glow: 255, 51, 85;">
+                <span class="game-card__tilt">
+                  <span class="game-card__art" aria-hidden="true" style="background-image: url('assets/works/neuromaze-card.webp');"></span>
+                  <span class="game-card__shine" aria-hidden="true"></span>
+                  <span class="game-card__meta">
+                    <span class="game-card__index">01</span>
+                    <span class="game-card__title">NeuroMaze</span>
+                    <span class="game-card__genre">Unity · 3D Horror</span>
+                  </span>
+                  <span class="game-card__play" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5.5v13l10.5-6.5z"/></svg></span>
                 </span>
-                <span class="game-card__play" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5.5v13l10.5-6.5z"/></svg></span>
-              </span>
-            </a>
-          </li>
-          <li>
-            <a class="game-card game-card--apocalypse" href="#play-apocalypse" data-work="1" aria-haspopup="dialog" style="--card-glow: 255, 168, 96;">
-              <span class="game-card__tilt">
-                <span class="game-card__art" aria-hidden="true" style="background-image: url('assets/works/apocalypse-card.webp');"></span>
-                <span class="game-card__shine" aria-hidden="true"></span>
-                <span class="game-card__meta">
-                  <span class="game-card__index">02</span>
-                  <span class="game-card__title">The Apocalypse</span>
-                  <span class="game-card__genre">2D Game · Survival</span>
+              </a>
+            </li>
+            <li>
+              <a class="game-card game-card--escape" href="#play-escape" data-work="1" aria-haspopup="dialog" style="--card-glow: 210, 163, 104;">
+                <span class="game-card__tilt">
+                  <span class="game-card__art" aria-hidden="true" style="background-image: url('assets/works/escapequest-card.webp');"></span>
+                  <span class="game-card__shine" aria-hidden="true"></span>
+                  <span class="game-card__meta">
+                    <span class="game-card__index">02</span>
+                    <span class="game-card__title">Escape Quest</span>
+                    <span class="game-card__genre">Point &amp; Click · Horror</span>
+                  </span>
+                  <span class="game-card__play" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5.5v13l10.5-6.5z"/></svg></span>
                 </span>
-                <span class="game-card__play" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5.5v13l10.5-6.5z"/></svg></span>
-              </span>
-            </a>
-          </li>
-          <li>
-            <a class="game-card game-card--loopshoot" href="#play-loopshoot" data-work="2" aria-haspopup="dialog" style="--card-glow: 132, 120, 255;">
-              <span class="game-card__tilt">
-                <span class="game-card__art" aria-hidden="true" style="background-image: url('assets/works/loopshoot-card.webp');"></span>
-                <span class="game-card__shine" aria-hidden="true"></span>
-                <span class="game-card__meta">
-                  <span class="game-card__index">03</span>
-                  <span class="game-card__title">LoopShoot VR</span>
-                  <span class="game-card__genre">Unity · VR · Multiplayer</span>
+              </a>
+            </li>
+            <li>
+              <a class="game-card game-card--loopshoot" href="#play-loopshoot" data-work="2" aria-haspopup="dialog" style="--card-glow: 132, 120, 255;">
+                <span class="game-card__tilt">
+                  <span class="game-card__art" aria-hidden="true" style="background-image: url('assets/works/loopshoot-card.webp');"></span>
+                  <span class="game-card__shine" aria-hidden="true"></span>
+                  <span class="game-card__meta">
+                    <span class="game-card__index">03</span>
+                    <span class="game-card__title">LoopShoot VR</span>
+                    <span class="game-card__genre">Unity · VR · Multiplayer</span>
+                  </span>
+                  <span class="game-card__play" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5.5v13l10.5-6.5z"/></svg></span>
                 </span>
-                <span class="game-card__play" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5.5v13l10.5-6.5z"/></svg></span>
-              </span>
-            </a>
-          </li>
-          </ul>
-          <p class="shelf-hint"><span class="shelf-hint__verb">Click</span> a game to open it</p>
+              </a>
+            </li>
+            </ul>
+            <p class="shelf-hint"><span class="shelf-hint__verb">Click</span> a game to open it</p>
+          </div>
         </div>
       </div>
 
@@ -523,140 +559,39 @@
           <p class="poster-quote">&ldquo;Nooo, now these monsters are gone&hellip; I almost died last time.&rdquo;</p>
         </article>
 
-                  <!-- 02 · The Apocalypse: a wide, cinematic alien horizon — the
-             astronaut is the central character, running full-figure
-             through the middle of the frame, an oxygen gauge glowing on
-             the pack itself as it drains. -->
-        <article class="poster poster--apocalypse" id="play-apocalypse" data-work="1">
+        <!-- 02 · Escape Quest: the game's own maroon and gold, its
+             hand-drawn logo, and its rooms playing on a screen while the
+             cast looks on. Roshan is one of its credited developers
+             (puddleofspace.itch.io/escape-quest). -->
+        <article class="poster poster--escape" id="play-escape" data-work="1">
           <div class="poster-bg">
-            <svg class="poster-scene" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
-              <defs>
-                <radialGradient id="apocSky" cx="38%" cy="78%" r="95%">
-                  <stop offset="0%" stop-color="#4a2030"></stop>
-                  <stop offset="45%" stop-color="#241429"></stop>
-                  <stop offset="100%" stop-color="#08090f"></stop>
-                </radialGradient>
-                <radialGradient id="apocMoon" cx="36%" cy="34%" r="65%">
-                  <stop offset="0%" stop-color="#fff6e8"></stop>
-                  <stop offset="55%" stop-color="#ffd19a"></stop>
-                  <stop offset="100%" stop-color="#c96a3f"></stop>
-                </radialGradient>
-                <linearGradient id="apocGround" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#5c2a24"></stop>
-                  <stop offset="100%" stop-color="#140a0b"></stop>
-                </linearGradient>
-                <radialGradient id="apocVisor" cx="35%" cy="30%" r="80%">
-                  <stop offset="0%" stop-color="#bfe6ff"></stop>
-                  <stop offset="45%" stop-color="#4f7aa8"></stop>
-                  <stop offset="100%" stop-color="#182a3c"></stop>
-                </radialGradient>
-                <linearGradient id="apocSuit" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#eef2f5"></stop>
-                  <stop offset="100%" stop-color="#a7b0ba"></stop>
-                </linearGradient>
-                <linearGradient id="apocSuitShade" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#c7ced5"></stop>
-                  <stop offset="100%" stop-color="#7f8892"></stop>
-                </linearGradient>
-                <linearGradient id="apocTank" x1="0" y1="1" x2="0" y2="0">
-                  <stop offset="0%" stop-color="#ff8a4c"></stop>
-                  <stop offset="100%" stop-color="#ffd7a8"></stop>
-                </linearGradient>
-                <filter id="apocGlow" x="-80%" y="-80%" width="260%" height="260%">
-                  <feGaussianBlur stdDeviation="6" result="b"></feGaussianBlur>
-                  <feMerge><feMergeNode in="b"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
-                </filter>
-              </defs>
-              <rect x="0" y="0" width="1600" height="900" fill="url(#apocSky)"></rect>
-              <g class="apoc-stars"></g>
-              <circle class="apoc-moon apoc-moon--far" cx="1180" cy="220" r="30" fill="#8a5a7a" opacity="0.55"></circle>
-              <circle class="apoc-moon apoc-moon--near" cx="1330" cy="170" r="88" fill="url(#apocMoon)"></circle>
-              <g class="apoc-ridge apoc-ridge--back" fill="#241422">
-                <path d="M-40 560l150-100 160 66 190-110 200 100 190-88 220 96 260-58 300 44v612H-40Z"></path>
-              </g>
-              <g class="apoc-ridge apoc-ridge--mid" fill="#3a1f2c">
-                <path d="M-40 660l190-100 200 76 230-104 250 90 260-70 300 60v588H-40Z"></path>
-              </g>
-              <path class="apoc-ground" fill="url(#apocGround)" d="M-40 740l220-42 260 30 290-46 300 34 320-40 260 24v680H-40Z"></path>
-              <path class="apoc-crack" d="M220 780l58-46-16-52M1180 758l-34-52 24-56" stroke="#1a0c0d" stroke-width="3" fill="none"></path>
-
-              <!-- The astronaut: large, centred, mid-stride — the frame's
-                   one character, not a detail in it. Built at 2× the
-                   scale of the earlier pass and moved clear of the text
-                   scrim, so the whole figure — helmet, tank, stride — is
-                   always plainly legible. -->
-              <g class="apoc-runner" transform="translate(740 360)">
-                <path class="apoc-motion-line" d="M-40 40h100M-64 86h96M-36 132h84" stroke="rgba(255,180,120,0.3)" stroke-width="6" stroke-linecap="round" fill="none"></path>
-
-                <ellipse cx="60" cy="330" rx="72" ry="20" fill="rgba(0,0,0,0.4)"></ellipse>
-
-                <!-- Back leg, trailing. -->
-                <g class="apoc-leg apoc-leg--back">
-                  <path d="M46 210 L18 268 L34 316 L58 314 L46 262 Z" fill="url(#apocSuitShade)"></path>
-                  <path d="M22 306 L48 302 L58 322 L18 326 Z" fill="#3a3f46"></path>
-                </g>
-
-                <!-- Front leg, driving forward. -->
-                <g class="apoc-leg apoc-leg--front">
-                  <path d="M78 214 L108 258 L100 318 L74 320 L68 264 Z" fill="url(#apocSuit)"></path>
-                  <path d="M74 310 L102 308 L110 330 L70 332 Z" fill="#454a52"></path>
-                </g>
-
-                <!-- Backpack, the tank's glow set into it. -->
-                <g class="apoc-pack">
-                  <rect x="18" y="96" width="60" height="104" rx="14" fill="#7d848d"></rect>
-                  <rect x="26" y="106" width="44" height="10" rx="3" fill="#565c63"></rect>
-                  <rect class="apoc-tank-track" x="30" y="122" width="12" height="66" rx="5" fill="rgba(0,0,0,0.35)"></rect>
-                  <rect class="apoc-tank-level" x="30" y="122" width="12" height="66" rx="5" fill="url(#apocTank)" filter="url(#apocGlow)"></rect>
-                  <rect x="50" y="122" width="12" height="66" rx="5" fill="#565c63"></rect>
-                </g>
-
-                <!-- Torso, arms swinging. -->
-                <path d="M32 108 Q60 92 88 108 L94 216 Q60 236 26 216 Z" fill="url(#apocSuit)"></path>
-                <rect class="apoc-chest-light" x="48" y="140" width="24" height="16" rx="3"></rect>
-
-                <g class="apoc-arm apoc-arm--back">
-                  <path d="M36 118 Q6 140 4 190" stroke="url(#apocSuitShade)" stroke-width="22" stroke-linecap="round" fill="none"></path>
-                  <circle cx="4" cy="192" r="12" fill="#c7ced5"></circle>
-                </g>
-                <g class="apoc-arm apoc-arm--front">
-                  <path d="M84 118 Q118 132 128 176" stroke="url(#apocSuit)" stroke-width="22" stroke-linecap="round" fill="none"></path>
-                  <circle cx="130" cy="178" r="12" fill="#eef2f5"></circle>
-                </g>
-
-                <!-- Helmet, the visor catching a highlight. -->
-                <circle cx="60" cy="56" r="52" fill="#e4e9ee"></circle>
-                <circle cx="64" cy="58" r="40" fill="url(#apocVisor)"></circle>
-                <path d="M40 40a34 34 0 0 1 52-10" stroke="rgba(255,255,255,0.6)" stroke-width="6" fill="none" stroke-linecap="round"></path>
-                <path d="M28 30l-14 -18M92 30l14 -18" stroke="#c3ccd6" stroke-width="6" stroke-linecap="round"></path>
-              </g>
-
-              <!-- The oxygen it's played against, glowing on the pack. -->
-              <text class="apoc-tank-label" x="806" y="454">O₂</text>
-            </svg>
+            <div class="eq-stage" aria-hidden="true">
+              <div class="eq-screen">
+                <img class="eq-shot eq-shot--room" src="assets/works/escapequest-room.webp" alt="" width="1275" height="720" decoding="async" />
+                <img class="eq-shot eq-shot--library" src="assets/works/escapequest-library.webp" alt="" width="1275" height="702" decoding="async" />
+                <img class="eq-shot eq-shot--over" src="assets/works/escapequest-gameover.webp" alt="" width="1280" height="720" decoding="async" />
+                <p class="eq-retry">Everyone died? Try again: new dialogue, new secrets.</p>
+              </div>
+              <img class="eq-face eq-face--hugh" src="assets/works/escapequest-face-hugh.webp" alt="" width="160" height="160" decoding="async" />
+              <img class="eq-face eq-face--hood" src="assets/works/escapequest-face-hood.webp" alt="" width="164" height="166" decoding="async" />
+              <img class="eq-face eq-face--nanditha" src="assets/works/escapequest-face-nanditha.webp" alt="" width="170" height="174" decoding="async" />
+            </div>
           </div>
-          <div class="poster-scrim" aria-hidden="true"></div>
           <div class="poster-content">
-            <p class="poster-eyebrow"><span>02 / 03</span>2D Game</p>
-            <h3 class="poster-title">The Apocalypse</h3>
-            <p class="poster-desc">An astronaut runs across a dying alien world, far from home. The oxygen gauge on the backpack counts down the only resource that matters.</p>
+            <p class="poster-eyebrow"><span>02 / 03</span>Point &amp; Click · Horror</p>
+            <h3 class="poster-title poster-title--escape"><img src="assets/works/escapequest-logo.webp" alt="Escape Quest" width="1037" height="222" decoding="async" /></h3>
+            <p class="poster-desc">Five teenagers black out at a party and wake in a mysterious mansion, and they are not alone. Explore its rooms and solve its puzzles to find the way out, but be careful: some interactions end in deadly surprises.</p>
             <dl class="project-facts">
-              <div><dt>Project scope</dt><dd>2D endless runner with hand-drawn sprites.</dd></div>
-              <div><dt>Design focus</dt><dd>An oxygen gauge carried on the astronaut's pack.</dd></div>
-              <div><dt>Experience</dt><dd>Survival driven by a dwindling oxygen supply.</dd></div>
+              <div><dt>Contribution</dt><dd>Game design, development and animations, with Pooja Prasad.</dd></div>
+              <div><dt>Technical focus</dt><dd>Point-and-click puzzles with branching dialogue in Yarn Spinner.</dd></div>
+              <div><dt>Outcome</dt><dd>Released free for Windows; made at the Bauhaus Gamesfabrik.</dd></div>
             </dl>
-            <p class="poster-tags">Hand-drawn Sprites · 2D · Survival</p>
+            <p class="poster-tags">Point &amp; Click · Puzzle · Horror · 4-person team</p>
+            <a class="poster-cta poster-cta--escape magnetic" href="https://puddleofspace.itch.io/escape-quest" target="_blank" rel="noopener noreferrer">Play on itch.io <i aria-hidden="true">→</i></a>
           </div>
-          <svg class="poster-hud apoc-hud" viewBox="0 0 120 120" aria-hidden="true">
-            <circle class="apoc-hud-track" cx="60" cy="60" r="46"></circle>
-            <circle class="apoc-hud-level" cx="60" cy="60" r="46" pathLength="1" stroke-dasharray="1" stroke-dashoffset="0"></circle>
-            <text class="apoc-hud-label" x="60" y="56">O₂</text>
-            <text class="apoc-hud-pct" x="60" y="76">100%</text>
-          </svg>
-          <p class="apoc-warning">O₂ CRITICAL</p>
         </article>
 
-                  <!-- 03 · LoopShoot VR: a first-person view inside the headset —
+        <!-- 03 · LoopShoot VR: a first-person view inside the headset —
              a real perspective floor receding to a distant, lit hoop, the
              player's own hands large in the foreground, the ball arcing
              away from camera with a genuine comet trail. -->
@@ -779,7 +714,7 @@
             </button>
             <div class="player__dots">
               <button class="player__dot" type="button" data-work="0"><span>NeuroMaze</span><i></i></button>
-              <button class="player__dot" type="button" data-work="1"><span>The Apocalypse</span><i></i></button>
+              <button class="player__dot" type="button" data-work="1"><span>Escape Quest</span><i></i></button>
               <button class="player__dot" type="button" data-work="2"><span>LoopShoot VR</span><i></i></button>
             </div>
             <p class="player__swipe" aria-hidden="true">Swipe for more games · down to close</p>
@@ -883,8 +818,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" defer></script>
   <script src="js/chapters.js?v=78" defer></script>
-  <script src="js/story.js?v=52" defer></script>
-  <script src="js/works.js?v=1" defer></script>
+  <script src="js/story.js?v=53" defer></script>
+  <script src="js/works.js?v=2" defer></script>
   <script src="js/face/boot.js?v=35" defer></script>
   <script src="js/bmw/boot.js?v=9" defer></script>
   <script src="js/bmw-smoke.js?v=53" defer></script>

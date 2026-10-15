@@ -102,7 +102,7 @@
    * the lab apart again. The lab's end is a gate (js/works.js): the selected
    * monitor previews NeuroMaze, and scrolling waits until it is tapped,
    * which opens chapter 04's player. Past it, the stage dims to black and
-   * hands straight to the game shelf.
+   * hands straight to the game library.
    */
   const BEYOND = {
     id: 'chapter-beyond',
@@ -213,7 +213,7 @@
       });
 
       // (to 0.92: held on the finished lab, with the gate at .905.) The stage
-      // dims — straight into the game shelf.
+      // dims — straight into the game library.
       const consoleAll = [consoleRoot, kicker, role, $('.console-beats'), stepRail];
       if (compact) {
         // Clear the labels before the stage starts travelling past the nav.
@@ -226,34 +226,39 @@
   };
 
   /* ---------- Chapter 04 · Creative works ----------
-   * A shelf of three games. After the slate, the cards are dealt onto it,
-   * rising out of the dark and settling from a slight turn. They hold there,
-   * drifting a little at their own depths while the page moves on, until the
-   * chapter dims. Opening a game, and the full-screen player it opens into,
-   * belong to js/works.js. Coming from the lab's monitor, works.js lands on
-   * this timeline at .42 (its LANDING), once the shelf has settled.
+   * A game library, like a console's. After the slate, the featured game's
+   * art comes up behind the stage, its details rise into place and the
+   * covers slide in along the foot of the frame. While the library holds,
+   * the camera keeps pushing slowly into the art and the covers drift a
+   * little at their own depths, until the chapter dims. Featuring and
+   * opening games, and the full-screen player, belong to js/works.js. Coming
+   * from the lab's monitor, works.js lands at .42 (its LANDING), once the
+   * library has settled.
    */
   const WORKS = {
     id: 'chapter-work',
     transitions: [[0, 0.16], [0.9, 1]],
     build(tl, { $, $$, geo }) {
-      const shelf = $('.shelf');
+      const library = $('.library');
+      const backdrop = $('.library-backdrop');
+      const feature = $$('.library-label, .library-entries, .library-actions');
       const cards = $$('.game-card');
       const hint = $('.shelf-hint');
-      const ambient = $('.shelf-ambient');
-      const turn = [-5, 0, 5];
-      const drift = [0.03, 0.055, 0.04];
+      const drift = [0.012, 0.02, 0.016];
 
-      gsap.set(ambient, { opacity: 0 });
-      gsap.set(cards, { opacity: 0, y: () => geo.ch * 0.16, rotation: (i) => turn[i] || 0, scale: 0.94, transformOrigin: '50% 100%' });
-      gsap.set(hint, { opacity: 0, y: 10 });
+      gsap.set(backdrop, { opacity: 0, scale: 1.08 });
+      gsap.set(feature, { opacity: 0, y: 24 });
+      gsap.set(cards, { opacity: 0, x: () => geo.cw * 0.06, y: 20 });
+      gsap.set(hint, { opacity: 0 });
 
       const dock = slateBeats(tl, $, { at: 0.02, dockAt: 0.16 });
-      tl.to(ambient, { opacity: 1, duration: 0.1, ease: 'power1.out' }, 0.1)
-        .to(cards, { opacity: 1, y: 0, rotation: 0, scale: 1, duration: 0.1, stagger: 0.03, ease: 'power3.out' }, 0.17)
-        .to(hint, { opacity: 1, y: 0, duration: 0.04, ease: 'power2.out' }, 0.3)
+      tl.to(backdrop, { opacity: 1, duration: 0.12, ease: 'power1.out' }, 0.12)
+        .to(backdrop, { scale: 1, duration: 0.8, ease: 'none' }, 0.12)
+        .to(feature, { opacity: 1, y: 0, duration: 0.08, stagger: 0.02, ease: 'power3.out' }, 0.17)
+        .to(cards, { opacity: 1, x: 0, y: 0, duration: 0.09, stagger: 0.025, ease: 'power3.out' }, 0.2)
+        .to(hint, { opacity: 1, duration: 0.04 }, 0.31)
         .to(cards, { y: (i) => -geo.ch * drift[i], duration: 0.5, ease: 'none' }, 0.4)
-        .to([shelf, ambient, dock], { opacity: 0, duration: 0.06, ease: 'power1.in' }, 0.92);
+        .to([library, dock], { opacity: 0, duration: 0.06, ease: 'power1.in' }, 0.92);
     },
   };
 

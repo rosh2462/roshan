@@ -37,7 +37,7 @@ into chapter 04's full-screen player (`js/works.js`, `WorksPlayer.openFromLab()`
 `screenRect()` gives the lit picture's place on the page, where the pop
 starts). The end of the lab is a gate: scrolling waits there, with a hint, until
 the monitor is opened; underneath the player the page moves on to the game
-shelf. Without the player the label simply scrolls to the chapter.
+library. Without the player the label simply scrolls to the chapter.
 
 Pointer listeners are passive: movement over 8 CSS pixels, pointer
 cancellation, a press over 500 ms, or changed lab scroll progress cancels a
