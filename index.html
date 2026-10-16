@@ -36,7 +36,7 @@
 <link rel="stylesheet" href="css/bmw-bridge.css?v=5" />
 <link rel="stylesheet" href="css/hero-particles.css?v=15" />
 <link rel="stylesheet" href="css/works.css?v=2" />
-<link rel="stylesheet" href="css/dial.css?v=2" />
+<link rel="stylesheet" href="css/dial.css?v=3" />
 <style>#hero .stage-text { opacity: 1; }</style>
 </head>
 <body>
@@ -63,17 +63,24 @@
   <a class="site-mark" href="#top" aria-label="Roshan M, home">RM<span>.</span></a>
   <nav class="dial" id="siteDial" aria-label="Chapters">
     <button class="dial-knob" type="button" aria-expanded="false" aria-controls="dialList">
+      <span class="dial-knob__halo" aria-hidden="true"></span>
       <span class="dial-knob__bezel" aria-hidden="true"><i style="--k:0"></i><i style="--k:1"></i><i style="--k:2"></i><i style="--k:3"></i><i style="--k:4"></i><i style="--k:5"></i><i style="--k:6"></i></span>
       <span class="dial-knob__rotor" aria-hidden="true"><i class="dial-knob__notch"></i></span>
       <span class="dial-knob__sheen" aria-hidden="true"></span>
+      <span class="dial-knob__glint" aria-hidden="true"></span>
       <span class="dial-knob__cap" aria-hidden="true"><span class="dial-knob__odo"><span>00</span><span>01</span><span>02</span><span>03</span><span>04</span><span>05</span><span>06</span></span></span>
       <span class="visually-hidden">Chapters, now at <span id="dialNow">00 Intro</span></span>
     </button>
     <div class="dial-scrim" aria-hidden="true" hidden></div>
+    <canvas class="dial-field" aria-hidden="true" hidden></canvas>
     <div class="dial-wheel" aria-hidden="true" hidden>
+      <span class="dial-wheel__aura"></span>
       <span class="dial-wheel__disc"></span>
-      <span class="dial-wheel__rotor"><span class="dial-wheel__grip"></span><i class="dial-wheel__tick" style="--k:0"></i><i class="dial-wheel__tick" style="--k:1"></i><i class="dial-wheel__tick" style="--k:2"></i><i class="dial-wheel__tick" style="--k:3"></i><i class="dial-wheel__tick" style="--k:4"></i><i class="dial-wheel__tick" style="--k:5"></i><i class="dial-wheel__tick" style="--k:6"></i></span>
+      <span class="dial-wheel__pulse"></span>
+      <span class="dial-wheel__rotor"><span class="dial-wheel__scale"></span><span class="dial-wheel__grip"></span><i class="dial-wheel__tick" style="--k:0"></i><i class="dial-wheel__tick" style="--k:1"></i><i class="dial-wheel__tick" style="--k:2"></i><i class="dial-wheel__tick" style="--k:3"></i><i class="dial-wheel__tick" style="--k:4"></i><i class="dial-wheel__tick" style="--k:5"></i><i class="dial-wheel__tick" style="--k:6"></i></span>
+      <span class="dial-wheel__blur"></span>
       <span class="dial-wheel__sheen"></span>
+      <span class="dial-wheel__touch"><i></i></span>
       <span class="dial-wheel__hub"></span>
       <span class="dial-wheel__index"></span>
     </div>
@@ -87,11 +94,15 @@
       <li><a class="dial-label" href="#contact" data-k="6"><b>06</b><span>Contact</span></a></li>
     </ol>
     <p class="dial-readout" aria-hidden="true" hidden><span data-k="0">Roshan M</span><span data-k="1">VR Developer</span><span data-k="2">UI/UX Developer</span><span data-k="3">The person &amp; the lab</span><span data-k="4">Things I've built</span><span data-k="5">The foundation</span><span data-k="6">Let's build together</span></p>
+    <button class="dial-sound" type="button" aria-pressed="true" hidden tabindex="-1">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path class="dial-sound__body" d="M4 9.5h3.2L12 5.5v13l-4.8-4H4z" /><path class="dial-sound__wave" d="M15.5 9a4.2 4.2 0 0 1 0 6" /><path class="dial-sound__wave dial-sound__wave--far" d="M18 6.6a7.6 7.6 0 0 1 0 10.8" /><path class="dial-sound__off" d="M16 9.5l5 5m0-5l-5 5" /></svg>
+      <span class="visually-hidden">Dial sound</span>
+    </button>
     <figure class="dial-preview" aria-hidden="true" hidden><img alt="" decoding="async" /><figcaption><b></b><strong></strong><span></span></figcaption></figure>
     <p class="dial-coach" aria-hidden="true" hidden>Turn to travel</p>
     <p class="visually-hidden" id="dialLive" aria-live="polite"></p>
   </nav>
-  <div class="dial-veil" aria-hidden="true"></div>
+  <div class="dial-veil" aria-hidden="true"><p class="dial-veil__card"><b></b><span></span></p></div>
 
   <main id="top">
 
@@ -909,7 +920,8 @@
   <script src="js/chapters.js?v=79" defer></script>
   <script src="js/story.js?v=53" defer></script>
   <script src="js/works.js?v=3" defer></script>
-  <script src="js/dial.js?v=1" defer></script>
+  <script src="js/dial-feel.js?v=1" defer></script>
+  <script src="js/dial.js?v=2" defer></script>
   <script src="js/face/boot.js?v=36" defer></script>
   <script src="js/bmw/boot.js?v=9" defer></script>
   <script src="js/bmw-smoke.js?v=53" defer></script>

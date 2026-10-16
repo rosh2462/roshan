@@ -1,7 +1,8 @@
 /* ================= The chapter dial (js/dial.js) =================
    A machined rotary knob in the bottom-right corner, which opens into a
    large corner wheel. Surfaces are opaque and built from the site's tokens:
-   no blur, no animated shadows. Only transforms and opacity move. */
+   no blur, no animated shadows. Only transforms and opacity move; the one
+   canvas (the dust around the open wheel) runs only while it is open. */
 
 /* ---- the site mark, all that is left of the old top bar ---- */
 .site-mark {
@@ -75,11 +76,16 @@
   touch-action: pan-y;
   cursor: grab;
   translate: 0 8px;
-  transition: opacity 0.14s ease, scale 0.09s ease, translate 0.5s var(--ease-fluid);
+  transition: opacity 0.14s ease, scale 0.42s var(--ease-fluid), translate 0.5s var(--ease-fluid);
+}
+.dial {
+  /* Where the knob tucks to: its centre ~24px into the corner's margin. */
+  --tuck-x: calc(var(--kr) + var(--knob) / 2 - 24px);
+  --tuck-y: calc(var(--kb) + var(--knob) / 2 - max(24px, env(safe-area-inset-bottom, 0px) + 16px));
 }
 .dial.is-shown .dial-knob { translate: 0 0; }
 .dial-knob::before { content: ''; position: absolute; inset: -4px; border-radius: 50%; }
-.dial.is-pressed .dial-knob { scale: 0.95; }
+.dial.is-pressed .dial-knob { scale: 0.95; transition: opacity 0.14s ease, scale 0.09s ease, translate 0.5s var(--ease-fluid); }
 .dial-knob:focus-visible { outline: 2px solid var(--dial-accent); outline-offset: 4px; }
 .dial.is-open .dial-knob { opacity: 0; scale: 0.9; pointer-events: none; }
 
@@ -90,6 +96,30 @@
   background: #14161d;
   box-shadow: 0 0 0 1px rgba(209, 224, 238, 0.12), 0 8px 22px rgba(0, 0, 0, 0.55);
 }
+/* The chapter's light, breathing softly behind the knob. */
+.dial-knob__halo {
+  position: absolute;
+  inset: -16px;
+  border-radius: 50%;
+  background: radial-gradient(circle closest-side, color-mix(in srgb, var(--dial-accent) 30%, transparent) 55%, transparent 100%);
+  opacity: 0.55;
+  pointer-events: none;
+  animation: dial-breathe 6s ease-in-out infinite;
+}
+@keyframes dial-breathe { 50% { opacity: 0.85; scale: 1.05; } }
+/* A light travelling round the machined rim, slow as a second hand. */
+.dial-knob__glint {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0 290deg, rgba(255, 255, 255, 0.28) 330deg, transparent 360deg);
+  -webkit-mask: radial-gradient(circle closest-side, transparent 84%, #000 87%, #000 97%, transparent 100%);
+  mask: radial-gradient(circle closest-side, transparent 84%, #000 87%, #000 97%, transparent 100%);
+  pointer-events: none;
+  animation: dial-orbit 10s linear infinite;
+  transition: opacity 0.3s ease;
+}
+@keyframes dial-orbit { to { rotate: 1turn; } }
 /* Seven ticks on the bezel, 45° apart: the rotor's notch points at the
    chapter the page is in, like a pointer on a volume scale. */
 .dial-knob__bezel i {
@@ -160,6 +190,26 @@
   transform: translateY(calc(var(--k, 0) * -100%));
   transition: transform 0.3s var(--ease-fluid);
 }
+.dial-knob__odo { transition: opacity 0.3s ease; }
+.dial-knob__cap::after {
+  content: '';
+  position: absolute;
+  inset: 30%;
+  border-radius: 50%;
+  background: var(--dial-accent);
+  box-shadow: 0 0 10px var(--dial-accent);
+  opacity: 0;
+  scale: 0.4;
+  transition: opacity 0.3s ease, scale 0.4s var(--ease-fluid);
+}
+
+/* ---- tucked: content is passing under the knob, so it steps into the
+   corner's margin as a small lit jewel, and comes back when it is clear ---- */
+.dial.is-tucked:not(.is-open) .dial-knob:not(:focus-visible) { translate: var(--tuck-x) var(--tuck-y); scale: 0.46; }
+.dial.is-tucked:not(.is-open) .dial-knob::before { inset: -26px; }
+.dial.is-tucked .dial-knob:not(:focus-visible) .dial-knob__odo { opacity: 0; }
+.dial.is-tucked .dial-knob:not(:focus-visible) .dial-knob__cap::after { opacity: 1; scale: 1; }
+.dial.is-tucked .dial-knob__glint { opacity: 0; }
 
 /* ---- the open wheel: its hub sits just past the corner of the screen ---- */
 .dial-scrim {
@@ -205,6 +255,26 @@
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.09), 0 30px 80px rgba(0, 0, 0, 0.55);
 }
 .dial-wheel__rotor { position: absolute; inset: 0; border-radius: 50%; }
+/* The chapter's light, a soft aura round the open wheel. */
+.dial-wheel__aura {
+  position: absolute;
+  inset: calc(-70px * var(--s));
+  border-radius: 50%;
+  background: radial-gradient(circle closest-side, color-mix(in srgb, var(--dial-accent) 18%, transparent) 68%, transparent 100%);
+  pointer-events: none;
+  animation: dial-breathe 7s ease-in-out infinite;
+}
+/* A graduated scale hugging the rim, one mark per click of the ratchet:
+   each mark that passes the index is a tick you hear. */
+.dial-wheel__scale {
+  position: absolute;
+  inset: calc(-14px * var(--s));
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 319.4deg, rgba(232, 236, 244, 0.3) 0 1.2deg, transparent 1.2deg 3.75deg);
+  -webkit-mask: radial-gradient(circle closest-side, transparent 93%, #000 93.6%, #000 97.4%, transparent 98%);
+  mask: radial-gradient(circle closest-side, transparent 93%, #000 93.6%, #000 97.4%, transparent 98%);
+  pointer-events: none;
+}
 .dial.is-open .dial-wheel__rotor { will-change: transform; }
 /* The knurled grip band, under the thumb. */
 .dial-wheel__grip {
@@ -258,8 +328,45 @@
   filter: drop-shadow(0 0 4px var(--dial-accent));
   transition: background-color 0.3s ease;
 }
-.dial-wheel__index.is-kick { animation: dial-kick 0.12s ease-out; }
-@keyframes dial-kick { 50% { scale: 1.3; } }
+/* A ring of light that runs out from the hub as the wheel opens (js). */
+.dial-wheel__pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1.5px var(--dial-accent), 0 0 24px color-mix(in srgb, var(--dial-accent) 40%, transparent);
+  opacity: 0;
+  pointer-events: none;
+}
+/* Spun fast, the knurl blurs into a band of light (opacity set by js). */
+.dial-wheel__blur {
+  position: absolute;
+  inset: calc(18px * var(--s));
+  border-radius: 50%;
+  background: radial-gradient(circle closest-side, transparent 60%,
+    color-mix(in srgb, var(--dial-accent) 16%, rgba(220, 226, 237, 0.12)) 68%,
+    rgba(220, 226, 237, 0.06) 90%, transparent 100%);
+  opacity: 0;
+  pointer-events: none;
+}
+/* The thumb's pad on the grip band: pressed in, lit at its rim, and it
+   gives a little with every click (js). */
+.dial-wheel__touch { position: absolute; inset: 0; pointer-events: none; }
+.dial-wheel__touch i {
+  position: absolute;
+  left: calc(50% + 132px * var(--s));
+  top: 50%;
+  width: calc(60px * var(--s));
+  height: calc(60px * var(--s));
+  margin: calc(-30px * var(--s)) 0 0 calc(-30px * var(--s));
+  border-radius: 50%;
+  background: radial-gradient(circle closest-side, rgba(6, 7, 11, 0.62) 0 46%,
+    color-mix(in srgb, var(--dial-accent) 34%, transparent) 70%, transparent 100%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dial-accent) 45%, transparent);
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 0.26s ease, transform 0.34s var(--ease-fluid);
+}
+.dial.is-gripping .dial-wheel__touch i { opacity: 1; transform: none; transition-duration: 0.1s, 0.16s; }
 
 /* ---- the chapters printed around the wheel (real links) ---- */
 .dial-list { margin: 0; padding: 0; list-style: none; }
@@ -299,6 +406,72 @@
 @media (hover: hover) { .dial-label:hover { color: var(--dial-accent); } }
 .dial-label:focus-visible { outline: 2px solid var(--dial-accent); outline-offset: 2px; }
 
+/* ---- the dust around the open wheel (a canvas drawn by js) ---- */
+.dial-field { position: absolute; right: 0; bottom: 0; pointer-events: none; }
+
+/* ---- the sound switch, on the wheel's outer ring ---- */
+.dial-sound {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(209, 224, 238, 0.1);
+  border-radius: 50%;
+  background: rgba(10, 11, 17, 0.82);
+  color: rgba(220, 226, 237, 0.62);
+  opacity: 0;
+  pointer-events: none;
+  cursor: pointer;
+  transition: opacity 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+.dial-sound::before { content: ''; position: absolute; inset: -6px; border-radius: 50%; }
+.dial.is-open .dial-sound { opacity: 1; pointer-events: auto; }
+.dial-sound svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.dial-sound__body { fill: currentColor; stroke: none; }
+.dial-sound__off { display: none; }
+.dial-sound[aria-pressed="true"] .dial-sound__wave { stroke: var(--dial-accent); }
+.dial-sound[aria-pressed="false"] .dial-sound__wave { display: none; }
+.dial-sound[aria-pressed="false"] .dial-sound__off { display: inline; }
+@media (hover: hover) { .dial-sound:hover { color: #edf1f5; border-color: rgba(209, 224, 238, 0.24); } }
+.dial-sound:focus-visible { outline: 2px solid var(--dial-accent); outline-offset: 2px; }
+
+/* ---- iPhone: the invisible switch whose touch ticks the Taptic Engine ----
+   It keeps its native look (WebKit plays no haptic for a restyled one),
+   just fully transparent; clip-path trims its hit area to a circle. */
+.dial-tap {
+  position: absolute;
+  right: var(--kr);
+  bottom: var(--kb);
+  z-index: 1;
+  width: var(--knob);
+  height: var(--knob);
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  pointer-events: auto;
+  touch-action: none;
+  clip-path: circle(50%);
+  -webkit-tap-highlight-color: transparent;
+  transition: scale 0.42s var(--ease-fluid);
+}
+.dial.is-tucked:not(.is-open) .dial-tap { translate: var(--tuck-x) var(--tuck-y); scale: 0.46; clip-path: circle(100%); }
+.dial.is-open .dial-tap {
+  right: auto;
+  bottom: auto;
+  left: calc(var(--px) - var(--pad-r));
+  top: calc(var(--py) - var(--pad-r));
+  width: calc(var(--pad-r) * 2);
+  height: calc(var(--pad-r) * 2);
+  scale: none;
+  transition: none;
+}
+html.is-player-open .dial-tap { pointer-events: none; }
+
 /* The selected chapter's role, on the index's line, beyond the labels. */
 .dial-readout {
   position: absolute;
@@ -330,6 +503,25 @@
   pointer-events: none;
 }
 .dial-veil.is-on { visibility: visible; }
+.dial-veil { display: grid; place-items: center; }
+/* The chapter card: the slates' own type, in the dark between scenes. */
+.dial-veil__card {
+  display: flex;
+  align-items: baseline;
+  gap: 0.9em;
+  margin: 0 0 4vh;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: clamp(0.78rem, 1.5vw, 0.95rem);
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: #edf1f5;
+  opacity: 0;
+  translate: 0 8px;
+  transition: opacity 0.16s ease, translate 0.5s var(--ease-fluid);
+}
+.dial-veil__card b { font-weight: 600; letter-spacing: 0.12em; color: var(--veil-accent, #e2a24e); }
+.dial-veil.is-on.has-card .dial-veil__card { opacity: 1; translate: 0 0; transition-delay: 0.09s; }
 
 /* ---- the preview card (desktop, while the page waits on the dial) ---- */
 .dial-preview {
@@ -386,8 +578,6 @@ html.is-player-open .site-mark { opacity: 0 !important; visibility: hidden !impo
 }
 @media (max-width: 720px), (max-height: 600px) {
   :root { --dial-lane: 96px; --dial-floor: 112px; }
-  /* At the lab's gate the knob rises clear of the centred hint. */
-  html.is-lab-gated .dial-knob { translate: 0 -56px; transition: opacity 0.14s ease, scale 0.09s ease, translate 0.4s var(--ease-fluid); }
   .has-story .console-beats { padding: 0 var(--dial-lane) 0 20px; }
   .face-portrait__hint { right: var(--dial-lane); }
   .has-story .story--contact .story-stage { padding-bottom: var(--dial-floor); }
@@ -420,7 +610,8 @@ html.is-player-open .site-mark { opacity: 0 !important; visibility: hidden !impo
 @media (prefers-reduced-motion: reduce) {
   .dial-knob__odo span, .dial-wheel, .dial-scrim, .dial-label, .dial-knob, .dial-preview, .dial-coach { transition-duration: 0.12s !important; }
   .dial-wheel { transform: none !important; }
-  .dial-wheel__index.is-kick { animation: none; }
+  .dial-knob__halo, .dial-knob__glint, .dial-wheel__aura { animation: none; }
+  .dial-veil__card { transition: none; }
 }
 @media (prefers-contrast: more) {
   .dial-label { text-shadow: none; }

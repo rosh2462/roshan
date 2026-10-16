@@ -38,7 +38,16 @@
   const live = document.getElementById('dialLive');
   const nowText = document.getElementById('dialNow');
   const veil = document.querySelector('.dial-veil');
+  const veilCard = veil?.querySelector('.dial-veil__card');
   const mark = document.querySelector('.site-mark');
+  const soundButton = dial.querySelector('.dial-sound');
+  const touchPad = dial.querySelector('.dial-wheel__touch');
+  const blur = dial.querySelector('.dial-wheel__blur');
+  const halo = dial.querySelector('.dial-knob__halo');
+  const pulse = dial.querySelector('.dial-wheel__pulse');
+  const fieldCanvas = dial.querySelector('.dial-field');
+  // Clicks and haptics (js/dial-feel.js); the dial works without them.
+  const feel = window.DialFeel || null;
 
   const reduce = matchMedia('(prefers-reduced-motion: reduce)');
   const finePointer = matchMedia('(hover: hover) and (pointer: fine)');
@@ -60,11 +69,12 @@
 
   /* ---- the dial's constants ---- */
   const STEP = 15;          // degrees between detents on the wheel
+  const FINE = STEP / 4;    // the ratchet between them: three fine ticks and a detent
   const LAST = 6;
   const MAX = STEP * LAST;  // 90°
   const IDX = 50;           // the fixed index, in degrees from 9 o'clock towards 12
   const K_ALPHA = 60;       // where the knob sits on the open wheel's grip band
-  const R = { grip: 132, rim: 182, label: 216, readout: 282, tick: 173, index: 191, scrim: 470 };
+  const R = { grip: 132, rim: 182, label: 216, readout: 282, tick: 173, index: 191, scrim: 470, pad: 192 };
   const MOUSE_PIVOT = 46;
   const NOTCH_A = 0.55;
   const RUBBER_MAX = 10, RUBBER_SOFT = 16;
@@ -74,7 +84,8 @@
   const SEAT_ZETA = 0.7, SEAT_WN = 14, SEAT_OVERSHOOT = 2.5;
   const FOLLOW_WN = 16, GLIDE_WN = 6.5, VMAX_STAGE = 4.5, GLIDE_MAX_DETENTS = 1.5;
   const FLY_ON = 18.75, FLY_OFF = 11.25, DWELL_MS = 350, DWELL_SPEED = 20;
-  const VEIL_IN = 180, VEIL_OUT = 380, VEIL_CAP = 900, CALM_FRAME = 34;
+  const VEIL_IN = 200, VEIL_OUT = 420, VEIL_CAP = 900, CALM_FRAME = 34, VEIL_HOLD = 220, VEIL_HOLD_LIVE = 110;
+  const DWELL_DIRECT_MS = 240, TUCK_EVERY = 110, UNTUCK_AFTER = 380;
   const HOVER_INTENT = 120, LEAVE_COLLAPSE = 600, TOUCH_IDLE = 2200, SCROLL_COLLAPSE = 600, ARRIVE_COLLAPSE = 700;
 
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -182,6 +193,15 @@
     dial.style.setProperty('--scrim-y', `${(P.y - (innerHeight - boxH)).toFixed(1)}px`);
     const a = rad(IDX);
     if (readout) readout.style.transform = `translate3d(${(P.x - R.readout * s * Math.cos(a)).toFixed(1)}px, ${(P.y - R.readout * s * Math.sin(a)).toFixed(1)}px, 0) translate(-100%, -100%)`;
+    dial.style.setProperty('--pad-r', `${(R.pad * s).toFixed(1)}px`);
+    // The sound switch sits on the wheel's outer ring, clear of the chapters.
+    if (soundButton) {
+      const b = rad(IDX + 31);
+      const bx = clamp(P.x - (R.readout - 6) * s * Math.cos(b), 26, innerWidth - 26);
+      const by = clamp(P.y - (R.readout - 6) * s * Math.sin(b), 26, innerHeight - 26);
+      soundButton.style.transform = `translate3d(${bx.toFixed(1)}px, ${by.toFixed(1)}px, 0) translate(-50%, -50%)`;
+    }
+    field.size(box, boxH, P.x - (innerWidth - box), P.y - (innerHeight - boxH));
   }
 
   /* ---- state ---- */
@@ -204,8 +224,9 @@
   let previewing = false;
   let wheelPending = null, wheelTimer = 0, wheelAcc = 0, wheelLastStep = 0, wheelLastEvent = 0;
   let hoverTimer = 0, leaveTimer = 0, idleTimer = 0, arriveTimer = 0, scrollTimer = 0;
-  let lastHaptic = 0, hapticsThisGesture = 0, endBuzzed = false;
+  let endBuzzed = false;
   let rotorShown = NaN;
+  let fineAt = NaN, spin = 0, spinTheta = 0;
   let pendingAfterRefresh = null;
   let userScrolled = false;
   const loadedAt = performance.now();
@@ -213,15 +234,242 @@
   const usable = () => shown && !root.classList.contains('is-player-open');
   const travelling = () => page === 'glide' || page === 'cut';
 
-  /* ---- haptics (Android; iOS has none, so every detent is also visual) ---- */
-  function buzz(pattern, pointerType) {
-    if (pointerType !== 'touch' || !('vibrate' in navigator)) return;
-    if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
-    const now = performance.now();
-    if (now - lastHaptic < 45 || hapticsThisGesture >= 10) return;
-    lastHaptic = now;
-    hapticsThisGesture += 1;
-    try { navigator.vibrate(pattern); } catch (error) { /* not allowed */ }
+  /* ---- iPhone: a real switch under the finger ----
+   * Safari gives a page no vibration, only the system tick of a switch the
+   * finger itself touches. So an invisible <input switch> lies over the knob,
+   * and over the wheel itself while it is open (the chapters around it stay
+   * plain links); a tap on it is acted on in onUp, and while turning it is
+   * shuttled under the thumb so every click ticks (js/dial-feel.js). */
+  let tapLayer = null;
+  if (feel?.switchHaptics) {
+    tapLayer = document.createElement('input');
+    tapLayer.type = 'checkbox';
+    tapLayer.setAttribute('switch', '');
+    tapLayer.className = 'dial-tap';
+    tapLayer.tabIndex = -1;
+    tapLayer.setAttribute('aria-hidden', 'true');
+    dial.append(tapLayer);
+    dial.classList.add('has-tap');
+  }
+
+  /* ---- the sound switch ---- */
+  function toggleSound(type) {
+    if (!feel) return;
+    feel.setMuted(!feel.muted);
+    soundButton?.setAttribute('aria-pressed', String(!feel.muted));
+    if (!feel.muted) feel.grab(type);
+    if (!finePointer.matches) touchIdle();
+  }
+  if (soundButton && feel) {
+    soundButton.setAttribute('aria-pressed', String(!feel.muted));
+    soundButton.addEventListener('click', (event) => toggleSound(event.pointerType || 'mouse'));
+  } else soundButton?.remove();
+
+  /* ---- the field: dust around the open wheel, stirred as it turns ----
+   * A few dozen motes in the dark around the wheel, like the site's own
+   * particles: they drift, and a turn drags them round with it, the inner
+   * ones most. Runs only while the wheel is open. */
+  const field = (() => {
+    const c = fieldCanvas;
+    const g = c?.getContext?.('2d');
+    if (!g || reduce.matches) { c?.remove(); return { size() {}, start() {}, stop() {} }; }
+    let W = 0, H = 0, cx = 0, cy = 0, dpr = 1, raf = 0, alpha = 0, live = false, last = 0, prev = 0, blurShown = 0;
+    let dots = [];
+    function seed() {
+      let r = 0.137;
+      const n = innerWidth <= 720 ? 54 : 84;
+      dots = Array.from({ length: n }, (_, i) => {
+        r = (r * 9301 + 49297) % 233280 / 233280;
+        const u = (i + r) / n;
+        return {
+          r: R.rim + 18 + (R.scrim * 0.95 - R.rim - 18) * Math.pow(u, 1.45),
+          a: (i * 137.508) % 360,
+          w: 0,
+          w0: (1.5 + 4 * ((i * 0.618) % 1)) * (i % 7 === 0 ? -1 : 1),
+          size: 0.8 + 1.3 * ((i * 0.381) % 1),
+          tw: i * 1.7,
+          warm: i % 3 === 0,
+        };
+      });
+    }
+    function size(w, h, x, y) {
+      cx = x; cy = y;
+      const ratio = Math.min(window.devicePixelRatio || 1, 1.5);
+      if (w === W && h === H && ratio === dpr) return;
+      dpr = ratio; W = w; H = h;
+      c.width = Math.round(w * dpr);
+      c.height = Math.round(h * dpr);
+      c.style.width = `${w}px`;
+      c.style.height = `${h}px`;
+      if (!dots.length) seed();
+    }
+    function draw(now) {
+      raf = 0;
+      const dt = last ? Math.min(0.05, (now - last) / 1000) : 0;
+      last = now;
+      alpha += ((live ? 1 : 0) - alpha) * (1 - Math.exp(-dt * (live ? 5 : 10)));
+      // The wheel's own turning speed, smoothed: what stirs the dust.
+      const raw = dt > 0 ? (theta - prev) / dt : 0;
+      prev = theta;
+      spin += (clamp(raw, -900, 900) - spin) * (1 - Math.exp(-dt * 10));
+      const b = clamp((Math.abs(spin) - 90) / 520, 0, 0.6);
+      if (blur && Math.abs(b - blurShown) > 0.02) { blurShown = b; blur.style.opacity = b.toFixed(2); }
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      g.clearRect(0, 0, W, H);
+      if (!live && alpha < 0.01) { alpha = 0; c.hidden = true; return; }
+      const warm = ACCENT[clamp(current, 0, LAST)];
+      const fadeFrom = R.scrim * 0.6 * s, fadeTo = R.scrim * 0.95 * s;
+      const t = now / 1000;
+      for (const d of dots) {
+        const follow = 0.55 * Math.pow(R.rim / d.r, 1.3);
+        d.w += (d.w0 + spin * follow - d.w) * (1 - Math.exp(-dt * 4));
+        d.a += d.w * dt;
+        const rr = d.r * s;
+        const fade = 1 - clamp((rr - fadeFrom) / (fadeTo - fadeFrom), 0, 1);
+        const o = alpha * fade * (0.6 + 0.4 * Math.sin(t * 1.6 + d.tw)) * (d.warm ? 1 : 0.62);
+        if (o < 0.02) continue;
+        const ar = rad(d.a);
+        const x = cx - rr * Math.cos(ar), y = cy - rr * Math.sin(ar);
+        g.globalAlpha = o;
+        if (Math.abs(d.w) > 45) {
+          // Fast: a short arc of light behind each mote.
+          const tail = rad(clamp(d.w * 0.06, -40, 40));
+          g.strokeStyle = d.warm ? warm : '#e9e4da';
+          g.lineWidth = d.size * 1.1;
+          g.beginPath();
+          if (tail > 0) g.arc(cx, cy, rr, Math.PI + ar - tail, Math.PI + ar);
+          else g.arc(cx, cy, rr, Math.PI + ar, Math.PI + ar - tail);
+          g.stroke();
+        } else {
+          g.fillStyle = d.warm ? warm : '#e9e4da';
+          g.beginPath();
+          g.arc(x, y, d.size, 0, Math.PI * 2);
+          g.fill();
+        }
+      }
+      g.globalAlpha = 1;
+      raf = requestAnimationFrame(draw);
+    }
+    return {
+      size,
+      start() {
+        live = true;
+        c.hidden = false;
+        prev = theta;
+        if (!raf) { last = 0; raf = requestAnimationFrame(draw); }
+      },
+      stop() { live = false; if (!raf) raf = requestAnimationFrame(draw); },
+    };
+  })();
+
+  /* ---- making room: the knob tucks into the corner over content ----
+   * When text, a link, a card or a picture passes under the knob, it
+   * shrinks into the corner's margin (the chapter's light still showing)
+   * and comes back once the way has been clear for a moment. */
+  const tuck = (() => {
+    let items = null, lastCheck = 0, timer = 0, trail = 0, clearSince = 0, on = false, held = false, pending = 0;
+    const range = document.createRange();
+    const SKIP = '.dial, .site-mark, .dial-veil, .player, .visually-hidden, script, style, noscript, template';
+    function collect() {
+      const map = new Map();
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+        acceptNode: (n) => (n.nodeValue.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT),
+      });
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        const el = n.parentElement;
+        if (!el || el.closest(SKIP)) continue;
+        if (!map.has(el)) map.set(el, { el, texts: [] });
+        map.get(el).texts.push(n);
+      }
+      document.body.querySelectorAll('a, button, input, select, textarea, img, video, .game-card').forEach((el) => {
+        if (!el.closest(SKIP)) map.set(el, { el, texts: null, media: el.matches('img, video') });
+      });
+      items = [...map.values()];
+    }
+    function zone() {
+      const pad = 10;
+      const x = knob.offsetLeft, y = knob.offsetTop, w = knob.offsetWidth, h = knob.offsetHeight;
+      return { l: x - pad, t: y - pad, r: x + w + pad, b: y + h + pad };
+    }
+    const meets = (r, z) => r.width > 0 && r.height > 0 && r.right > z.l && r.left < z.r && r.bottom > z.t && r.top < z.b;
+    function covered() {
+      if (!items) collect();
+      const z = zone();
+      const big = innerWidth * innerHeight * 0.45;
+      for (const item of items) {
+        const r = item.el.getBoundingClientRect();
+        if (!meets(r, z)) continue;
+        // A full-bleed picture is a backdrop, not something to read.
+        if (item.media && r.width * r.height > big) continue;
+        if (item.el.checkVisibility && !item.el.checkVisibility({ opacityProperty: true, visibilityProperty: true })) continue;
+        if (!item.texts) return true;
+        for (const node of item.texts) {
+          range.selectNodeContents(node);
+          for (const box of range.getClientRects()) if (meets(box, z)) return true;
+        }
+      }
+      return false;
+    }
+    function set(value) {
+      if (value === on) return;
+      on = value;
+      dial.classList.toggle('is-tucked', value);
+      if (value) hideCoach();
+    }
+    function run() {
+      pending = 0;
+      clearTimeout(timer);
+      if (!shown || open || gesture || held || travelling()) return;
+      const now = performance.now();
+      lastCheck = now;
+      // (At the lab's gate this is what keeps the knob clear of its pill.)
+      const hit = !root.classList.contains('is-player-open') && covered();
+      if (hit) { clearSince = 0; set(true); return; }
+      if (!on) return;
+      if (!clearSince) clearSince = now;
+      if (now - clearSince >= UNTUCK_AFTER) set(false);
+      else timer = setTimeout(run, UNTUCK_AFTER - (now - clearSince) + 20);
+    }
+    return {
+      // Throttled, and read after the frame has painted, when layout is clean.
+      check(soon = false) {
+        if (pending) return;
+        const wait = soon ? 0 : Math.max(0, TUCK_EVERY - (performance.now() - lastCheck));
+        pending = setTimeout(run, wait);
+        // And once more after the scroll and its scrubbed scenes have settled.
+        clearTimeout(trail);
+        trail = setTimeout(run, 650);
+      },
+      hold() { held = true; clearSince = 0; clearTimeout(timer); set(false); },
+      release() { held = false; clearSince = 0; this.check(); },
+      reset() { items = null; },
+      get on() { return on; },
+    };
+  })();
+
+  /* ---- the feel of turning: a ratchet you hear and, under a thumb, feel ---- */
+  // How fast the wheel is turning, degrees per second: the finger's speed
+  // while dragging, the wheel's own as it coasts and seats.
+  const turnSpeed = () => (gesture?.engaged ? gesture.speed || 0 : omega);
+  const turnType = () => gesture?.type;
+  const turnX = () => gesture?.x;
+  function ratchet(angle) {
+    // Fine ticks sit between the detents: 3.75° apart, the detents' own
+    // crossings (7.5°, 22.5°, ...) left to the heavier detent click.
+    const at = Math.floor((clamp(angle, -1, MAX + 1) - STEP / 2) / FINE);
+    if (Number.isNaN(fineAt)) { fineAt = at; return; }
+    if (at === fineAt) return;
+    const crossed = at > fineAt ? at : fineAt;
+    fineAt = at;
+    if (((crossed % 4) + 4) % 4 === 0) return;
+    feel?.fine(turnSpeed(), turnType(), turnX());
+    nudgePad(1.12);
+  }
+  // The pad under the thumb gives a little with every click.
+  const padDot = touchPad?.firstElementChild;
+  function nudgePad(amount) {
+    if (!padDot?.animate || !dial.classList.contains('is-gripping') || reduce.matches) return;
+    padDot.animate([{ scale: amount }, { scale: 1 }], { duration: amount > 1.15 ? 200 : 130, easing: 'cubic-bezier(.2,.7,.3,1)' });
   }
 
   /* ---- writing the dial: transforms and opacity only ---- */
@@ -238,8 +486,10 @@
     });
     if (nowText) nowText.textContent = `0${k} ${NAMES[k]}`;
     if (!fromDial) maybeCoach(k);
+    // The knob's halo catches the new chapter's light.
+    if (halo?.animate && shown && !reduce.matches) halo.animate([{ opacity: 1, scale: 1.18 }, { opacity: 0.55, scale: 1 }], { duration: 900, easing: 'cubic-bezier(.2,.7,.3,1)' });
   }
-  function setDetent(k, pointerType) {
+  function setDetent(k, quiet) {
     if (k === detent) return;
     const first = detent < 0;
     detent = k;
@@ -247,10 +497,11 @@
     wheelTicks.forEach((tick, i) => tick.classList.toggle('is-on', i === k));
     roles.forEach((role, i) => role.classList.toggle('is-on', i === k));
     if (first || !open) return;
-    indexMark?.classList.remove('is-kick');
-    void indexMark?.offsetWidth;
-    indexMark?.classList.add('is-kick');
-    buzz(8, pointerType);
+    if (!reduce.matches) indexMark?.animate?.([{ scale: 1 }, { scale: 1.35 }, { scale: 1 }], { duration: 140, easing: 'ease-out' });
+    if (!quiet) {
+      feel?.detent(k, turnSpeed(), turnType(), turnX());
+      nudgePad(1.24);
+    }
     if (preview && !preview.hidden && previewOn()) fillPreview(k);
   }
   function writeRotor(angle) {
@@ -269,6 +520,7 @@
       const opacity = off <= 4 ? 1 : Math.max(0, 1 - (off - 4) / 38);
       if (opacity <= 0.001) {
         if (link._o !== 0) { link._o = 0; link.style.opacity = '0'; link.style.visibility = 'hidden'; }
+        if (link._reach) { link._reach = false; link.classList.remove('is-reachable'); }
         return;
       }
       const a = rad(alpha);
@@ -291,7 +543,11 @@
     const angle = owner === 'dial' || motion !== 'idle' ? theta : thetaPage;
     if (motion !== 'sweep') writeRotor(angle);
     const k = clamp(Math.round(angle / STEP), 0, LAST);
-    if (owner === 'dial') { setCurrent(k, true); setDetent(k, gesture?.type); }
+    // Only a turn of the dial itself clicks; the knob riding along with a
+    // scrolled page stays silent.
+    const turning = open && owner === 'dial' && (motion === 'drag' || motion === 'coast' || motion === 'seat');
+    if (turning) ratchet(angle); else fineAt = NaN;
+    if (owner === 'dial') { setCurrent(k, true); setDetent(k, !turning); }
     if (open) writeWheel();
   }
 
@@ -306,14 +562,40 @@
     return k;
   }
   function syncFromPage(y) {
+    const before = thetaPage;
     thetaPage = Theta(y);
+    noteSeen(before, thetaPage);
     if (owner !== 'page') return;
     if (motion === 'idle') theta = thetaPage;
     const k = chapterFor(thetaPage);
     setCurrent(k, false);
-    if (open && motion === 'idle') setDetent(clamp(Math.round(thetaPage / STEP), 0, LAST));
+    if (open && motion === 'idle') setDetent(clamp(Math.round(thetaPage / STEP), 0, LAST), true);
     render();
+    tuck.check();
   }
+
+  /* ---- what the visitor has already watched ----
+   * A chapter's arrival plays the first time the page travels into it. After
+   * that, the dial goes straight there through a quick dip to black instead
+   * of replaying the particles; so does every move back up the page. Native
+   * scrolling still plays everything, every time. */
+  const seenSpan = new Array(LAST).fill(false);
+  function noteSeen(from, to) {
+    // Only continuous travel counts: a cut jumps, and plays nothing.
+    if (!(to > from) || to - from > STEP * 0.6 || veil.classList.contains('is-on')) return;
+    for (let k = 0; k < LAST; k += 1) {
+      const end = (k + 0.9) * STEP;
+      if (from < end && to >= end) seenSpan[k] = true;
+    }
+  }
+  function seen(a, b) {
+    const lo = Math.floor(Math.min(a, b) / STEP + 1e-6);
+    const hi = Math.ceil(Math.max(a, b) / STEP - 1e-6);
+    for (let k = lo; k < hi; k += 1) if (!seenSpan[k]) return false;
+    return true;
+  }
+  // Whether a move from one angle to another should skip the scenes between.
+  const direct = (from, to) => !reduce.matches && (to < from - 1 || seen(from, to));
   const pageY = () => (window.SceneKit?.scrollPosition ? window.SceneKit.scrollPosition() : window.scrollY);
   window.addEventListener('sceneclock', () => { if (shown) syncFromPage(pageY()); });
   // Without the scene clock (reduced motion, or GSAP unavailable) the dial
@@ -406,7 +688,6 @@
     // as a chapter link does (js/works.js).
     if (!unlockedGate && window.WorksPlayer && v > (window.WorksPlayer.gateY?.() ?? Infinity) - 2) {
       unlockedGate = true;
-      if (window.WorksPlayer.isGated?.()) buzz([8, 40, 8], gesture?.type);
       window.WorksPlayer.unlock?.();
     }
     lastWritten = v;
@@ -427,15 +708,34 @@
     if (page === 'follow') {
       if (!gesture) return;
       const want = clamp(theta, 0, MAX);
-      const gap = Math.abs(want - Theta(yw));
-      const ready = pathReady(Theta(yw), want);
+      const at = Theta(yw);
+      const gap = Math.abs(want - at);
+      const ready = pathReady(at, want);
+      // A resting thumb has no speed: measured each frame, not only on moves.
+      gesture.speed = velocity(gesture.samples, now);
+      const resting = Math.abs(gesture.speed) < DWELL_SPEED;
+      // Over chapters already watched the page holds still on its chapter,
+      // then dips to black onto the chapter the wheel comes to rest on.
+      if (direct(at, want)) {
+        const k = clamp(Math.round(want / STEP), 0, LAST);
+        if (gap < 1 || Math.abs(at - k * STEP) < 0.5) {
+          if (flying) { flying = false; showPreview(false); }
+          return;
+        }
+        if (!flying) { flying = true; dwellSince = now; showPreview(true); }
+        if (!resting) dwellSince = now;
+        else if (now - dwellSince > DWELL_DIRECT_MS && !cutting) { dwellSince = now; cutTo(L[k], { live: true, k }); }
+        return;
+      }
       if (!flying && (gap > FLY_ON || !ready)) { flying = true; dwellSince = now; showPreview(true); }
       else if (flying && gap < FLY_OFF && ready) { flying = false; showPreview(false); }
       if (flying) {
         // Holding still on a chapter while the page waits: go there now.
-        if (Math.abs(gesture.speed || 0) < DWELL_SPEED) {
-          if (now - dwellSince > DWELL_MS) { dwellSince = now; cutTo(Y(want), { live: true }); }
-        } else dwellSince = now;
+        if (!resting) dwellSince = now;
+        else if (now - dwellSince > DWELL_MS && !cutting) {
+          dwellSince = now;
+          cutTo(Y(want), { live: true, k: clamp(Math.round(want / STEP), 0, LAST) });
+        }
         return;
       }
       spring(Y(want), dt, FOLLOW_WN);
@@ -450,7 +750,7 @@
     }
     if (page === 'arrive') {
       const caught = Math.abs(pageY() - yGoal) < 1 || now - arriveAt > 1200;
-      if (caught && motion === 'idle') { page = 'none'; owner = 'page'; syncFromPage(pageY()); }
+      if (caught && motion === 'idle') { page = 'none'; owner = 'page'; syncFromPage(pageY()); tuck.check(true); }
     }
   }
 
@@ -476,42 +776,61 @@
       arrive();
       return;
     }
-    if (!cut && distance <= GLIDE_MAX_DETENTS && pathReady(Theta(from), k * STEP)) {
+    // Glide when the page is all but there, or on into a chapter not yet
+    // watched; otherwise dip to black and arrive.
+    const near = distance <= 0.35;
+    const story = distance <= GLIDE_MAX_DETENTS && !direct(Theta(from), k * STEP);
+    if (!cut && (near || story) && pathReady(Theta(from), k * STEP)) {
       page = 'glide';
       wake();
       return;
     }
-    cutTo(yGoal, { live: false });
+    cutTo(yGoal, { live: false, k });
   }
-  let cutToken = 0;
+  let cutToken = 0, cutting = false;
   // An interrupted cut never leaves the screen black.
   function cancelCut() {
     cutToken += 1;
+    cutting = false;
     if (!veil.classList.contains('is-on')) return;
     const fade = veil.animate([{ opacity: Number(getComputedStyle(veil).opacity) || 1 }, { opacity: 0 }], { duration: VEIL_OUT, easing: 'cubic-bezier(0,0,.2,1)', fill: 'forwards' });
     const token = cutToken;
     fade.finished.catch(() => {}).then(() => { if (token === cutToken) veil.classList.remove('is-on'); });
   }
-  function cutTo(y, { live }) {
+  function cutTo(y, { live, k = null }) {
     const token = ++cutToken;
     const previous = page;
     page = live ? previous : 'cut';
     if (!live) wake();
-    const fadeIn = veil.animate([{ opacity: 0 }, { opacity: 1 }], { duration: reduce.matches ? 0 : VEIL_IN, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' });
+    // A chapter card, in the slates' own type, carries the eye across the dark.
+    if (veilCard && k !== null) {
+      veilCard.querySelector('b').textContent = `0${k}`;
+      veilCard.querySelector('span').textContent = NAMES[k];
+      veil.style.setProperty('--veil-accent', ACCENT[k]);
+    }
+    veil.classList.toggle('has-card', k !== null && !reduce.matches);
+    // A cut that follows another darkens from wherever the veil already is,
+    // never flashing back to the page first.
+    const from = veil.classList.contains('is-on') ? Number(getComputedStyle(veil).opacity) || 0 : 0;
+    cutting = true;
+    const fadeIn = veil.animate([{ opacity: from }, { opacity: 1 }], { duration: reduce.matches ? 0 : VEIL_IN * (1 - from), easing: 'cubic-bezier(.4,0,.9,1)', fill: 'forwards' });
     veil.classList.add('is-on');
     fadeIn.finished.catch(() => {}).then(() => {
       if (token !== cutToken) return;
       writeScroll(y);
       yw = y; vy = 0;
       window.SceneKit?.settle?.();
-      // First draws and shader work happen under the veil: wait for two calm frames.
+      // First draws and shader work happen under the veil: wait for two calm
+      // frames, and long enough for the card to be read.
       const t0 = performance.now();
+      const hold = reduce.matches ? 0 : (live ? VEIL_HOLD_LIVE : VEIL_HOLD);
       let calm = 0, last = t0;
       const watch = (t) => {
         if (token !== cutToken) return;
         calm = t - last < CALM_FRAME ? calm + 1 : 0;
         last = t;
-        if (calm >= 2 || t - t0 > VEIL_CAP) {
+        if ((calm >= 2 && t - t0 >= hold) || t - t0 > VEIL_CAP) {
+          cutting = false;
           const fadeOut = veil.animate([{ opacity: 1 }, { opacity: 0 }], { duration: VEIL_OUT, easing: 'cubic-bezier(0,0,.2,1)', fill: 'forwards' });
           fadeOut.finished.catch(() => {}).then(() => { if (token === cutToken) veil.classList.remove('is-on'); });
           if (!live && page === 'cut') arrive();
@@ -566,7 +885,7 @@
   }
 
   /* ---- opening and closing the wheel ---- */
-  const parts = [wheel, scrim, readout].filter(Boolean);
+  const parts = [wheel, scrim, readout, soundButton].filter(Boolean);
   let hideTimer = 0;
   function bloom(reason) {
     if (!usable()) return;
@@ -583,9 +902,14 @@
     writeWheel();
     knob.setAttribute('aria-expanded', 'true');
     labels.forEach((link) => { link.tabIndex = 0; });
+    if (soundButton) soundButton.tabIndex = 0;
+    tuck.hold();
+    field.start();
     void dial.offsetWidth;
     dial.classList.add('is-open', 'is-blooming');
     setTimeout(() => dial.classList.remove('is-blooming'), 320);
+    // A ring of light runs out from the hub as the wheel opens.
+    if (!reduce.matches) pulse?.animate?.([{ opacity: 0.55, scale: 0.62 }, { opacity: 0, scale: 1.22 }], { duration: 620, easing: 'cubic-bezier(.2,.7,.3,1)' });
     document.addEventListener('pointerdown', outside, { capture: true, passive: true });
     if (reason === 'tap') touchIdle();
     hideCoach();
@@ -601,8 +925,11 @@
     dial.classList.remove('is-open', 'is-pinned');
     knob.setAttribute('aria-expanded', 'false');
     labels.forEach((link) => { link.tabIndex = -1; });
+    if (soundButton) soundButton.tabIndex = -1;
     document.removeEventListener('pointerdown', outside, { capture: true });
     showPreview(false);
+    field.stop();
+    tuck.release();
     hideTimer = setTimeout(() => { if (!open) parts.forEach((el) => { el.hidden = true; }); }, 300);
     if (owner === 'dial' && page === 'none' && wheelPending === null && motion !== 'drag') {
       owner = 'page';
@@ -677,17 +1004,23 @@
     return den > 0 ? clamp(num / den * 1000, -VEL_CAP, VEL_CAP) : 0;
   }
 
+  // On an iPhone the switch lies over the knob, or over the open wheel.
+  function hitAt(event) {
+    const target = event.target;
+    if (target === tapLayer) return open ? { wheel } : { knob };
+    return { knob: target.closest('.dial-knob'), label: target.closest('.dial-label'), wheel: target.closest('.dial-wheel') };
+  }
   function onDown(event) {
     if (!event.isPrimary || event.button > 0 || !usable()) return;
-    const onKnob = event.target.closest('.dial-knob');
-    const onLabel = event.target.closest('.dial-label');
-    const onWheel = event.target.closest('.dial-wheel');
+    const hit = hitAt(event);
+    const onKnob = hit.knob, onLabel = hit.label, onWheel = hit.wheel;
     if (!onKnob && !onLabel && !onWheel) return;
     if (!open && !onKnob) return;
     event.stopPropagation();
     measure();
-    hapticsThisGesture = 0;
     endBuzzed = false;
+    feel?.prime();
+    tuck.hold();
     // Catch the dial mid-spin or mid-glide: it stops where it is.
     if (motion === 'coast' || motion === 'seat' || motion === 'sweep') { motion = 'idle'; omega = 0; }
     if (travelling()) { cancelCut(); page = 'none'; vy = 0; }
@@ -697,8 +1030,10 @@
       id: event.pointerId, type: event.pointerType || 'mouse', x0: event.clientX, y0: event.clientY,
       x: event.clientX, y: event.clientY, t0: performance.now(), engaged: false, grabbed: false,
       onKnob: !!onKnob, onLabel: onLabel ? Number(onLabel.dataset.k) : -1, phi: theta,
-      samples: [[performance.now(), theta]], speed: 0, hold: 0,
+      samples: [[performance.now(), theta]], speed: 0, hold: 0, viaSwitch: event.target === tapLayer,
     };
+    if (gesture.viaSwitch) feel?.shuttleStart(tapLayer);
+    if (onWheel) grip(event.clientX, event.clientY);
     if (onKnob && !open) {
       dial.classList.add('is-pressed');
       if (gesture.type !== 'mouse') {
@@ -707,10 +1042,22 @@
           gesture.grabbed = true;
           suppressClick = true;
           bloom('hold');
-          buzz(6, gesture.type);
+          feel?.grab(gesture.type);
         }, HOLD_MS);
       }
     }
+  }
+  // The thumb's pad on the grip band: it shows where the wheel is held.
+  function grip(x, y) {
+    if (!touchPad) return;
+    const a = Math.atan2(y - P.y, x - P.x) * 180 / Math.PI;
+    touchPad.style.transform = `rotate(${a.toFixed(1)}deg)`;
+    dial.classList.add('is-gripping');
+  }
+  function letGo() {
+    dial.classList.remove('is-gripping');
+    feel?.shuttleEnd();
+    tuck.release();
   }
   function engage() {
     const g = gesture;
@@ -727,6 +1074,8 @@
     flying = false;
     yw = window.scrollY;
     vy = 0;
+    if (!g.grabbed) feel?.grab(g.type);
+    grip(g.x, g.y);
     markUsed();
     wake();
   }
@@ -741,8 +1090,9 @@
         const dx = p.clientX - g.x0, dy = p.clientY - g.y0;
         const slop = g.type === 'mouse' ? SLOP_MOUSE : (open || g.grabbed ? SLOP_OPEN : SLOP_TOUCH);
         if (Math.hypot(dx, dy) < slop) continue;
-        // A vertical swipe that starts on the closed knob is a page scroll.
-        if (!open && !g.grabbed && g.type !== 'mouse' && Math.abs(dy) > Math.abs(dx)) {
+        // A vertical swipe that starts on the closed knob is a page scroll
+        // (except on the iPhone switch, which keeps the touch for itself).
+        if (!open && !g.grabbed && !g.viaSwitch && g.type !== 'mouse' && Math.abs(dy) > Math.abs(dx)) {
           abandon();
           return;
         }
@@ -759,8 +1109,11 @@
     if (!g.engaged) return;
     const now = performance.now();
     g.speed = velocity(g.samples, now);
-    if ((g.phi < -2 || g.phi > MAX + 2) && !endBuzzed) { endBuzzed = true; buzz(14, g.type); }
+    const beyond = g.phi < -2 || g.phi > MAX + 2;
+    if (beyond && !endBuzzed) { endBuzzed = true; feel?.stop(g.type, g.x); }
+    else if (!beyond && g.phi > 0 && g.phi < MAX) endBuzzed = false;
     theta = shape(g.phi);
+    grip(g.x, g.y);
     wake();
   }
   function abandon() {
@@ -768,6 +1121,7 @@
     clearTimeout(gesture.hold);
     gesture = null;
     dial.classList.remove('is-pressed', 'is-dragging');
+    letGo();
   }
   function onUp(event) {
     const g = gesture;
@@ -775,8 +1129,21 @@
     clearTimeout(g.hold);
     gesture = null;
     dial.classList.remove('is-pressed', 'is-dragging');
+    letGo();
     try { wheel.releasePointerCapture?.(g.id); } catch (error) { /* fine */ }
     if (!g.engaged) {
+      // On the iPhone switch no click reaches the knob or the links: the tap
+      // is acted on here (the switch has already ticked under the finger).
+      if (g.viaSwitch) {
+        // No knob click follows a touch on the switch: nothing to suppress,
+        // except a stray click iOS might still aim at what lies beneath.
+        suppressClick = !g.grabbed && event.type === 'pointerup';
+        if (suppressClick) setTimeout(() => { suppressClick = false; }, 450);
+        if (g.grabbed || event.type !== 'pointerup') touchIdle();
+        else if (g.onKnob) toggleFromTap(g.type);
+        else touchIdle();
+        return;
+      }
       if (g.grabbed) touchIdle();
       else if (!g.onKnob && g.onLabel < 0 && g.type !== 'mouse') touchIdle();
       return; // a tap: the click that follows opens, toggles or travels
@@ -813,7 +1180,6 @@
     showPreview(false);
     seatTo(k, Math.abs(w) >= FLING_MIN ? w : 0);
     commit(k, { source: 'pointer' });
-    hapticsThisGesture = 0;
     void type;
   }
 
@@ -841,14 +1207,21 @@
     }
     if (finePointer.matches) {
       if (open && pinned) { collapse(true); return; }
+      const wasOpen = open;
       bloom('click');
+      if (!wasOpen) feel?.grab(event.pointerType || 'mouse');
       pinned = true;
       dial.classList.add('is-pinned');
       return;
     }
-    if (open) collapse(true);
-    else bloom('tap');
+    toggleFromTap(event.pointerType || 'touch');
   });
+  function toggleFromTap(type) {
+    if (!usable()) return;
+    if (open) { collapse(true); return; }
+    bloom('tap');
+    feel?.grab(type);
+  }
   labels.forEach((link, k) => {
     link.addEventListener('click', (event) => {
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -856,6 +1229,7 @@
       if (suppressClick) { suppressClick = false; return; }
       previewing = false;
       const source = event.detail === 0 ? 'keyboard' : 'pointer';
+      if (source === 'pointer') feel?.grab(event.pointerType || 'mouse');
       go(k, { source });
       if (source === 'pointer') link.blur();
       if (!finePointer.matches) touchIdle();
@@ -901,7 +1275,7 @@
   });
 
   /* ---- hover (mouse) ---- */
-  const inside = (el) => !!(el && dial.contains(el) && el.closest('.dial-knob, .dial-wheel, .dial-label'));
+  const inside = (el) => !!(el && dial.contains(el) && el.closest('.dial-knob, .dial-wheel, .dial-label, .dial-sound'));
   dial.addEventListener('pointerover', (event) => {
     if (event.pointerType !== 'mouse' || !inside(event.target)) return;
     clearTimeout(leaveTimer);
@@ -965,7 +1339,9 @@
     coachShown = true;
     const wait = () => {
       const idle = window.SceneIdle?.idleFor?.() ?? 2000;
-      if (idle < 1200) { coachTimer = setTimeout(wait, 400); return; }
+      // Not over content, and not beside the lab gate's own hint.
+      const busy = tuck.on || root.classList.contains('is-lab-gated');
+      if (idle < 1200 || busy) { coachTimer = setTimeout(wait, 400); return; }
       if (open || !usable()) return;
       store.set('rm.dial.v1.coached', '1');
       coach.hidden = false;
@@ -1016,6 +1392,7 @@
     syncFromPage(pageY());
     dial.classList.add('is-shown');
     setTimeout(ignition, 560);
+    tuck.check();
   }
   const t0 = performance.now();
   (function waitForIntro() {
@@ -1038,12 +1415,16 @@
       owner = 'page';
     } else {
       landDirty = true;
+      tuck.reset();
       syncFromPage(pageY());
     }
   });
+  let tuckWidth = innerWidth;
   function invalidate() {
     landDirty = true;
     rotorShown = NaN;
+    // Phone toolbars resize the height constantly; only a new width re-flows text.
+    if (innerWidth !== tuckWidth) { tuckWidth = innerWidth; tuck.reset(); }
     if (open) collapse(true);
   }
   if (typeof ScrollTrigger !== 'undefined') {
@@ -1063,7 +1444,7 @@
   }
   window.addEventListener('resize', () => { invalidate(); if (shown && owner === 'page') syncFromPage(pageY()); }, { passive: true });
   window.addEventListener('load', () => { landDirty = true; correctInitialHash(); }, { once: true });
-  document.fonts?.ready.then(() => { landDirty = true; });
+  document.fonts?.ready.then(() => { landDirty = true; tuck.reset(); });
 
   // Arriving on index.html#bosch: once the scenes have measured themselves,
   // move from the anchor to the chapter's landing pose, without a veil.
@@ -1112,6 +1493,6 @@
     open: () => bloom('api'),
     close: () => collapse(true),
     get index() { return current; },
-    get state() { return { open, motion, owner, page, theta, thetaPage, current, flying }; },
+    get state() { return { open, motion, owner, page, theta, thetaPage, current, flying, tucked: tuck.on, seen: seenSpan.map(Number).join('') }; },
   };
 })();
