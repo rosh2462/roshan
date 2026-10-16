@@ -1,0 +1,437 @@
+/* ================= The chapter dial (js/dial.js) =================
+   A machined rotary knob in the bottom-right corner, which opens into a
+   large corner wheel. Surfaces are opaque and built from the site's tokens:
+   no blur, no animated shadows. Only transforms and opacity move. */
+
+/* ---- the site mark, all that is left of the old top bar ---- */
+.site-mark {
+  position: fixed;
+  z-index: 55;
+  top: max(14px, calc(env(safe-area-inset-top, 0px) + 10px));
+  left: clamp(20px, 4.5vw, 64px);
+  display: inline-flex;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  color: #edf1f5;
+  opacity: 0.9;
+  text-shadow: 0 2px 10px rgba(8, 9, 15, 0.9);
+  transition: opacity 0.3s ease;
+}
+.site-mark span { color: var(--mark-accent, #aab9c9); transition: color 0.45s ease; }
+.site-mark:hover { opacity: 1; }
+.site-mark:focus-visible { outline: 2px solid var(--mark-accent, #b8c8d8); outline-offset: 2px; border-radius: 6px; }
+
+/* ---- the dial's frame ---- */
+.dial {
+  --knob: 60px;
+  --kr: 28px;
+  --kb: 28px;
+  --s: 1.12;
+  --dial-accent: #e2a24e;
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  pointer-events: none;
+  contain: layout style;
+  opacity: 0;
+  visibility: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.dial.is-shown { opacity: 1; visibility: visible; transition: opacity 0.5s ease; }
+@media (min-width: 1440px) { .dial { --knob: 64px; --kr: 32px; --kb: 32px; } }
+@media (max-width: 720px) {
+  .dial {
+    --knob: 56px;
+    --kr: max(32px, calc(env(safe-area-inset-right, 0px) + 16px));
+    --kb: max(44px, calc(env(safe-area-inset-bottom, 0px) + 16px));
+  }
+}
+@media (max-width: 360px) { .dial { --knob: 52px; } }
+@media (max-height: 500px) and (pointer: coarse) { .dial { --knob: 52px; --kr: 32px; --kb: 24px; } }
+
+/* ---- the knob ---- */
+.dial-knob {
+  position: absolute;
+  right: var(--kr);
+  bottom: var(--kb);
+  width: var(--knob);
+  height: var(--knob);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  font: inherit;
+  pointer-events: auto;
+  touch-action: pan-y;
+  cursor: grab;
+  translate: 0 8px;
+  transition: opacity 0.14s ease, scale 0.09s ease, translate 0.5s var(--ease-fluid);
+}
+.dial.is-shown .dial-knob { translate: 0 0; }
+.dial-knob::before { content: ''; position: absolute; inset: -4px; border-radius: 50%; }
+.dial.is-pressed .dial-knob { scale: 0.95; }
+.dial-knob:focus-visible { outline: 2px solid var(--dial-accent); outline-offset: 4px; }
+.dial.is-open .dial-knob { opacity: 0; scale: 0.9; pointer-events: none; }
+
+.dial-knob__bezel {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #14161d;
+  box-shadow: 0 0 0 1px rgba(209, 224, 238, 0.12), 0 8px 22px rgba(0, 0, 0, 0.55);
+}
+/* Seven ticks on the bezel, 45° apart: the rotor's notch points at the
+   chapter the page is in, like a pointer on a volume scale. */
+.dial-knob__bezel i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: 3px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.28);
+  transform-origin: 50% 0;
+  transform: rotate(calc(-135deg + 45deg * var(--k))) translateY(calc(var(--knob) / -2 + 1px));
+  transition: background-color 0.3s ease;
+}
+.dial-knob__bezel i.is-on, .dial-knob__bezel i.is-lit { background: var(--dial-accent); }
+.dial-knob__rotor {
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: repeating-conic-gradient(#3b404c 0 2.5deg, #1a1d25 2.5deg 5deg);
+  -webkit-mask: radial-gradient(circle closest-side, transparent 57%, #000 59%);
+  mask: radial-gradient(circle closest-side, transparent 57%, #000 59%);
+  will-change: transform;
+}
+.dial-knob__notch {
+  position: absolute;
+  left: 50%;
+  top: 1px;
+  width: 2px;
+  height: 7px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--dial-accent);
+  box-shadow: 0 0 6px var(--dial-accent);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+.dial-knob__sheen {
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.18), transparent 40%, rgba(0, 0, 0, 0.32));
+  pointer-events: none;
+}
+.dial-knob__cap {
+  position: absolute;
+  inset: 24%;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 35%, #232733, #14161e 60%, #0d0f15);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.6);
+}
+.dial-knob__odo {
+  display: block;
+  height: 1.1em;
+  overflow: hidden;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: #eef0f6;
+}
+@media (min-width: 721px) { .dial-knob__odo { font-size: 14px; } }
+.dial-knob__odo span {
+  display: block;
+  transform: translateY(calc(var(--k, 0) * -100%));
+  transition: transform 0.3s var(--ease-fluid);
+}
+
+/* ---- the open wheel: its hub sits just past the corner of the screen ---- */
+.dial-scrim {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: var(--scrim-w, 100vw);
+  height: var(--scrim-h, 100vh);
+  background: radial-gradient(circle at var(--scrim-x) var(--scrim-y),
+    rgba(8, 9, 15, 0.9) 0, rgba(8, 9, 15, 0.8) calc(310px * var(--s)), rgba(8, 9, 15, 0) calc(520px * var(--s)));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease-in;
+}
+.dial.is-open .dial-scrim { opacity: 1; transition: opacity 0.22s ease-out; }
+
+.dial-wheel {
+  position: absolute;
+  left: var(--px);
+  top: var(--py);
+  width: calc(364px * var(--s));
+  height: calc(364px * var(--s));
+  margin: calc(-182px * var(--s)) 0 0 calc(-182px * var(--s));
+  border-radius: 50%;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 0.2s ease-in, transform 0.2s ease-in;
+  touch-action: none;
+  cursor: grab;
+}
+.dial.is-open .dial-wheel {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+  transition: opacity 0.24s var(--ease-fluid), transform 0.24s var(--ease-fluid);
+}
+.dial.is-dragging .dial-wheel, .dial.is-dragging .dial-label { cursor: grabbing; }
+.dial-wheel__disc {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, #0d0f16 0 52%, #141720 100%);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.09), 0 30px 80px rgba(0, 0, 0, 0.55);
+}
+.dial-wheel__rotor { position: absolute; inset: 0; border-radius: 50%; }
+.dial.is-open .dial-wheel__rotor { will-change: transform; }
+/* The knurled grip band, under the thumb. */
+.dial-wheel__grip {
+  position: absolute;
+  inset: calc(18px * var(--s));
+  border-radius: 50%;
+  background: repeating-conic-gradient(#2f333e 0 1.25deg, #1b1e26 1.25deg 2.5deg);
+  -webkit-mask: radial-gradient(circle closest-side, transparent 60.5%, #000 61.5%);
+  mask: radial-gradient(circle closest-side, transparent 60.5%, #000 61.5%);
+}
+.dial-wheel__tick {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: calc(10px * var(--s));
+  margin-left: -1px;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.28);
+  transform-origin: 50% 0;
+  transform: rotate(calc(-40deg - 15deg * var(--k))) translateY(calc(-178px * var(--s)));
+  transition: background-color 0.18s ease;
+}
+.dial-wheel__tick.is-on { background: var(--dial-accent); }
+.dial-wheel__hub {
+  position: absolute;
+  inset: calc(86px * var(--s));
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #1a1d26, #0c0e14 70%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.5);
+}
+/* A fixed soft highlight: the light stays while the knurl turns beneath it. */
+.dial-wheel__sheen {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 290deg, transparent 0deg, rgba(255, 255, 255, 0.07) 30deg, transparent 60deg);
+  pointer-events: none;
+}
+.dial-wheel__index {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(8px * var(--s));
+  height: calc(11px * var(--s));
+  margin-left: calc(-4px * var(--s));
+  background: var(--dial-accent);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  transform-origin: 50% 0;
+  transform: rotate(-40deg) translateY(calc(-198px * var(--s)));
+  filter: drop-shadow(0 0 4px var(--dial-accent));
+  transition: background-color 0.3s ease;
+}
+.dial-wheel__index.is-kick { animation: dial-kick 0.12s ease-out; }
+@keyframes dial-kick { 50% { scale: 1.3; } }
+
+/* ---- the chapters printed around the wheel (real links) ---- */
+.dial-list { margin: 0; padding: 0; list-style: none; }
+.dial-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.6em;
+  min-height: 30px;
+  padding: 7px 11px;
+  border: 1px solid rgba(209, 224, 238, 0.07);
+  border-radius: 999px;
+  background: rgba(10, 11, 17, 0.78);
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #edf1f5;
+  text-decoration: none;
+  opacity: 0;
+  pointer-events: none;
+  transition: color 0.2s ease, border-color 0.3s ease;
+  cursor: pointer;
+  touch-action: none;
+}
+.dial-label b { font-weight: 600; letter-spacing: 0.06em; color: rgba(220, 226, 237, 0.55); transition: color 0.3s ease; }
+.dial-label.is-current b { color: var(--dial-accent); }
+.dial-label.is-current { border-color: color-mix(in srgb, var(--dial-accent) 40%, transparent); }
+.dial.is-open .dial-label.is-reachable { pointer-events: auto; }
+.dial:not(.is-open) .dial-label { opacity: 0 !important; pointer-events: none !important; transition: opacity 0.12s ease; }
+.dial.is-blooming .dial-label { transition: opacity 0.2s ease, color 0.2s ease; }
+@media (hover: hover) { .dial-label:hover { color: var(--dial-accent); } }
+.dial-label:focus-visible { outline: 2px solid var(--dial-accent); outline-offset: 2px; }
+
+/* The selected chapter's role, on the index's line, beyond the labels. */
+.dial-readout {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  margin: 0;
+  max-width: 200px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: rgba(220, 226, 237, 0.72);
+  text-align: right;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+}
+.dial-readout span { grid-area: 1 / 1; white-space: nowrap; opacity: 0; transition: opacity 0.16s ease; }
+.dial-readout span.is-on { opacity: 1; }
+.dial:not(.is-open) .dial-readout { opacity: 0; }
+
+/* ---- the black between long jumps ---- */
+.dial-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 66;
+  background: #000;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.dial-veil.is-on { visibility: visible; }
+
+/* ---- the preview card (desktop, while the page waits on the dial) ---- */
+.dial-preview {
+  position: absolute;
+  right: calc(28px + 330px * var(--s));
+  bottom: 28px;
+  width: 232px;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid rgba(209, 224, 238, 0.12);
+  border-radius: 12px;
+  background: #0d0f16;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transform: translateX(8px);
+  transition: opacity 0.2s ease, transform 0.2s var(--ease-fluid);
+  pointer-events: none;
+}
+.dial-preview.is-on { opacity: 1; transform: none; }
+.dial-preview img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; background: #05060a; }
+.dial-preview figcaption { padding: 9px 12px 11px; font-family: 'Space Grotesk', 'Inter', sans-serif; font-size: 0.8rem; font-weight: 600; color: #edf1f5; }
+.dial-preview b { margin-right: 8px; color: var(--dial-accent); }
+.dial-preview span { display: block; margin-top: 3px; font-family: 'Inter', sans-serif; font-size: 0.72rem; font-weight: 500; color: rgba(220, 226, 237, 0.62); }
+
+/* ---- the one-time hint ---- */
+.dial-coach {
+  position: absolute;
+  right: calc(var(--kr) + var(--knob) + 12px);
+  bottom: calc(var(--kb) + var(--knob) / 2 - 14px);
+  margin: 0;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(8, 9, 15, 0.8);
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: 0.62rem;
+  font-weight: 600;
+  line-height: 14px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: rgba(220, 226, 237, 0.75);
+  opacity: 0;
+  translate: 6px 0;
+  transition: opacity 0.3s ease, translate 0.4s var(--ease-fluid);
+}
+.dial-coach.is-on { opacity: 1; translate: 0 0; }
+
+/* ---- living with the rest of the page ---- */
+html.is-player-open .dial,
+html.is-player-open .site-mark { opacity: 0 !important; visibility: hidden !important; }
+@media (min-width: 721px) {
+  /* The BMW viewport's corner bracket clears the knob. */
+  .scene-story--bmw { --hud-bottom: max(9vh, 100px); }
+}
+@media (max-width: 720px), (max-height: 600px) {
+  :root { --dial-lane: 96px; --dial-floor: 112px; }
+  /* At the lab's gate the knob rises clear of the centred hint. */
+  html.is-lab-gated .dial-knob { translate: 0 -56px; transition: opacity 0.14s ease, scale 0.09s ease, translate 0.4s var(--ease-fluid); }
+  .has-story .console-beats { padding: 0 var(--dial-lane) 0 20px; }
+  .face-portrait__hint { right: var(--dial-lane); }
+  .has-story .story--contact .story-stage { padding-bottom: var(--dial-floor); }
+  /* No top bar any more: chapters land flush, their own padding clears the mark. */
+  #work, #education, #contact { scroll-margin-top: 0; }
+}
+@media (max-width: 720px) {
+  .callout--perf { padding-right: var(--dial-lane); }
+}
+
+/* ---- without scripts: the chapter links as a plain row ---- */
+.dial:not(.is-ready) { opacity: 1; visibility: visible; }
+.dial:not(.is-ready) > :not(.dial-list) { display: none; }
+.dial:not(.is-ready) .dial-list {
+  position: fixed;
+  top: max(14px, calc(env(safe-area-inset-top, 0px) + 10px));
+  right: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 2px;
+  max-width: calc(100% - 120px);
+  pointer-events: auto;
+}
+.dial:not(.is-ready) .dial-label { position: static; opacity: 1 !important; pointer-events: auto !important; letter-spacing: 0.08em; }
+.dial:not(.is-ready) .dial-label b { display: none; }
+
+/* ---- preferences ---- */
+.dial.is-still *, .dial.is-still { transition-duration: 0.12s !important; }
+@media (prefers-reduced-motion: reduce) {
+  .dial-knob__odo span, .dial-wheel, .dial-scrim, .dial-label, .dial-knob, .dial-preview, .dial-coach { transition-duration: 0.12s !important; }
+  .dial-wheel { transform: none !important; }
+  .dial-wheel__index.is-kick { animation: none; }
+}
+@media (prefers-contrast: more) {
+  .dial-label { text-shadow: none; }
+  .dial-label b { color: rgba(240, 244, 250, 0.9); }
+  .dial-knob__bezel i { background: rgba(255, 255, 255, 0.5); }
+}
+@media (forced-colors: active) {
+  .dial-knob { border: 1px solid ButtonText; }
+  .dial-label { color: LinkText; }
+  .dial-label.is-current { text-decoration: underline; }
+}
+@media print {
+  .dial, .site-mark, .dial-veil { display: none !important; }
+}

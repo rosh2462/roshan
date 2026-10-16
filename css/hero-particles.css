@@ -71,8 +71,8 @@
    Select the custom families only once their actual faces have loaded. */
 html:not(.identity-fonts-ready) #hero,
 html:not(.identity-fonts-ready) #hero .stage-text,
-html:not(.identity-fonts-ready) .nav,
-html:not(.identity-fonts-ready) .nav-logo { font-family: system-ui, -apple-system, sans-serif; }
+html:not(.identity-fonts-ready) .site-mark,
+html:not(.identity-fonts-ready) .dial { font-family: system-ui, -apple-system, sans-serif; }
 @media (max-width: 480px) {
   #hero .hero-title { font-size: clamp(2.6rem, 12.5vw, 3.2rem); }
   #hero .hero-role { font-size: clamp(.96rem, 4.15vw, 1.16rem); margin-bottom: 18px; }

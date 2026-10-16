@@ -31,11 +31,12 @@
   }
 </script>
 <link id="portfolioFonts" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="css/style.css?v=133" />
+<link rel="stylesheet" href="css/style.css?v=135" />
 <link rel="stylesheet" href="css/portrait-mask.css?v=7" />
 <link rel="stylesheet" href="css/bmw-bridge.css?v=5" />
-<link rel="stylesheet" href="css/hero-particles.css?v=14" />
-<link rel="stylesheet" href="css/works.css?v=1" />
+<link rel="stylesheet" href="css/hero-particles.css?v=15" />
+<link rel="stylesheet" href="css/works.css?v=2" />
+<link rel="stylesheet" href="css/dial.css?v=2" />
 <style>#hero .stage-text { opacity: 1; }</style>
 </head>
 <body>
@@ -54,21 +55,43 @@
 
   <div class="progress-rail" aria-hidden="true"><div class="progress-fill" id="pageProgress"></div></div>
 
-  <header class="nav-wrap" id="navWrap">
-    <nav class="nav" aria-label="Main navigation">
-      <a href="#top" class="nav-logo" aria-label="Roshan M — home">RM<span>.</span></a>
-      <button class="nav-toggle" id="navToggle" type="button" aria-label="Open navigation" aria-controls="navLinks" aria-expanded="false">
-        <span></span><span></span>
-      </button>
-      <ul class="nav-links" id="navLinks">
-        <li><a href="#journey" data-nav>Journey</a></li>
-        <li><a href="#beyond" data-nav>Beyond</a></li>
-        <li><a href="#work" data-nav>Work</a></li>
-        <li><a href="#education" data-nav>Education</a></li>
-        <li><a href="#contact" data-nav class="nav-cta">Contact<span class="nav-cta-arrow" aria-hidden="true">→</span></a></li>
-      </ul>
-    </nav>
-  </header>
+  <!-- Navigation is a chapter dial (js/dial.js, css/dial.css): a machined
+       knob in the bottom-right corner that turns with the page. Touch or hover
+       opens it into a large corner wheel; turning it travels through the
+       chapters, which click into place like detents. The links below are the
+       real navigation for keyboards, screen readers and no-script visits. -->
+  <a class="site-mark" href="#top" aria-label="Roshan M, home">RM<span>.</span></a>
+  <nav class="dial" id="siteDial" aria-label="Chapters">
+    <button class="dial-knob" type="button" aria-expanded="false" aria-controls="dialList">
+      <span class="dial-knob__bezel" aria-hidden="true"><i style="--k:0"></i><i style="--k:1"></i><i style="--k:2"></i><i style="--k:3"></i><i style="--k:4"></i><i style="--k:5"></i><i style="--k:6"></i></span>
+      <span class="dial-knob__rotor" aria-hidden="true"><i class="dial-knob__notch"></i></span>
+      <span class="dial-knob__sheen" aria-hidden="true"></span>
+      <span class="dial-knob__cap" aria-hidden="true"><span class="dial-knob__odo"><span>00</span><span>01</span><span>02</span><span>03</span><span>04</span><span>05</span><span>06</span></span></span>
+      <span class="visually-hidden">Chapters, now at <span id="dialNow">00 Intro</span></span>
+    </button>
+    <div class="dial-scrim" aria-hidden="true" hidden></div>
+    <div class="dial-wheel" aria-hidden="true" hidden>
+      <span class="dial-wheel__disc"></span>
+      <span class="dial-wheel__rotor"><span class="dial-wheel__grip"></span><i class="dial-wheel__tick" style="--k:0"></i><i class="dial-wheel__tick" style="--k:1"></i><i class="dial-wheel__tick" style="--k:2"></i><i class="dial-wheel__tick" style="--k:3"></i><i class="dial-wheel__tick" style="--k:4"></i><i class="dial-wheel__tick" style="--k:5"></i><i class="dial-wheel__tick" style="--k:6"></i></span>
+      <span class="dial-wheel__sheen"></span>
+      <span class="dial-wheel__hub"></span>
+      <span class="dial-wheel__index"></span>
+    </div>
+    <ol class="dial-list" id="dialList">
+      <li><a class="dial-label" href="#top" data-k="0"><b>00</b><span>Intro</span></a></li>
+      <li><a class="dial-label" href="#journey" data-k="1"><b>01</b><span>BMW</span></a></li>
+      <li><a class="dial-label" href="#bosch" data-k="2"><b>02</b><span>Bosch</span></a></li>
+      <li><a class="dial-label" href="#beyond" data-k="3"><b>03</b><span>Beyond</span></a></li>
+      <li><a class="dial-label" href="#work" data-k="4"><b>04</b><span>Creative works</span></a></li>
+      <li><a class="dial-label" href="#education" data-k="5"><b>05</b><span>Education</span></a></li>
+      <li><a class="dial-label" href="#contact" data-k="6"><b>06</b><span>Contact</span></a></li>
+    </ol>
+    <p class="dial-readout" aria-hidden="true" hidden><span data-k="0">Roshan M</span><span data-k="1">VR Developer</span><span data-k="2">UI/UX Developer</span><span data-k="3">The person &amp; the lab</span><span data-k="4">Things I've built</span><span data-k="5">The foundation</span><span data-k="6">Let's build together</span></p>
+    <figure class="dial-preview" aria-hidden="true" hidden><img alt="" decoding="async" /><figcaption><b></b><strong></strong><span></span></figcaption></figure>
+    <p class="dial-coach" aria-hidden="true" hidden>Turn to travel</p>
+    <p class="visually-hidden" id="dialLive" aria-live="polite"></p>
+  </nav>
+  <div class="dial-veil" aria-hidden="true"></div>
 
   <main id="top">
 
@@ -262,6 +285,7 @@
          car: the frontend-backend pipeline, made visible. Driven by
          js/chapters.js (BMW_SCENE.outro, BOSCH_SCENE). -->
     <section class="chapter-container chapter-container--continues" id="chapter-bosch">
+      <span class="scene-anchor" id="bosch" style="--at: calc(var(--stage-h) * 1.4)"></span>
       <div class="chapter-zoom-bg">
         <div class="zoom-bg-image">
           <!-- The cockpit frames are served as 2× Lanczos upscales of the
@@ -882,17 +906,18 @@
   <script src="js/hero-intro.js?v=37" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" defer></script>
-  <script src="js/chapters.js?v=78" defer></script>
-  <script src="js/story.js?v=52" defer></script>
-  <script src="js/works.js?v=1" defer></script>
-  <script src="js/face/boot.js?v=35" defer></script>
+  <script src="js/chapters.js?v=79" defer></script>
+  <script src="js/story.js?v=53" defer></script>
+  <script src="js/works.js?v=3" defer></script>
+  <script src="js/dial.js?v=1" defer></script>
+  <script src="js/face/boot.js?v=36" defer></script>
   <script src="js/bmw/boot.js?v=9" defer></script>
   <script src="js/bmw-smoke.js?v=53" defer></script>
-  <script src="js/main.js?v=12" defer></script>
+  <script src="js/main.js?v=13" defer></script>
 
   <!-- The HiWi lab (chapter 03, scene B) is real-time 3D. boot.js is tiny; it
        loads js/lab/lab.bundle.js (the lab + three.js, one classic script)
        only once the visitor nears that chapter. -->
-  <script src="js/lab/boot.js?v=38" defer></script>
+  <script src="js/lab/boot.js?v=39" defer></script>
 </body>
 </html>

@@ -193,6 +193,7 @@
 
   function lockPage(on) {
     root.classList.toggle('is-player-open', on);
+    window.dispatchEvent(new CustomEvent('worksplayer', { detail: { open: on } }));
   }
   player.tabIndex = -1;
   // Whether the visitor is using the keyboard, for where focus goes on open.
@@ -521,12 +522,12 @@
     if (root.classList.contains('has-story') && !compact.matches && stage) {
       return top + LANDING * Math.max(0, section.offsetHeight - stage.clientHeight);
     }
-    // In page flow: the chapter's heading just under the nav, the cards below.
-    const heading = section.querySelector('.slate') || shelf;
-    return window.scrollY + heading.getBoundingClientRect().top - 96;
+    // In page flow: the chapter's top edge, flush; its padding clears the mark.
+    return top;
   }
   function settleScroll() {
     if (typeof ScrollTrigger === 'undefined') return;
+    if (window.SceneKit?.settle) { window.SceneKit.settle(); return; }
     ScrollTrigger.update();
     // Finish every scrubbed scene at once, rather than easing through the
     // chapters in between underneath the player.
@@ -603,6 +604,8 @@
   const holdAt = (y) => window.scrollTo({ top: y, behavior: 'instant' });
 
   function onWheel(event) {
+    // The chapter dial (js/dial.js) turns itself; that is navigation, not scrolling.
+    if (event.defaultPrevented) return;
     if (event.ctrlKey || !gateActive()) return;
     const dy = event.deltaY * (event.deltaMode === 1 ? 32 : event.deltaMode === 2 ? innerHeight : 1);
     const gate = gateY();
@@ -612,8 +615,11 @@
     nudge();
   }
   let touchY = null;
-  function onTouchStart(event) { touchY = event.touches[0]?.clientY ?? null; }
+  function onTouchStart(event) {
+    touchY = event.target?.closest?.('.dial') ? null : event.touches[0]?.clientY ?? null;
+  }
   function onTouchMove(event) {
+    if (event.target?.closest?.('.dial')) return;
     if (touchY === null || !gateActive()) return;
     const y = event.touches[0]?.clientY ?? touchY;
     if (touchY - y > 0 && window.scrollY >= gateY() - 2) {
@@ -688,7 +694,11 @@
     return open(0, { rect, radius: 6, fromLab: true });
   }
 
-  window.WorksPlayer = { open: (i = 0) => open(i), openFromLab, close, go: (i) => go(i), get state() { return state; } };
+  window.WorksPlayer = {
+    open: (i = 0) => open(i), openFromLab, close, go: (i) => go(i), get state() { return state; },
+    // For the chapter dial: navigation past the lab opens the gate.
+    unlock, gateY, isGated: () => gateActive(),
+  };
 
   /* ---- each poster's scene, looping while it is on screen ----------------- */
   const seeded = (seed) => () => {

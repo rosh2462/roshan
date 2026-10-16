@@ -48,6 +48,8 @@
     };
     const tl = gsap.timeline(shared ? { paused: true } : { scrollTrigger: scrollConfig });
     const range = shared ? ScrollTrigger.create(scrollConfig) : tl.scrollTrigger;
+    // The chapter dial (js/dial.js) lands each chapter at a point of its range.
+    if (!shared) section._sceneRange = range;
 
     // All beat positions use the same 0..1 interval, including the final hold.
     tl.to({}, { duration: 1 }, 0);
@@ -84,6 +86,7 @@
     // Keep refresh listeners from accumulating when responsive layouts change.
     return () => {
       stopShared?.();
+      if (section._sceneRange === range) section._sceneRange = null;
       ScrollTrigger.removeEventListener('refreshInit', measure);
       ScrollTrigger.removeEventListener('refresh', render);
       trackTransitions(scene, { isActive: false, progress: 0 });
@@ -377,11 +380,11 @@
     const stage = section?.querySelector('.story-stage');
     const lab = section?.querySelector('.lab-scene');
     const captions = section?.querySelector('.console-beats');
-    const nav = document.querySelector('.nav');
+    const nav = document.querySelector('.site-mark');
     if (!stage || !lab || !captions || !next) return;
     const exitEnd = () => Math.max(
       stage.clientHeight * 0.3,
-      stage.clientHeight - captions.offsetTop + (nav?.getBoundingClientRect().bottom ?? 90) + 24,
+      stage.clientHeight - captions.offsetTop + (nav?.getBoundingClientRect().bottom ?? 58) + 24,
     );
     // Once the lab unpins, its final caption travels toward the fixed nav.
     // Clear the lab before that caption reaches the nav, while the next

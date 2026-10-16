@@ -64,6 +64,7 @@
         window.HiWiLab = await window.HiWiLabBundle.startLab({ canvas, stage, state, pause });
         // Hold the background queue until its shaders are prepared.
         await window.HiWiLab.warm;
+        state.warmed = true;
       } catch (err) {
         fail(err);
       }

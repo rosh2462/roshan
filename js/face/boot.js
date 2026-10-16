@@ -56,7 +56,7 @@
       started = true;
       drain();
     }
-    return { quiet, run, prepare, start, idleFor: () => performance.now() - lastInput };
+    return { quiet, run, prepare, start, note, idleFor: () => performance.now() - lastInput };
   })();
   const beginPreparation = () => {
     // The timed opening owns the first seconds; preparation follows it.

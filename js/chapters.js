@@ -1038,7 +1038,17 @@
 
   // Shared with js/story.js, so chapters 03–06 open with the same slate and
   // dock, and sit the cursor glow out of their transitions the same way.
-  window.SceneKit = { slateBeats, trackTransitions, driveSharedScene, scrollPosition: () => sharedScroll.y };
+  // settle() finishes every scrubbed scene at the current scroll position at
+  // once, instead of easing through the chapters in between (used after an
+  // instant jump: the works player landing, the chapter dial's cuts).
+  const settle = () => {
+    ScrollTrigger.update();
+    ScrollTrigger.getAll().forEach((trigger) => {
+      const scrub = trigger.getTween?.();
+      if (scrub && typeof scrub.progress === 'function') scrub.progress(1);
+    });
+  };
+  window.SceneKit = { slateBeats, trackTransitions, driveSharedScene, settle, scrollPosition: () => sharedScroll.y };
 
   /* ---------- The hero lifting away ----------
    * The hero is a curtain over the BMW scene, which starts a screen early,
