@@ -205,8 +205,9 @@
 
 /* ---- tucked: content is passing under the knob, so it steps into the
    corner's margin as a small lit jewel, and comes back when it is clear ---- */
-.dial.is-tucked:not(.is-open) .dial-knob:not(:focus-visible) { translate: var(--tuck-x) var(--tuck-y); scale: 0.46; }
-.dial.is-tucked:not(.is-open) .dial-knob::before { inset: -26px; }
+.dial.is-tucked:not(.is-open) .dial-knob:not(:focus-visible) { translate: var(--tuck-x) var(--tuck-y); scale: 0.5; }
+/* Small to look at, never small to touch: ~50px of target round the jewel. */
+.dial.is-tucked:not(.is-open) .dial-knob::before { inset: -22px; }
 .dial.is-tucked .dial-knob:not(:focus-visible) .dial-knob__odo { opacity: 0; }
 .dial.is-tucked .dial-knob:not(:focus-visible) .dial-knob__cap::after { opacity: 1; scale: 1; }
 .dial.is-tucked .dial-knob__glint { opacity: 0; }
@@ -398,6 +399,17 @@
   touch-action: none;
 }
 .dial-label b { font-weight: 600; letter-spacing: 0.06em; color: rgba(220, 226, 237, 0.55); transition: color 0.3s ease; }
+/* Far from the index a chip is just its number; the name stays for screen readers. */
+.dial-label.is-far { padding: 7px 9px; }
+.dial-label.is-far span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.dial-label.is-far:focus-visible span { position: static; width: auto; height: auto; clip-path: none; }
 .dial-label.is-current b { color: var(--dial-accent); }
 .dial-label.is-current { border-color: color-mix(in srgb, var(--dial-accent) 40%, transparent); }
 .dial.is-open .dial-label.is-reachable { pointer-events: auto; }
@@ -459,7 +471,7 @@
   -webkit-tap-highlight-color: transparent;
   transition: scale 0.42s var(--ease-fluid);
 }
-.dial.is-tucked:not(.is-open) .dial-tap { translate: var(--tuck-x) var(--tuck-y); scale: 0.46; clip-path: circle(100%); }
+.dial.is-tucked:not(.is-open) .dial-tap { translate: var(--tuck-x) var(--tuck-y); scale: 0.9; }
 .dial.is-open .dial-tap {
   right: auto;
   bottom: auto;
@@ -578,6 +590,11 @@ html.is-player-open .site-mark { opacity: 0 !important; visibility: hidden !impo
 }
 @media (max-width: 720px), (max-height: 600px) {
   :root { --dial-lane: 96px; --dial-floor: 112px; }
+  /* A small screen has the page right behind the chips: darker there. */
+  .dial-scrim {
+    background: radial-gradient(circle at var(--scrim-x) var(--scrim-y),
+      rgba(8, 9, 15, 0.94) 0, rgba(8, 9, 15, 0.88) calc(320px * var(--s)), rgba(8, 9, 15, 0) calc(540px * var(--s)));
+  }
   .has-story .console-beats { padding: 0 var(--dial-lane) 0 20px; }
   .face-portrait__hint { right: var(--dial-lane); }
   .has-story .story--contact .story-stage { padding-bottom: var(--dial-floor); }

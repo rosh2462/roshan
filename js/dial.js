@@ -85,7 +85,7 @@
   const FOLLOW_WN = 16, GLIDE_WN = 6.5, VMAX_STAGE = 4.5, GLIDE_MAX_DETENTS = 1.5;
   const FLY_ON = 18.75, FLY_OFF = 11.25, DWELL_MS = 350, DWELL_SPEED = 20;
   const VEIL_IN = 200, VEIL_OUT = 420, VEIL_CAP = 900, CALM_FRAME = 34, VEIL_HOLD = 220, VEIL_HOLD_LIVE = 110;
-  const DWELL_DIRECT_MS = 240, TUCK_EVERY = 110, UNTUCK_AFTER = 380;
+  const DWELL_DIRECT_MS = 240, SETTLE_MS = 420;
   const HOVER_INTENT = 120, LEAVE_COLLAPSE = 600, TOUCH_IDLE = 2200, SCROLL_COLLAPSE = 600, ARRIVE_COLLAPSE = 700;
 
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -164,7 +164,7 @@
   }
 
   /* ---- geometry: one read per open / pointer-down / refresh ---- */
-  let s = 1;
+  let s = 1, sl = 1;
   const K = { x: 0, y: 0 };
   const P = { x: 0, y: 0 };
   function scale() {
@@ -174,9 +174,13 @@
   }
   function measure() {
     s = scale();
-    const r = knob.getBoundingClientRect();
-    K.x = r.left + r.width / 2;
-    K.y = r.top + r.height / 2;
+    // The wheel shrinks on small screens, the chips around it don't: their
+    // ring keeps its full radius so neighbours never touch.
+    sl = Math.max(s, 1);
+    // The knob's resting place, not where a tuck or a press has moved it to
+    // (the dial is fixed to the viewport, so its offsets are screen positions).
+    K.x = knob.offsetLeft + knob.offsetWidth / 2;
+    K.y = knob.offsetTop + knob.offsetHeight / 2;
     // Under a thumb the hub sits past the corner, so the thumb is on the grip
     // band; with a mouse it comes on screen, and the wheel shows more of itself.
     const reach = finePointer.matches && innerWidth > 720 ? MOUSE_PIVOT : R.grip;
@@ -192,13 +196,13 @@
     dial.style.setProperty('--scrim-x', `${(P.x - (innerWidth - box)).toFixed(1)}px`);
     dial.style.setProperty('--scrim-y', `${(P.y - (innerHeight - boxH)).toFixed(1)}px`);
     const a = rad(IDX);
-    if (readout) readout.style.transform = `translate3d(${(P.x - R.readout * s * Math.cos(a)).toFixed(1)}px, ${(P.y - R.readout * s * Math.sin(a)).toFixed(1)}px, 0) translate(-100%, -100%)`;
+    if (readout) readout.style.transform = `translate3d(${(P.x - R.readout * sl * Math.cos(a)).toFixed(1)}px, ${(P.y - R.readout * sl * Math.sin(a)).toFixed(1)}px, 0) translate(-100%, -100%)`;
     dial.style.setProperty('--pad-r', `${(R.pad * s).toFixed(1)}px`);
     // The sound switch sits on the wheel's outer ring, clear of the chapters.
     if (soundButton) {
       const b = rad(IDX + 31);
-      const bx = clamp(P.x - (R.readout - 6) * s * Math.cos(b), 26, innerWidth - 26);
-      const by = clamp(P.y - (R.readout - 6) * s * Math.sin(b), 26, innerHeight - 26);
+      const bx = clamp(P.x - (R.readout - 6) * sl * Math.cos(b), 26, innerWidth - 26);
+      const by = clamp(P.y - (R.readout - 6) * sl * Math.sin(b), 26, innerHeight - 26);
       soundButton.style.transform = `translate3d(${bx.toFixed(1)}px, ${by.toFixed(1)}px, 0) translate(-50%, -50%)`;
     }
     field.size(box, boxH, P.x - (innerWidth - box), P.y - (innerHeight - boxH));
@@ -220,7 +224,7 @@
   let yw = window.scrollY, vy = 0, yGoal = 0, goalK = 0, goalSource = 'pointer', lastWritten = -1;
   let flying = false, dwellSince = 0, arriveAt = 0, unlockedGate = false;
   let gesture = null;
-  let suppressClick = false;
+  let suppressClick = false, touchOpenedAt = -1e9;
   let previewing = false;
   let wheelPending = null, wheelTimer = 0, wheelAcc = 0, wheelLastStep = 0, wheelLastEvent = 0;
   let hoverTimer = 0, leaveTimer = 0, idleTimer = 0, arriveTimer = 0, scrollTimer = 0;
@@ -363,11 +367,15 @@
   })();
 
   /* ---- making room: the knob tucks into the corner over content ----
-   * When text, a link, a card or a picture passes under the knob, it
-   * shrinks into the corner's margin (the chapter's light still showing)
-   * and comes back once the way has been clear for a moment. */
+   * When the page comes to rest with text, a link, a card or a picture under
+   * the knob, it steps into the corner's margin as a small lit jewel (the
+   * chapter's light still showing), and comes back when the page rests
+   * somewhere clear. It never changes size mid-scroll: reading happens at
+   * rest, and a control that shrinks and grows as you scroll only pulls the
+   * eye. On a first visit it stays a jewel until the story has been seen
+   * (quiet), so the scenes play without a control in the corner. */
   const tuck = (() => {
-    let items = null, lastCheck = 0, timer = 0, trail = 0, clearSince = 0, on = false, held = false, pending = 0;
+    let items = null, timer = 0, on = false, held = false, quiet = false, covering = false, movedAt = 0, second = 0;
     const range = document.createRange();
     const SKIP = '.dial, .site-mark, .dial-veil, .player, .visually-hidden, script, style, noscript, template';
     function collect() {
@@ -410,38 +418,37 @@
       }
       return false;
     }
-    function set(value) {
+    function apply() {
+      const value = !held && (quiet || covering);
       if (value === on) return;
       on = value;
       dial.classList.toggle('is-tucked', value);
       if (value) hideCoach();
     }
     function run() {
-      pending = 0;
-      clearTimeout(timer);
+      timer = 0;
       if (!shown || open || gesture || held || travelling()) return;
-      const now = performance.now();
-      lastCheck = now;
+      const still = performance.now() - movedAt;
+      if (still < SETTLE_MS) { timer = setTimeout(run, SETTLE_MS - still + 20); return; }
       // (At the lab's gate this is what keeps the knob clear of its pill.)
-      const hit = !root.classList.contains('is-player-open') && covered();
-      if (hit) { clearSince = 0; set(true); return; }
-      if (!on) return;
-      if (!clearSince) clearSince = now;
-      if (now - clearSince >= UNTUCK_AFTER) set(false);
-      else timer = setTimeout(run, UNTUCK_AFTER - (now - clearSince) + 20);
+      covering = !root.classList.contains('is-player-open') && covered();
+      apply();
+      // Scrubbed scenes can drift a little longer: one more look.
+      clearTimeout(second);
+      second = setTimeout(() => {
+        if (!shown || open || gesture || held || travelling() || performance.now() - movedAt < SETTLE_MS) return;
+        covering = !root.classList.contains('is-player-open') && covered();
+        apply();
+      }, 900);
     }
     return {
-      // Throttled, and read after the frame has painted, when layout is clean.
-      check(soon = false) {
-        if (pending) return;
-        const wait = soon ? 0 : Math.max(0, TUCK_EVERY - (performance.now() - lastCheck));
-        pending = setTimeout(run, wait);
-        // And once more after the scroll and its scrubbed scenes have settled.
-        clearTimeout(trail);
-        trail = setTimeout(run, 650);
-      },
-      hold() { held = true; clearSince = 0; clearTimeout(timer); set(false); },
-      release() { held = false; clearSince = 0; this.check(); },
+      // The page moved: decide once it has come to rest.
+      moved() { movedAt = performance.now(); if (!timer) timer = setTimeout(run, SETTLE_MS); },
+      check() { if (!timer) timer = setTimeout(run, 0); },
+      // While the dial is in hand it is always full size.
+      hold() { held = true; covering = false; apply(); },
+      release() { held = false; apply(); this.moved(); },
+      setQuiet(value) { quiet = value; apply(); },
       reset() { items = null; },
       get on() { return on; },
     };
@@ -473,7 +480,7 @@
   }
 
   /* ---- writing the dial: transforms and opacity only ---- */
-  function setCurrent(k, fromDial) {
+  function setCurrent(k) {
     if (k === current) return;
     current = k;
     dial.style.setProperty('--dial-accent', ACCENT[k]);
@@ -485,7 +492,6 @@
       else link.removeAttribute('aria-current');
     });
     if (nowText) nowText.textContent = `0${k} ${NAMES[k]}`;
-    if (!fromDial) maybeCoach(k);
     // The knob's halo catches the new chapter's light.
     if (halo?.animate && shown && !reduce.matches) halo.animate([{ opacity: 1, scale: 1.18 }, { opacity: 0.55, scale: 1 }], { duration: 900, easing: 'cubic-bezier(.2,.7,.3,1)' });
   }
@@ -517,20 +523,32 @@
     labels.forEach((link, k) => {
       const alpha = IDX + theta - STEP * k;
       const off = Math.abs(alpha - IDX);
-      const opacity = off <= 4 ? 1 : Math.max(0, 1 - (off - 4) / 38);
+      let opacity = off <= 4 ? 1 : Math.max(0, 1 - (off - 4) / 38);
+      // Further out than a chapter and a half, a chip shows only its number,
+      // like the figures on a watch's scale; its name grows in near the index.
+      const far = opacity > 0.001 && off > (link._far ? 19 : 21);
+      if (far !== !!link._far) { link._far = far; link.classList.toggle('is-far', far); link._w = 0; }
       if (opacity <= 0.001) {
         if (link._o !== 0) { link._o = 0; link.style.opacity = '0'; link.style.visibility = 'hidden'; }
         if (link._reach) { link._reach = false; link.classList.remove('is-reachable'); }
         return;
       }
       const a = rad(alpha);
-      let x = P.x - R.label * s * Math.cos(a);
-      let y = P.y - R.label * s * Math.sin(a);
+      let x = P.x - R.label * sl * Math.cos(a);
+      let y = P.y - R.label * sl * Math.sin(a);
       if (settled) { x = Math.round(x); y = Math.round(y); }
       const tx = -50 - 50 * Math.cos(a);
       const ty = -50 - 50 * Math.sin(a);
       // The chapter at the index grows a little as it arrives.
       const grow = 1 + 0.1 * Math.max(0, 1 - off / 10);
+      // A chip the screen's edge would cut fades away instead.
+      if (off > 6) {
+        if (!link._w) { link._w = link.offsetWidth; link._h = link.offsetHeight; }
+        const cx = x + (tx / 100 + 0.5) * link._w, cy = y + (ty / 100 + 0.5) * link._h;
+        const hw = link._w * grow / 2, hh = link._h * grow / 2;
+        const margin = Math.min(cx - hw, cy - hh, innerWidth - cx - hw, innerHeight - cy - hh);
+        opacity *= clamp((margin - 2) / 14, 0, 1);
+      }
       link.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate(${tx.toFixed(1)}%, ${ty.toFixed(1)}%) scale(${grow.toFixed(3)})`;
       if (link._o === 0) link.style.visibility = '';
       link._o = opacity;
@@ -547,7 +565,7 @@
     // scrolled page stays silent.
     const turning = open && owner === 'dial' && (motion === 'drag' || motion === 'coast' || motion === 'seat');
     if (turning) ratchet(angle); else fineAt = NaN;
-    if (owner === 'dial') { setCurrent(k, true); setDetent(k, !turning); }
+    if (owner === 'dial') { setCurrent(k); setDetent(k, !turning); }
     if (open) writeWheel();
   }
 
@@ -568,10 +586,11 @@
     if (owner !== 'page') return;
     if (motion === 'idle') theta = thetaPage;
     const k = chapterFor(thetaPage);
-    setCurrent(k, false);
+    setCurrent(k);
     if (open && motion === 'idle') setDetent(clamp(Math.round(thetaPage / STEP), 0, LAST), true);
     render();
-    tuck.check();
+    tuck.moved();
+    if (firstVisit && thetaPage >= MAX - 0.5) finishStory();
   }
 
   /* ---- what the visitor has already watched ----
@@ -750,7 +769,7 @@
     }
     if (page === 'arrive') {
       const caught = Math.abs(pageY() - yGoal) < 1 || now - arriveAt > 1200;
-      if (caught && motion === 'idle') { page = 'none'; owner = 'page'; syncFromPage(pageY()); tuck.check(true); }
+      if (caught && motion === 'idle') { page = 'none'; owner = 'page'; syncFromPage(pageY()); tuck.check(); }
     }
   }
 
@@ -845,7 +864,6 @@
     page = 'arrive';
     arriveAt = performance.now();
     wake();
-    try { history.replaceState(null, '', goalK === 0 ? location.pathname + location.search : `#${HASHES[goalK]}`); } catch (error) { /* file:// may refuse */ }
     if (goalSource === 'keyboard') {
       const heading = document.querySelector(HEADINGS[goalK]);
       heading?.focus({ preventScroll: true });
@@ -913,6 +931,9 @@
     document.addEventListener('pointerdown', outside, { capture: true, passive: true });
     if (reason === 'tap') touchIdle();
     hideCoach();
+    // Found and opened by the visitor: it stays awake from now on. (A touch
+    // counts once it proves to be a tap or a turn, not the start of a scroll.)
+    if (reason !== 'api' && reason !== 'tap') markUsed();
   }
   function collapse(force = false) {
     if (!open) return;
@@ -1037,12 +1058,16 @@
     if (onKnob && !open) {
       dial.classList.add('is-pressed');
       if (gesture.type !== 'mouse') {
+        // A finger on the knob opens it at once. Waiting for the click lost
+        // the first touch whenever it only stopped a fling or the bounce at
+        // the end of the page, which swallow the click.
+        gesture.bloomed = true;
+        touchOpenedAt = performance.now();
+        bloom('tap');
+        feel?.grab(gesture.type);
+        // Held a moment, it is grabbed: from then on even a vertical drag turns it.
         gesture.hold = setTimeout(() => {
-          if (!gesture || gesture.engaged) return;
-          gesture.grabbed = true;
-          suppressClick = true;
-          bloom('hold');
-          feel?.grab(gesture.type);
+          if (gesture && !gesture.engaged) gesture.grabbed = true;
         }, HOLD_MS);
       }
     }
@@ -1088,12 +1113,15 @@
     for (const p of points) {
       if (!g.engaged) {
         const dx = p.clientX - g.x0, dy = p.clientY - g.y0;
-        const slop = g.type === 'mouse' ? SLOP_MOUSE : (open || g.grabbed ? SLOP_OPEN : SLOP_TOUCH);
+        const fromKnob = !open || g.bloomed;
+        const slop = g.type === 'mouse' ? SLOP_MOUSE : (!fromKnob || g.grabbed ? SLOP_OPEN : SLOP_TOUCH);
         if (Math.hypot(dx, dy) < slop) continue;
-        // A vertical swipe that starts on the closed knob is a page scroll
-        // (except on the iPhone switch, which keeps the touch for itself).
-        if (!open && !g.grabbed && !g.viaSwitch && g.type !== 'mouse' && Math.abs(dy) > Math.abs(dx)) {
+        // A vertical swipe that starts on the knob is a page scroll: the wheel
+        // it popped open folds away again (except on the iPhone switch, which
+        // keeps the touch for itself, so there the swipe turns the dial).
+        if (fromKnob && !g.grabbed && !g.viaSwitch && g.type !== 'mouse' && Math.abs(dy) > Math.abs(dx)) {
           abandon();
+          if (g.bloomed) collapse(true);
           return;
         }
         engage();
@@ -1134,19 +1162,18 @@
     if (!g.engaged) {
       // On the iPhone switch no click reaches the knob or the links: the tap
       // is acted on here (the switch has already ticked under the finger).
+      if (g.bloomed && event.type === 'pointerup') markUsed();
       if (g.viaSwitch) {
         // No knob click follows a touch on the switch: nothing to suppress,
         // except a stray click iOS might still aim at what lies beneath.
         suppressClick = !g.grabbed && event.type === 'pointerup';
         if (suppressClick) setTimeout(() => { suppressClick = false; }, 450);
-        if (g.grabbed || event.type !== 'pointerup') touchIdle();
-        else if (g.onKnob) toggleFromTap(g.type);
-        else touchIdle();
+        touchIdle();
         return;
       }
-      if (g.grabbed) touchIdle();
+      if (g.bloomed || g.grabbed) touchIdle();
       else if (!g.onKnob && g.onLabel < 0 && g.type !== 'mouse') touchIdle();
-      return; // a tap: the click that follows opens, toggles or travels
+      return; // a mouse click, or a tap on a chapter: the click that follows acts
     }
     suppressClick = true;
     setTimeout(() => { suppressClick = false; }, 400);
@@ -1198,6 +1225,8 @@
   /* ---- clicks: the knob, and the chapter links ---- */
   knob.addEventListener('click', (event) => {
     if (suppressClick) { suppressClick = false; return; }
+    // The touch that opened it already did its work.
+    if (performance.now() - touchOpenedAt < 800) return;
     if (!usable()) return;
     if (event.detail === 0) {
       // Keyboard: open and put focus on the current chapter.
@@ -1220,6 +1249,7 @@
     if (!usable()) return;
     if (open) { collapse(true); return; }
     bloom('tap');
+    markUsed();
     feel?.grab(type);
   }
   labels.forEach((link, k) => {
@@ -1329,27 +1359,42 @@
   }, { passive: false });
 
   /* ---- arrival, first visit, and the coach ---- */
+  /* ---- a first visit: a quiet jewel until the story has been seen ----
+   * The first time through, the scenes play without a control in the
+   * corner: the dial waits as a small lit jewel, still there to touch. On
+   * reaching the last chapter it arrives: it grows to full size, its needle
+   * sweeps the whole scale and back like a gauge at start-up, and a hint
+   * says it can take you anywhere now. Using it before then simply wakes it. */
+  const DONE_KEY = 'rm.dial.v2.done', USED_KEY = 'rm.dial.v2.used';
+  let firstVisit = !store.get(DONE_KEY) && !store.get(USED_KEY);
   function markUsed() {
-    store.set('rm.dial.v1.used', '1');
+    store.set(USED_KEY, '1');
     hideCoach();
+    if (firstVisit) { firstVisit = false; tuck.setQuiet(false); }
   }
-  let coachTimer = 0, coachShown = false;
-  function maybeCoach(k) {
-    if (k < 1 || coachShown || !coach || reduce.matches || store.get('rm.dial.v1.coached') || store.get('rm.dial.v1.used')) return;
-    coachShown = true;
+  function finishStory() {
+    firstVisit = false;
+    store.set(DONE_KEY, '1');
+    tuck.setQuiet(false);
+    if (reduce.matches) return;
+    setTimeout(ignition, 450);
+    showCoach('Turn to revisit', 1900);
+  }
+  let coachTimer = 0;
+  function showCoach(text, delay) {
+    if (!coach) return;
+    clearTimeout(coachTimer);
     const wait = () => {
-      const idle = window.SceneIdle?.idleFor?.() ?? 2000;
+      if (open || !usable() || gesture) return;
       // Not over content, and not beside the lab gate's own hint.
-      const busy = tuck.on || root.classList.contains('is-lab-gated');
-      if (idle < 1200 || busy) { coachTimer = setTimeout(wait, 400); return; }
-      if (open || !usable()) return;
-      store.set('rm.dial.v1.coached', '1');
+      if (tuck.on || root.classList.contains('is-lab-gated')) { coachTimer = setTimeout(wait, 400); return; }
+      coach.textContent = text;
       coach.hidden = false;
       void coach.offsetWidth;
       coach.classList.add('is-on');
       coachTimer = setTimeout(hideCoach, 5000);
     };
-    coachTimer = setTimeout(wait, 1200);
+    coachTimer = setTimeout(wait, delay);
   }
   function hideCoach() {
     clearTimeout(coachTimer);
@@ -1357,12 +1402,10 @@
     coach.classList.remove('is-on');
     setTimeout(() => { coach.hidden = true; }, 300);
   }
-  // The ignition sweep: once ever, the needle sweeps the whole scale and
-  // returns, like a gauge at start-up, so the knob reads as something that turns.
+  // The ignition sweep: the needle sweeps the whole scale and returns, like
+  // a gauge at start-up, so the knob reads as something that turns.
   function ignition() {
-    if (reduce.matches || store.get('rm.dial.v1.swept') || window.scrollY > 0) return;
-    if ((window.SceneIdle?.idleFor?.() ?? 1000) < 400) return;
-    store.set('rm.dial.v1.swept', '1');
+    if (reduce.matches || motion !== 'idle' || open) return;
     motion = 'sweep';
     const t0 = performance.now();
     const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
@@ -1390,8 +1433,8 @@
     shown = true;
     landDirty = true;
     syncFromPage(pageY());
+    tuck.setQuiet(firstVisit);
     dial.classList.add('is-shown');
-    setTimeout(ignition, 560);
     tuck.check();
   }
   const t0 = performance.now();
@@ -1425,6 +1468,7 @@
     rotorShown = NaN;
     // Phone toolbars resize the height constantly; only a new width re-flows text.
     if (innerWidth !== tuckWidth) { tuckWidth = innerWidth; tuck.reset(); }
+    labels.forEach((link) => { link._w = 0; });
     if (open) collapse(true);
   }
   if (typeof ScrollTrigger !== 'undefined') {
@@ -1439,28 +1483,17 @@
         pendingAfterRefresh = null;
         commit(k, { source: 'pointer', cut: true });
       } else if (shown && owner === 'page') syncFromPage(pageY());
-      correctInitialHash();
     });
   }
   window.addEventListener('resize', () => { invalidate(); if (shown && owner === 'page') syncFromPage(pageY()); }, { passive: true });
-  window.addEventListener('load', () => { landDirty = true; correctInitialHash(); }, { once: true });
+  window.addEventListener('load', () => { landDirty = true; }, { once: true });
   document.fonts?.ready.then(() => { landDirty = true; tuck.reset(); });
 
-  // Arriving on index.html#bosch: once the scenes have measured themselves,
-  // move from the anchor to the chapter's landing pose, without a veil.
-  let hashCorrected = false;
-  function correctInitialHash() {
-    if (hashCorrected) return;
-    const k = HASHES.indexOf(location.hash.slice(1));
-    if (k <= 0) { hashCorrected = true; return; }
-    if (typeof ScrollTrigger !== 'undefined' && !document.getElementById(SECTIONS[k])?._sceneRange && k < 4 && root.classList.contains('has-story')) return;
-    hashCorrected = true;
-    if (userScrolled || performance.now() - loadedAt > 4000) return;
-    landDirty = true;
-    window.scrollTo(0, landings()[k]);
-    window.SceneKit?.settle?.();
-    if (window.WorksPlayer?.isGated?.() && L[k] > gateY) window.WorksPlayer.unlock?.();
-  }
+  // Every visit opens on the intro: index.html clears a chapter left in the
+  // address. Should a browser refuse that, the page still starts at the top.
+  window.addEventListener('load', () => {
+    if (HASHES.indexOf(location.hash.slice(1)) > 0 && !userScrolled) window.scrollTo(0, 0);
+  }, { once: true });
   window.addEventListener('hashchange', () => {
     const k = HASHES.indexOf(location.hash.slice(1));
     if (k >= 0) go(k, { source: 'hash', cut: true });

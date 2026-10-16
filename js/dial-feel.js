@@ -1,9 +1,8 @@
 (() => {
   /* ---------- The dial's feel: clicks you hear and clicks you feel ----------
-   * Sound: mechanical clicks synthesised once into tiny buffers (no files),
-   * weighted and pitched by how fast the wheel turns, like a watch crown: a
-   * fine ratchet between chapters, a heavier detent with a small chime that
-   * rises a pentatonic step per chapter, a dull stop at either end.
+   * Sound: one thing only, the tick of a watch crown's ratchet, synthesised
+   * once into a tiny buffer (no files). It brightens and rises as the wheel
+   * turns faster, and lands a little heavier on each chapter.
    * Web Audio waits for the visitor's first tap or key (browsers require it)
    * and on iPhone runs as "ambient" audio: it mixes with music and respects
    * the silent switch.
@@ -21,7 +20,6 @@
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
   const SOUND_KEY = 'rm.dial.v1.sound';
-  const PENTA = [0, 2, 4, 7, 9, 12, 14];
 
   const params = new URLSearchParams(location.search);
   const canVibrate = typeof navigator.vibrate === 'function';
@@ -65,50 +63,7 @@
     };
     const fine = make(16, ratchet(3150, 5230, 0.0016, 0.55));
     const fineSoft = make(18, ratchet(2240, 3870, 0.0021, 0.35));
-    // Detent: a ball dropping into its notch — a sharp click on a short body.
-    const detent = make(70, (d, n) => {
-      let prev = 0, phase = 0, lp = 0;
-      for (let i = 0; i < n; i += 1) {
-        const t = i / rate;
-        const x = noise(), hp = x - prev; prev = x;
-        lp += 0.18 * (x - lp);
-        phase += TAU * (140 + 90 * Math.exp(-t / 0.006)) / rate;
-        d[i] = hp * 0.9 * Math.exp(-t / 0.0008) +
-          lp * 0.5 * Math.exp(-t / 0.003) +
-          Math.sin(phase) * 0.85 * Math.exp(-t / 0.011) +
-          Math.sin(TAU * 1180 * t) * 0.22 * Math.exp(-t / 0.005);
-      }
-    });
-    // Chime: a soft glassy ping, pitched per chapter at play time.
-    const chime = make(260, (d, n) => {
-      for (let i = 0; i < n; i += 1) {
-        const t = i / rate;
-        const attack = Math.min(1, t / 0.002);
-        d[i] = attack * (Math.sin(TAU * 1568 * t) * Math.exp(-t / 0.07) +
-          Math.sin(TAU * 1568 * 2.76 * t) * 0.18 * Math.exp(-t / 0.025) +
-          Math.sin(TAU * 1568 * 5.4 * t) * 0.06 * Math.exp(-t / 0.01));
-      }
-    });
-    // End stop: the wheel meets its pin — dull, low, a little wooden.
-    const stop = make(90, (d, n) => {
-      let lp = 0;
-      for (let i = 0; i < n; i += 1) {
-        const t = i / rate;
-        lp += 0.08 * (noise() - lp);
-        d[i] = Math.sin(TAU * (92 + 40 * Math.exp(-t / 0.01)) * t) * Math.exp(-t / 0.022) +
-          lp * 2.2 * Math.exp(-t / 0.004);
-      }
-    });
-    // Grab: the thumb takes the grip — a soft, close tock.
-    const grab = make(40, (d, n) => {
-      let lp = 0;
-      for (let i = 0; i < n; i += 1) {
-        const t = i / rate;
-        lp += 0.25 * (noise() - lp);
-        d[i] = Math.sin(TAU * 520 * t) * 0.7 * Math.exp(-t / 0.006) + lp * 0.9 * Math.exp(-t / 0.0025);
-      }
-    });
-    return { fine, fineSoft, detent, chime, stop, grab };
+    return { fine, fineSoft };
   }
 
   function audio() {
@@ -216,9 +171,19 @@
     requestAnimationFrame(() => { if (!shuttle) input.style.translate = ''; });
   }
 
-  /* ---- the vocabulary ---- */
-  let lastFine = 0, lastDetent = 0;
+  /* ---- the vocabulary: one tick, and the haptics that go with it ---- */
+  let lastTick = 0;
   const touchLike = (type) => type === 'touch' || type === 'pen';
+  function tick(v, weight) {
+    const now = performance.now();
+    // Fine ticks thin out at speed, so a spin stays a crisp ratchet; a
+    // chapter's tick always sounds.
+    if (now - lastTick < (weight > 1 ? 16 : v > 500 ? 34 : 22)) return;
+    lastTick = now;
+    const e = smooth(30, 420, v);
+    const gain = (0.2 + 0.32 * e) * weight * (v > 650 ? 0.75 : 1);
+    play(e < 0.45 ? B?.fineSoft : B?.fine, gain, (0.92 + 0.3 * e) * (weight > 1 ? 0.9 : 1) * jitter());
+  }
   const feel = {
     switchHaptics,
     get muted() { return muted; },
@@ -231,42 +196,25 @@
     prime() { if (!muted) audio(); },
     shuttleStart,
     shuttleEnd,
-    // A fine ratchet tick between chapters. speed: degrees of wheel per second.
+    // A fine tick between chapters. speed: degrees of wheel per second.
     fine(speed, type, x) {
       const v = Math.abs(speed);
-      const now = performance.now();
-      if (now - lastFine < (v > 500 ? 34 : 22)) return;
-      lastFine = now;
-      const e = smooth(30, 420, v);
-      play(e < 0.45 ? B?.fineSoft : B?.fine, (0.2 + 0.32 * e) * (v > 650 ? 0.7 : 1), (0.92 + 0.3 * e) * jitter());
+      tick(v, 1);
       if (!touchLike(type) || v > 420) return;
       if (!shuttleTick(x, 45)) vibrate(5, 34);
     },
-    // A chapter detent: heavier, with the chapter's note.
+    // A chapter: the same tick, landing a little heavier.
     detent(k, speed, type, x) {
-      const v = Math.abs(speed);
-      const now = performance.now();
-      const e = smooth(0, 520, v);
-      if (now - lastDetent > 28) {
-        lastDetent = now;
-        play(B?.detent, 0.7 + 0.3 * e, (0.95 + 0.14 * e) * jitter());
-        play(B?.chime, 0.13 + 0.12 * (1 - e), Math.pow(2, PENTA[clamp(k, 0, 6)] / 12));
-      }
+      tick(Math.abs(speed), 1.45);
       if (!touchLike(type)) return;
       if (!shuttleTick(x, 30)) vibrate(13, 26);
     },
+    // The end of the scale and the thumb's grab are felt, not heard.
     stop(type, x) {
-      play(B?.stop, 0.85, jitter());
       if (touchLike(type) && !shuttleTick(x, 0)) vibrate([22], 0);
     },
     grab(type) {
-      play(B?.grab, 0.5, jitter());
       if (touchLike(type)) vibrate(8, 0);
-    },
-    select(k, type) {
-      play(B?.detent, 0.8, jitter());
-      play(B?.chime, 0.2, Math.pow(2, PENTA[clamp(k, 0, 6)] / 12));
-      if (touchLike(type)) vibrate(12, 0);
     },
     // For tests: what the engine can do here.
     get state() { return { switchHaptics, canVibrate, muted, audio: ctx ? ctx.state : 'none' }; },

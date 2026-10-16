@@ -22,6 +22,14 @@
   }
 </script>
 <script>
+  // Every visit opens on the intro: no scroll position restored from last
+  // time, and no chapter left in the address by an earlier visit.
+  try { history.scrollRestoration = 'manual'; } catch (error) { /* older browsers */ }
+  if (/^#(top|journey|bosch|beyond|work|education|contact)$/.test(location.hash)) {
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (error) { /* file:// may refuse */ }
+  }
+</script>
+<script>
   // The chapter scenes are built by js/chapters.js once GSAP has arrived;
   // until then their words stay hidden (.scenes-pending), never shown as
   // raw markup over a dark stage. Lifts by itself if they never arrive.
@@ -36,7 +44,7 @@
 <link rel="stylesheet" href="css/bmw-bridge.css?v=5" />
 <link rel="stylesheet" href="css/hero-particles.css?v=15" />
 <link rel="stylesheet" href="css/works.css?v=2" />
-<link rel="stylesheet" href="css/dial.css?v=3" />
+<link rel="stylesheet" href="css/dial.css?v=4" />
 <style>#hero .stage-text { opacity: 1; }</style>
 </head>
 <body>
@@ -920,8 +928,8 @@
   <script src="js/chapters.js?v=79" defer></script>
   <script src="js/story.js?v=53" defer></script>
   <script src="js/works.js?v=3" defer></script>
-  <script src="js/dial-feel.js?v=1" defer></script>
-  <script src="js/dial.js?v=2" defer></script>
+  <script src="js/dial-feel.js?v=2" defer></script>
+  <script src="js/dial.js?v=3" defer></script>
   <script src="js/face/boot.js?v=36" defer></script>
   <script src="js/bmw/boot.js?v=9" defer></script>
   <script src="js/bmw-smoke.js?v=53" defer></script>
