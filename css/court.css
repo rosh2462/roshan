@@ -1,0 +1,259 @@
+/* ================= The court: LoopShoot VR, playable (js/court.js) =================
+   An optional game over the page: the ball beside the shelf's hint (or in
+   LoopShoot's poster) opens it, the court irises open from that ball, and
+   it leaves the page exactly as it was. */
+
+.court {
+  --accent: var(--accent-b);
+  --accent-rgb: 244, 207, 142;
+  position: fixed;
+  inset: 0;
+  z-index: 95; /* over the works player (90) */
+  overscroll-behavior: contain;
+}
+.court[hidden] { display: none; }
+.court:focus { outline: none; }
+.court__stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #07070c;
+  isolation: isolate;
+  /* Nothing in the court scrolls: a flick anywhere never moves the page. */
+  touch-action: none;
+}
+.court__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+html.is-court-open body { overflow: hidden; }
+/* Once the court fills the screen nothing of the page shows: it is hidden,
+   so it is neither painted nor kept in layers. The dial stays: it deals. */
+html.is-court-covered body > :not(.court, .dial) { visibility: hidden; }
+html.is-court-open .dial { z-index: 100; }
+html.is-court-open.is-player-open .dial { opacity: 1 !important; visibility: visible !important; }
+
+/* ---- the words ---- */
+.court__head {
+  position: absolute;
+  top: max(64px, calc(env(safe-area-inset-top) + 48px));
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 72px;
+  text-align: center;
+  pointer-events: none;
+  transition: opacity 0.5s ease, translate 0.6s var(--ease-fluid);
+}
+.court__kicker {
+  margin: 0 0 10px;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgba(196, 182, 255, 0.82);
+}
+.court__title {
+  margin: 0;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: clamp(1.5rem, 3.4vw, 2.5rem);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: #f4f1ea;
+  text-wrap: balance;
+}
+.court__score {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 6px 12px 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(10, 10, 16, 0.55);
+}
+.court__pips {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.court__pip {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 196, 140, 0.45);
+  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.4s ease;
+}
+.court__pip.is-on {
+  border-color: transparent;
+  background: radial-gradient(circle at 35% 30%, #fff0da 0, #e8934a 55%, #a4551f 100%);
+  box-shadow: 0 0 12px rgba(255, 170, 100, 0.6);
+}
+.court__pip.is-pop { animation: court-pip-pop 0.7s cubic-bezier(0.3, 0.7, 0.3, 1); }
+@keyframes court-pip-pop {
+  0% { scale: 0.4; }
+  45% { scale: 1.5; }
+  100% { scale: 1; }
+}
+.court__count {
+  margin: 0;
+  min-width: 3.2em;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  color: rgba(244, 241, 234, 0.82);
+}
+
+.court__hint,
+.court__keys {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  margin: 0;
+  padding: 0 88px;
+  text-align: center;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  line-height: 1.6;
+  text-transform: uppercase;
+  color: rgba(237, 241, 245, 0.5);
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+.court__hint { bottom: max(28px, calc(env(safe-area-inset-bottom) + 20px)); }
+.court__verb { color: rgba(255, 214, 160, 0.85); }
+.court__keys { bottom: max(56px, calc(env(safe-area-inset-bottom) + 48px)); opacity: 0; }
+.court__ball:focus-visible ~ .court__keys { opacity: 1; }
+@media (max-width: 720px) {
+  .court__hint { padding: 0 96px 0 32px; }
+  .court__keys { padding: 0 96px 0 32px; bottom: max(76px, calc(env(safe-area-inset-bottom) + 68px)); }
+}
+
+/* The ball is a button over the canvas, larger than the ball it covers. */
+.court__ball {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 3;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: grab;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+.court.is-holding .court__ball { cursor: grabbing; }
+.court__ball[aria-disabled="true"] { cursor: default; }
+.court__ball:focus { outline: none; }
+.court__ball:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+
+.court__close {
+  position: absolute;
+  top: max(16px, calc(env(safe-area-inset-top) + 8px));
+  right: max(16px, env(safe-area-inset-right));
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  background: rgba(12, 12, 16, 0.5);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.25s ease, border-color 0.25s ease, transform 0.45s var(--ease-fluid), opacity 0.35s ease;
+}
+.court__close svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+@media (hover: hover) { .court__close:hover { background: rgba(255, 255, 255, 0.14); border-color: rgba(255, 255, 255, 0.5); transform: rotate(90deg); } }
+.court__close:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* While a ball is in the air its arc may rise past the words: they step back. */
+.court.is-shot .court__head { opacity: 0.28; }
+
+/* ---- the finale: the ring opens on to Education ---- */
+.court.is-finale .court__head,
+.court.is-finale .court__hint,
+.court.is-finale .court__close { opacity: 0; pointer-events: none; transition-duration: 0.35s; }
+.court.is-finale .court__head { translate: 0 -12px; }
+.court.is-portal .court__stage { background: transparent; }
+
+/* ---- the ways in ---- */
+/* Beside the shelf's hint: "· or [ball] shoot some hoops". */
+.shelf-ball {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: -10px 0;
+  padding: 10px 4px;
+  border: 0;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: rgba(255, 214, 160, 0.85);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: color 0.25s ease;
+}
+.shelf-hint__or[hidden] { display: none; }
+.shelf-ball:hover { color: #ffe1b5; }
+.shelf-ball:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+.shelf-ball__ball,
+.court-cta__ball {
+  position: relative;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%233c1e0a' stroke-opacity='.55' stroke-width='.9'%3E%3Cpath d='M0 8h16M8 0v16M2.3 2.3c3 3 3 8.4 0 11.4M13.7 2.3c-3 3-3 8.4 0 11.4'/%3E%3C/svg%3E") center / 100% 100%,
+    radial-gradient(circle at 35% 30%, #fff0da 0, #e8934a 55%, #a4551f 100%);
+  box-shadow: 0 0 10px rgba(255, 160, 90, 0.45);
+}
+.shelf-ball__ball { animation: shelf-ball-bounce 2.6s cubic-bezier(0.3, 0, 0.3, 1) infinite; }
+@keyframes shelf-ball-bounce {
+  0%, 62%, 100% { translate: 0 0; }
+  72% { translate: 0 -5px; }
+  82% { translate: 0 0; }
+  88% { translate: 0 -2px; }
+  94% { translate: 0 0; }
+}
+.shelf-ball:hover .shelf-ball__ball { animation-duration: 0.9s; }
+/* In LoopShoot's poster, beside its facts. */
+.court-cta { gap: 10px; font-family: inherit; line-height: inherit; cursor: pointer; }
+.court-cta .court-cta__ball { width: 18px; height: 18px; }
+
+/* ---- the dial deals a ball: its light swells as the stream leaves it ---- */
+.dial.is-dealing .dial-knob__halo { animation: dial-deal 0.9s cubic-bezier(0.3, 0.7, 0.3, 1); }
+@keyframes dial-deal {
+  0% { opacity: 0.55; scale: 1; }
+  30% { opacity: 1; scale: 1.45; }
+  100% { opacity: 0.55; scale: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .court__pip.is-pop, .shelf-ball__ball, .dial.is-dealing .dial-knob__halo { animation: none; }
+}
+@media print { .court, .shelf-hint__or { display: none !important; } }

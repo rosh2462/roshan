@@ -1435,8 +1435,13 @@
   window.addEventListener('herointrotimeout', show, { once: true });
 
   /* ---- the works player, refreshes, resizes, and hashes ---- */
-  window.addEventListener('worksplayer', (event) => {
-    const isOpen = !!event.detail?.open;
+  // The works player and the court (js/court.js) cover the page; the dial
+  // rests inert until neither does.
+  const covers = new Set();
+  const onCover = (event) => {
+    if (event.detail?.open) covers.add(event.type); else covers.delete(event.type);
+    const isOpen = covers.size > 0;
+    if (isOpen === dial.inert) return;
     dial.inert = isOpen;
     if (isOpen) {
       abandon();
@@ -1450,7 +1455,9 @@
       tuck.reset();
       syncFromPage(pageY());
     }
-  });
+  };
+  window.addEventListener('worksplayer', onCover);
+  window.addEventListener('courtopen', onCover);
   let tuckWidth = innerWidth;
   function invalidate() {
     landDirty = true;

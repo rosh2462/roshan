@@ -31,7 +31,7 @@
     (!canVibrate && 'switch' in HTMLInputElement.prototype && coarse.matches && phoneSized);
 
   let muted = store.get(SOUND_KEY) === 'off';
-  let ctx = null, out = null, B = null;
+  let ctx = null, out = null, bus = null, B = null;
 
   /* ---- sound ---- */
   function synth(rate) {
@@ -82,6 +82,7 @@
     comp.ratio.value = 5;
     comp.attack.value = 0.001;
     comp.release.value = 0.09;
+    bus = comp;
     out = ctx.createGain();
     out.gain.value = 0.5;
     // The dial lives in the bottom-right corner, and so does its sound.
@@ -194,6 +195,12 @@
     },
     // Called from inside a gesture, so audio can start on this very touch.
     prime() { if (!muted) audio(); },
+    // The same switch and the same bus for other sounds on the page (the
+    // court, js/court.js): its context and an input, or null while muted.
+    sound() {
+      if (muted || !audio() || ctx.state !== 'running' || !bus) return null;
+      return { ctx, input: bus };
+    },
     shuttleStart,
     shuttleEnd,
     // A fine tick between chapters. speed: degrees of wheel per second.

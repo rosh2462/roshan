@@ -333,7 +333,7 @@ a.game-card:focus-visible { outline: none; }
 .has-works .player .poster:not(.is-shown) { display: none; }
 /* Nothing of the page shows behind a full-screen player: hide it, so it is
    neither painted nor kept in layers until the player starts to close. */
-html.is-player-covered body > :not(.player) { visibility: hidden; }
+html.is-player-covered body > :not(.player, .court) { visibility: hidden; }
 /* Phones draw the scenes without blur and glow filters: iOS renders each
    one into extra buffers at full screen resolution, every frame it moves.
    (This also overrides the SVG elements' own filter="url(…)" glows.) */

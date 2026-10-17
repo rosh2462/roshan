@@ -50,8 +50,9 @@
 <link rel="stylesheet" href="css/portrait-mask.css?v=7" />
 <link rel="stylesheet" href="css/bmw-bridge.css?v=5" />
 <link rel="stylesheet" href="css/hero-particles.css?v=16" />
-<link rel="stylesheet" href="css/works.css?v=3" />
+<link rel="stylesheet" href="css/works.css?v=4" />
 <link rel="stylesheet" href="css/dial.css?v=5" />
+<link rel="stylesheet" href="css/court.css?v=1" />
 <style>#hero .stage-text { opacity: 1; }</style>
 </head>
 <body>
@@ -535,7 +536,7 @@
             </a>
           </li>
           </ul>
-          <p class="shelf-hint"><span class="shelf-hint__verb">Click</span> a game to open it</p>
+          <p class="shelf-hint"><span class="shelf-hint__verb">Click</span> a game to open it<span class="shelf-hint__or" hidden> · or <button class="shelf-ball" type="button"><i class="shelf-ball__ball" aria-hidden="true"></i>shoot some hoops</button></span></p>
         </div>
       </div>
 
@@ -927,6 +928,33 @@
 
 
 
+  <!-- The court: LoopShoot VR's hoop, playable (js/court.js, css/court.css).
+       An optional game, opened by the ball beside the shelf's hint or the
+       one in LoopShoot's poster; the chapter dial deals each ball. Hidden
+       until it is opened, so the page never waits for it. -->
+  <section class="court" id="chapter-court" role="dialog" aria-modal="true" aria-labelledby="courtTitle" tabindex="-1" hidden>
+    <div class="court__stage">
+      <canvas class="court__canvas" aria-hidden="true"></canvas>
+      <header class="court__head">
+        <p class="court__kicker">LoopShoot VR · Free throws</p>
+        <h2 class="court__title" id="courtTitle">Sink three</h2>
+        <div class="court__score">
+          <ol class="court__pips" aria-hidden="true"><li class="court__pip"></li><li class="court__pip"></li><li class="court__pip"></li></ol>
+          <p class="court__count">0 / 3</p>
+        </div>
+      </header>
+      <button class="court__ball" type="button" aria-describedby="courtHint courtKeys">
+        <span class="visually-hidden">Shoot the ball</span>
+      </button>
+      <p class="court__hint" id="courtHint"><span class="court__verb">Drag and flick</span> the ball at the hoop · hook your swipe to curve it</p>
+      <p class="court__keys" id="courtKeys">Hold Space to charge, release to shoot · ← → aim</p>
+      <button class="court__close" type="button" aria-label="Close the game">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+      <p class="visually-hidden court__live" aria-live="polite"></p>
+    </div>
+  </section>
+
   <!-- Local particles initialize independently of the chapter animation CDN. -->
   <script src="assets/hero-bmw-points.js?v=1" defer></script>
   <script src="js/hero-flow.js?v=20" defer></script>
@@ -935,9 +963,10 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" defer></script>
   <script src="js/chapters.js?v=79" defer></script>
   <script src="js/story.js?v=53" defer></script>
-  <script src="js/works.js?v=4" defer></script>
-  <script src="js/dial-feel.js?v=2" defer></script>
-  <script src="js/dial.js?v=4" defer></script>
+  <script src="js/works.js?v=5" defer></script>
+  <script src="js/dial-feel.js?v=3" defer></script>
+  <script src="js/court.js?v=1" defer></script>
+  <script src="js/dial.js?v=5" defer></script>
   <script src="js/face/boot.js?v=37" defer></script>
   <script src="js/bmw/boot.js?v=9" defer></script>
   <script src="js/bmw-smoke.js?v=53" defer></script>

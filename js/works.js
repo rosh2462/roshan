@@ -298,6 +298,17 @@
     }
     finishClose(card);
   }
+  // Closed at once, under something that already covers it (the court's
+  // finale, js/court.js, which carries the visitor on to Education).
+  function dismiss() {
+    if (state !== 'open') return;
+    stopSlide();
+    ui.classList.remove('is-visible');
+    present(index, false);
+    returnFocus = null;
+    cards.forEach((card) => card.classList.remove('is-lifted'));
+    finishClose(null);
+  }
   const inset = (r, k) => ({ x: r.x + r.width * k, y: r.y + r.height * k, width: r.width * (1 - 2 * k), height: r.height * (1 - 2 * k) });
 
   function finishClose(card) {
@@ -562,7 +573,7 @@
   }
 
   window.WorksPlayer = {
-    open: (i = 0) => open(i), close, go: (i) => go(i), showShelf, get state() { return state; },
+    open: (i = 0) => open(i), close, dismiss, go: (i) => go(i), showShelf, get state() { return state; },
   };
 
   /* ---- each poster's scene, looping while it is on screen ----------------- */
