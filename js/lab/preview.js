@@ -3,12 +3,12 @@ import { drawTexture } from './materials.js';
 import { NEUROMAZE_SCREEN } from './neuromaze-screen.js';
 
 /* NeuroMaze, playing on the selected monitor: chapter 04's first work,
- * previewed inside the lab and opened from it.
+ * previewed inside the lab; the shelf just below is where it opens.
  *
  * Two painted layers and one small shader. The picture is the real gameplay
  * capture (embedded as a data URI: WebGL cannot read local files when the
  * site is opened from disk) with the poster's grade. The chrome — REC, the
- * title, the "tap/click to play" hint — sits on its own layer, over which
+ * title, an "in Creative works" caption — sits on its own layer, over which
  * the shader adds what moves: a CRT power-on, faint scanlines, a play button
  * with a slow ping, a hover lift and a flash when it is pressed. */
 
@@ -72,7 +72,7 @@ function paintChrome(g, w, h, hint) {
   g.fillStyle = 'rgba(255,214,222,0.88)';
   spaced(g, 'UNITY · 3D HORROR', 44, h - 30, 4);
 
-  // The invitation, under the play button.
+  // Where the game lives, under the play button.
   g.font = `700 30px ${FONT}`;
   g.fillStyle = 'rgba(255,255,255,0.95)';
   g.shadowColor = 'rgba(0,0,0,0.85)';
@@ -145,10 +145,9 @@ const fragmentShader = /* glsl */ `
 `;
 
 export function neuroMazePreview(geometry) {
-  const coarse = matchMedia('(pointer: coarse)').matches;
   const image = new Image();
   const picture = drawTexture((g, w, h) => paintPicture(g, w, h, image), W, H);
-  const chrome = drawTexture((g, w, h) => paintChrome(g, w, h, coarse ? 'TAP TO PLAY' : 'CLICK TO PLAY'),
+  const chrome = drawTexture((g, w, h) => paintChrome(g, w, h, 'IN CREATIVE WORKS'),
     W, H, { redraw: true });
   image.onload = () => {
     paintPicture(picture.image.getContext('2d'), W, H, image);

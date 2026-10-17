@@ -2068,11 +2068,9 @@ p { margin: 0; }
   min-height: 88vh;
   overflow: hidden;
 }
-/* In the player (css/works.css) each poster is its own layer, and so is its
-   animated scene, so one poster's motion never repaints its neighbours. */
-.has-works .player .poster { will-change: transform; }
-.has-works .player .poster-scene,
-.has-works .player .poster :is(.poster-hud, .apoc-warning, .court-glow, .poster-chrome, .poster-quote) { will-change: transform, opacity; }
+/* In the player (css/works.css) only the poster on screen is rendered, so
+   its scenes need no layers of their own: a full-screen scene promoted at a
+   phone's pixel density was most of what crashed the player on iPhone. */
 .poster-bg {
   position: absolute;
   inset: 0;
@@ -2453,28 +2451,6 @@ a:focus-visible, button:focus-visible {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  perspective: 1000px;
-  perspective-origin: 50% 24%;
-}
-.court-perspective {
-  position: absolute;
-  inset: 0;
-  transform-style: preserve-3d;
-}
-.court-floor-grid {
-  position: absolute;
-  left: 50%;
-  top: 30%;
-  width: 3000px;
-  height: 3000px;
-  margin-left: -1500px;
-  transform-origin: 50% 0%;
-  transform: rotateX(80deg);
-  background-image:
-    repeating-linear-gradient(90deg, rgba(164, 139, 255, 0.26) 0 1.5px, transparent 1.5px 150px),
-    repeating-linear-gradient(0deg, rgba(164, 139, 255, 0.2) 0 1.5px, transparent 1.5px 150px);
-  -webkit-mask-image: radial-gradient(ellipse 44% 62% at 50% 0%, #000 0%, transparent 80%);
-  mask-image: radial-gradient(ellipse 44% 62% at 50% 0%, #000 0%, transparent 80%);
 }
 .court-glow {
   position: absolute;
@@ -2492,6 +2468,7 @@ a:focus-visible, button:focus-visible {
   background: radial-gradient(ellipse at 50% 40%, transparent 26%, rgba(0, 0, 0, 0.6) 100%);
 }
 
+.loop-floor { fill: none; stroke: url(#loopFloorFade); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
 .loop-backboard { fill: rgba(30, 26, 48, 0.9); stroke: rgba(164, 139, 255, 0.5); stroke-width: 1.6; }
 .loop-backboard-square { fill: none; stroke: rgba(164, 139, 255, 0.6); stroke-width: 1.8; }
 .loop-rim { fill: none; stroke: #ff8a4c; stroke-width: 5; filter: drop-shadow(0 0 8px rgba(255, 138, 76, 0.85)); }

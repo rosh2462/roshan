@@ -98,7 +98,6 @@
   /* ---- landings: page position of each chapter's detent ---- */
   let L = [0, 1, 2, 3, 4, 5, 6];
   let landDirty = true;
-  let gateY = Infinity;
   let stageH = innerHeight;
   const maxScroll = () => (typeof ScrollTrigger !== 'undefined'
     ? ScrollTrigger.maxScroll(window)
@@ -126,7 +125,6 @@
     }
     for (let k = 1; k <= LAST; k += 1) out[k] = Math.max(out[k], out[k - 1] + 1);
     L = out;
-    gateY = window.WorksPlayer?.gateY?.() ?? Infinity;
     stageH = innerHeight;
     return L;
   }
@@ -222,7 +220,7 @@
   let detent = -1;        // detent under the index while turning
   let page = 'none';      // none · follow · glide · cut · arrive
   let yw = window.scrollY, vy = 0, yGoal = 0, goalK = 0, goalSource = 'pointer', lastWritten = -1;
-  let flying = false, dwellSince = 0, arriveAt = 0, unlockedGate = false;
+  let flying = false, dwellSince = 0, arriveAt = 0;
   let gesture = null;
   let suppressClick = false, touchOpenedAt = -1e9;
   let previewing = false;
@@ -430,7 +428,6 @@
       if (!shown || open || gesture || held || travelling()) return;
       const still = performance.now() - movedAt;
       if (still < SETTLE_MS) { timer = setTimeout(run, SETTLE_MS - still + 20); return; }
-      // (At the lab's gate this is what keeps the knob clear of its pill.)
       covering = !root.classList.contains('is-player-open') && covered();
       apply();
       // Scrubbed scenes can drift a little longer: one more look.
@@ -703,12 +700,6 @@
     const max = maxScroll();
     const v = Math.round(clamp(y, 0, max));
     if (v === lastWritten && Math.abs(window.scrollY - v) < 1) return;
-    // The dial is navigation: travelling past the lab's gate opens it, just
-    // as a chapter link does (js/works.js).
-    if (!unlockedGate && window.WorksPlayer && v > (window.WorksPlayer.gateY?.() ?? Infinity) - 2) {
-      unlockedGate = true;
-      window.WorksPlayer.unlock?.();
-    }
     lastWritten = v;
     window.scrollTo(0, v);
   }
@@ -781,7 +772,6 @@
     goalK = k;
     goalSource = source;
     yGoal = L[k];
-    unlockedGate = false;
     const from = window.scrollY;
     yw = page === 'glide' || page === 'follow' ? yw : from;
     if (page !== 'glide' && page !== 'follow') vy = 0;
@@ -1092,7 +1082,6 @@
     try { wheel.setPointerCapture(g.id); } catch (error) { /* already released */ }
     dial.classList.add('is-dragging');
     dial.classList.remove('is-pressed');
-    unlockedGate = false;
     motion = 'drag';
     owner = 'dial';
     page = 'follow';
@@ -1386,8 +1375,8 @@
     clearTimeout(coachTimer);
     const wait = () => {
       if (open || !usable() || gesture) return;
-      // Not over content, and not beside the lab gate's own hint.
-      if (tuck.on || root.classList.contains('is-lab-gated')) { coachTimer = setTimeout(wait, 400); return; }
+      // Not over content.
+      if (tuck.on) { coachTimer = setTimeout(wait, 400); return; }
       coach.textContent = text;
       coach.hidden = false;
       void coach.offsetWidth;

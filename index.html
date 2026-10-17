@@ -46,11 +46,11 @@
   }
 </script>
 <link id="portfolioFonts" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="css/style.css?v=135" />
+<link rel="stylesheet" href="css/style.css?v=136" />
 <link rel="stylesheet" href="css/portrait-mask.css?v=7" />
 <link rel="stylesheet" href="css/bmw-bridge.css?v=5" />
 <link rel="stylesheet" href="css/hero-particles.css?v=16" />
-<link rel="stylesheet" href="css/works.css?v=2" />
+<link rel="stylesheet" href="css/works.css?v=3" />
 <link rel="stylesheet" href="css/dial.css?v=5" />
 <style>#hero .stage-text { opacity: 1; }</style>
 </head>
@@ -475,8 +475,8 @@
 
     <!-- CHAPTER 04: CREATIVE WORKS — a game shelf. Three cards (tilting
          toward the cursor, glowing in their game's colour) each open the
-         full-screen player below, as does the NeuroMaze preview on the
-         lab's monitor; the player is js/works.js. Without scripts the cards
+         full-screen player below; the NeuroMaze preview on the lab's
+         monitor leads here. The shelf and player are js/works.js. Without scripts the cards
          are plain links to the posters, which then read as a normal page. -->
     <section class="story story--works" id="chapter-work">
       <span class="scene-anchor" id="work" style="--at: calc(var(--stage-h) * 0.9)"></span>
@@ -713,9 +713,6 @@
         <article class="poster poster--loopshoot" id="play-loopshoot" data-work="2">
           <div class="poster-bg">
             <div class="courtspace" aria-hidden="true">
-              <div class="court-perspective">
-                <div class="court-floor-grid"></div>
-              </div>
               <div class="court-glow court-glow--l"></div>
               <div class="court-glow court-glow--r"></div>
               <div class="court-vignette"></div>
@@ -732,12 +729,22 @@
                   <stop offset="0%" stop-color="#2c2740"></stop>
                   <stop offset="100%" stop-color="#0f0d1a"></stop>
                 </linearGradient>
+                <linearGradient id="loopFloorFade" gradientUnits="userSpaceOnUse" x1="0" y1="300" x2="0" y2="900">
+                  <stop offset="0%" stop-color="#a48bff" stop-opacity="0"></stop>
+                  <stop offset="22%" stop-color="#a48bff" stop-opacity="0.34"></stop>
+                  <stop offset="60%" stop-color="#a48bff" stop-opacity="0.16"></stop>
+                  <stop offset="100%" stop-color="#a48bff" stop-opacity="0.04"></stop>
+                </linearGradient>
                 <filter id="loopGlow" x="-80%" y="-80%" width="260%" height="260%">
                   <feGaussianBlur stdDeviation="7" result="b"></feGaussianBlur>
                   <feMerge><feMergeNode in="b"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
                 </filter>
               </defs>
 
+              <!-- The court's floor, receding toward the hoop: drawn flat in
+                   perspective (a CSS 3D plane here cost a phone hundreds of
+                   megabytes of layer memory). -->
+              <path class="loop-floor" d="M343 300L-2400 900M371 300L-2200 900M400 300L-2000 900M429 300L-1800 900M457 300L-1600 900M486 300L-1400 900M514 300L-1200 900M543 300L-1000 900M571 300L-800 900M600 300L-600 900M629 300L-400 900M657 300L-200 900M686 300L0 900M714 300L200 900M743 300L400 900M771 300L600 900M800 300L800 900M829 300L1000 900M857 300L1200 900M886 300L1400 900M914 300L1600 900M943 300L1800 900M971 300L2000 900M1000 300L2200 900M1029 300L2400 900M1057 300L2600 900M1086 300L2800 900M1114 300L3000 900M1143 300L3200 900M1171 300L3400 900M1200 300L3600 900M1229 300L3800 900M1257 300L4000 900M-400 700H2000M-400 550H2000M-400 459H2000M-400 394H2000M-400 346H2000M-400 313H2000"></path>
               <!-- The hoop, distant and small — real depth, not a diagram
                    at arm's length. -->
               <g class="loop-hoop" transform="translate(870 150) scale(0.62)">
@@ -918,11 +925,6 @@
 
   </main>
 
-  <!-- Shown at the end of the lab while chapter 04 is closed (js/works.js). -->
-  <button class="gate-hint" type="button" hidden>
-    <span class="gate-hint__ring" aria-hidden="true"></span>
-    <span class="gate-hint__text"><span class="gate-hint__verb">Tap</span> the monitor to continue</span>
-  </button>
 
 
   <!-- Local particles initialize independently of the chapter animation CDN. -->
@@ -933,10 +935,10 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" defer></script>
   <script src="js/chapters.js?v=79" defer></script>
   <script src="js/story.js?v=53" defer></script>
-  <script src="js/works.js?v=3" defer></script>
+  <script src="js/works.js?v=4" defer></script>
   <script src="js/dial-feel.js?v=2" defer></script>
-  <script src="js/dial.js?v=3" defer></script>
-  <script src="js/face/boot.js?v=36" defer></script>
+  <script src="js/dial.js?v=4" defer></script>
+  <script src="js/face/boot.js?v=37" defer></script>
   <script src="js/bmw/boot.js?v=9" defer></script>
   <script src="js/bmw-smoke.js?v=53" defer></script>
   <script src="js/main.js?v=13" defer></script>
@@ -944,6 +946,6 @@
   <!-- The HiWi lab (chapter 03, scene B) is real-time 3D. boot.js is tiny; it
        loads js/lab/lab.bundle.js (the lab + three.js, one classic script)
        only once the visitor nears that chapter. -->
-  <script src="js/lab/boot.js?v=39" defer></script>
+  <script src="js/lab/boot.js?v=40" defer></script>
 </body>
 </html>

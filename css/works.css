@@ -312,19 +312,33 @@ a.game-card:focus-visible { outline: none; }
   touch-action: none;
 }
 .has-works .player.is-animating .player__window { will-change: transform, clip-path; }
+/* Each poster sits at its own place along the track, and only a poster on
+   screen is rendered at all (js/works.js sets .is-shown): three full-screen
+   scenes held at once were more than a phone's memory allows. */
 .has-works .player__track {
   position: absolute;
   inset: 0;
-  display: flex;
   will-change: transform;
 }
 .has-works .player .poster {
-  flex: 0 0 100%;
+  position: absolute;
+  top: 0;
+  left: calc(var(--k, 0) * 100%);
   width: 100%;
   height: 100%;
   min-height: 0;
   overflow: hidden;
   background: #050407;
+}
+.has-works .player .poster:not(.is-shown) { display: none; }
+/* Nothing of the page shows behind a full-screen player: hide it, so it is
+   neither painted nor kept in layers until the player starts to close. */
+html.is-player-covered body > :not(.player) { visibility: hidden; }
+/* Phones draw the scenes without blur and glow filters: iOS renders each
+   one into extra buffers at full screen resolution, every frame it moves.
+   (This also overrides the SVG elements' own filter="url(…)" glows.) */
+@media (max-width: 720px), (pointer: coarse) {
+  .has-works .player .poster * { filter: none !important; }
 }
 /* The game being left dims as it slides away. */
 .has-works .player .poster::after {
@@ -567,88 +581,17 @@ a.game-card:focus-visible { outline: none; }
   .has-works .player .poster-desc { max-width: 520px; font-size: 0.86rem; }
 }
 
-/* ---- the gate at the end of the lab ---- */
-.gate-hint {
-  position: fixed;
-  z-index: 45;
-  left: 50%;
-  bottom: max(24px, calc(env(safe-area-inset-bottom) + 14px));
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  margin: 0;
-  padding: 11px 20px 11px 12px;
-  border: 1px solid rgba(255, 192, 106, 0.42);
-  border-radius: 999px;
-  background: rgba(9, 10, 15, 0.8);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.45);
-  color: #fff4e2;
-  font-family: 'Space Grotesk', 'Inter', sans-serif;
-  font-size: 0.76rem;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  cursor: pointer;
-  opacity: 0;
-  visibility: hidden;
-  transform: translate3d(-50%, 18px, 0);
-  transition: opacity 0.45s ease, transform 0.6s var(--ease-fluid), visibility 0s linear 0.45s, background 0.25s ease;
-}
-.gate-hint[hidden] { display: none; }
-.gate-hint.is-visible {
-  opacity: 1;
-  visibility: visible;
-  transform: translate3d(-50%, 0, 0);
-  transition: opacity 0.45s ease, transform 0.6s var(--ease-fluid), visibility 0s, background 0.25s ease;
-}
-.gate-hint:hover { background: rgba(26, 24, 30, 0.88); }
-.gate-hint:focus-visible { outline: 2px solid #ffc06a; outline-offset: 4px; }
-.gate-hint__ring {
-  position: relative;
-  flex: none;
-  width: 22px;
-  height: 22px;
-  border: 1.5px solid #ffc06a;
-  border-radius: 50%;
-}
-.gate-hint__ring::before {
-  content: '';
-  position: absolute;
-  inset: 5px;
-  border-radius: 50%;
-  background: #ffc06a;
-}
-.gate-hint__ring::after {
-  content: '';
-  position: absolute;
-  inset: -1.5px;
-  border: 1.5px solid #ffc06a;
-  border-radius: 50%;
-  animation: works-ping 2s ease-out infinite;
-}
-.gate-hint.is-nudge { animation: works-gate-nudge 0.65s cubic-bezier(0.3, 0.7, 0.3, 1); }
-@keyframes works-gate-nudge {
-  0%, 100% { translate: 0 0; }
-  30% { translate: 0 -9px; }
-  62% { translate: 0 2px; }
-}
-/* The step rail is complete by now; the hint takes its place. */
-.is-lab-gated .lab-steps { opacity: 0 !important; transition: opacity 0.3s ease; }
-.lab-tag__box { transform-origin: 0 50%; }
-.lab-tag.is-left .lab-tag__box { transform-origin: 100% 50%; }
-.lab-tag.is-calling .lab-tag__box { animation: works-tag-call 0.9s cubic-bezier(0.3, 0.7, 0.3, 1); }
-@keyframes works-tag-call {
-  0%, 100% { scale: 1; box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0); }
-  30% { scale: 1.08; box-shadow: 0 0 0 10px rgba(var(--accent-rgb), 0.2); }
+/* A card called from the lab's monitor (js/works.js showShelf) glows once
+   in its game's colour as it comes into view. */
+.game-card.is-called .game-card__tilt { animation: works-card-call 1.4s cubic-bezier(0.3, 0.7, 0.3, 1); }
+@keyframes works-card-call {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--card-glow), 0); }
+  35% { box-shadow: 0 0 0 6px rgba(var(--card-glow), 0.45), 0 0 48px rgba(var(--card-glow), 0.35); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .game-card__tilt, .game-card__art { transform: none !important; transition: none; }
-  .shelf-hint::before, .game-card__play::after, .gate-hint__ring::after,
+  .shelf-hint::before, .game-card__play::after, .game-card.is-called .game-card__tilt,
   .has-works .player .poster--neuromaze.is-active .poster-capture { animation: none; }
   .has-works .player .poster-content > *,
   .has-works .player .poster :is(.poster-chrome, .poster-quote, .poster-hud) { transition: none; }

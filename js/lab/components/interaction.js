@@ -15,7 +15,8 @@ import { seg, smooth, easeOutCubic } from '../timeline.js';
  *
  * The visitor can then use it: hovering lifts the preview's play button, and
  * a click/tap on the monitor (or its label, also a keyboard button) presses
- * it — a flash — and `onOpen` pops NeuroMaze out into chapter 04's player.
+ * it — a flash — and `onOpen` takes the page on to chapter 04's shelf, where
+ * NeuroMaze waits. The label says so: the game is up next, not a second door.
  *
  * Every value is a function of L, so scrolling back un-selects it. */
 export function createInteraction({ workstation, stage, onChange = () => {}, onOpen = () => {}, isAvailable = () => true }) {
@@ -54,10 +55,9 @@ export function createInteraction({ workstation, stage, onChange = () => {}, onO
   tag.type = 'button';
   tag.disabled = true;
   tag.tabIndex = -1;
-  tag.setAttribute('aria-label', 'Open NeuroMaze in chapter 04, Creative works');
-  const verb = matchMedia('(pointer: coarse)').matches ? 'Tap' : 'Click';
+  tag.setAttribute('aria-label', 'NeuroMaze: go to chapter 04, Creative works');
   tag.innerHTML =
-    `<span class="lab-tag__box"><i class="lab-tag__dot"></i><span class="lab-tag__name">NeuroMaze</span><span class="lab-tag__state">${verb} to open</span></span>`;
+    '<span class="lab-tag__box"><i class="lab-tag__dot"></i><span class="lab-tag__name">NeuroMaze</span><span class="lab-tag__state">Up next ↓</span></span>';
   // Keep the keyboard control outside the decorative aria-hidden canvas.
   stage.parentElement.appendChild(tag);
   const box = tag.firstElementChild;

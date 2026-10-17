@@ -7,11 +7,14 @@
    * The tabs, arrows, arrow keys or a swipe move between games; Esc, the
    * close button or a swipe down sends the player back into its card.
    *
-   * The lab's monitor (chapter 03) opens the same player. The end of the lab
-   * is a gate: scrolling waits there, with a hint, until the visitor taps or
-   * clicks the monitor, which pops NeuroMaze out of the screen at full size.
-   * Underneath, the page moves on to the shelf, so closing the player lands
-   * NeuroMaze in its card and the gate stays open from then on.
+   * The shelf is the one place the games open from. The lab's monitor
+   * (chapter 03) is a signpost to it: tapping it glides down to the shelf
+   * with NeuroMaze in front. Scrolling is never held back.
+   *
+   * The player is built to fit a phone's memory: only the game on screen is
+   * rendered (its neighbour joins only while a swipe shows it), and once the
+   * player covers the screen the page underneath is hidden, so the browser
+   * can drop that page's layers until the player closes.
    *
    * Without this file the cards are plain links to the posters, which read
    * as an ordinary page below the shelf.
@@ -63,7 +66,8 @@
   win.insertBefore(ghost, ui);
 
   // Each poster's copy arrives line by line once the player has opened.
-  posters.forEach((poster) => {
+  posters.forEach((poster, k) => {
+    poster.style.setProperty('--k', k);
     [...poster.querySelectorAll('.poster-content > *')].forEach((node, i) => node.style.setProperty('--i', i));
   });
 
@@ -151,6 +155,8 @@
     track.style.transform = `translate3d(${(-p * W).toFixed(2)}px, 0, 0)`;
     posters.forEach((poster, i) => {
       const d = i - p;
+      // Only a poster that is actually on screen is rendered at all.
+      poster.classList.toggle('is-shown', Math.abs(d) < 0.999);
       const near = Math.abs(d) < 1.2;
       // The scene behind lags the frame, so a change of game has depth.
       backgrounds[i].style.transform = near && d ? `translate3d(${(-d * W * 0.34).toFixed(2)}px, 0, 0)` : '';
@@ -188,23 +194,25 @@
   /* ---- open / close -------------------------------------------------------- */
   let state = 'closed'; // closed · opening · open · closing
   let returnFocus = null;
-  let openedFromLab = false;
   let slide = null;
 
   function lockPage(on) {
     root.classList.toggle('is-player-open', on);
+    if (!on) cover(false);
     window.dispatchEvent(new CustomEvent('worksplayer', { detail: { open: on } }));
   }
+  // While the player fills the screen nothing of the page shows, so it is
+  // hidden outright: the browser stops painting it and can free its layers.
+  function cover(on) { root.classList.toggle('is-player-covered', on); }
   player.tabIndex = -1;
   // Whether the visitor is using the keyboard, for where focus goes on open.
   let keyboardOpen = false;
   document.addEventListener('keydown', () => { keyboardOpen = true; }, true);
   document.addEventListener('pointerdown', () => { keyboardOpen = false; }, true);
 
-  function open(i, { rect = null, radius = 18, art = '', fromLab = false } = {}) {
+  function open(i, { rect = null, radius = 18, art = '' } = {}) {
     if (state !== 'closed') return false;
     state = 'opening';
-    openedFromLab = fromLab;
     returnFocus = document.activeElement;
     index = Math.max(0, Math.min(count - 1, i));
     lockPage(true);
@@ -217,7 +225,7 @@
     updateNav();
     activate(index);
     ghost.style.backgroundImage = art || 'none';
-    const card = fromLab ? null : cards[index];
+    const card = cards[index];
     card?.classList.add('is-lifted');
     const W = viewport().width;
     const H = viewport().height;
@@ -235,10 +243,10 @@
       present(index);
       ui.classList.add('is-visible');
       state = 'open';
+      cover(true);
       // Keyboard users land on Close; a click or tap just moves focus into
       // the dialog, without a focus ring appearing on the button.
       (keyboardOpen ? closeButton : player)?.focus({ preventScroll: true });
-      if (fromLab) landOnShelf();
     });
     return true;
   }
@@ -262,9 +270,9 @@
     if (state !== 'open') return;
     state = 'closing';
     stopSlide();
+    cover(false);
     ui.classList.remove('is-visible');
     present(index, false);
-    settleScroll();
     revealCard(index);
     const target = cardFrame(index);
     const from = current ? current.rect : viewport();
@@ -307,7 +315,7 @@
       setTimeout(() => card.classList.remove('is-landing'), 700);
     }
     state = 'closed';
-    const focusTarget = openedFromLab ? card : (returnFocus && document.contains(returnFocus) ? returnFocus : card);
+    const focusTarget = returnFocus && document.contains(returnFocus) ? returnFocus : card;
     focusTarget?.focus?.({ preventScroll: true });
     returnFocus = null;
   }
@@ -366,7 +374,7 @@
       if (drag.axis === 'none') { drag = null; return; }
       stopSlide();
       win.setPointerCapture?.(event.pointerId);
-      if (drag.axis === 'y') { ui.classList.remove('is-visible'); player.classList.add('is-animating'); }
+      if (drag.axis === 'y') { cover(false); ui.classList.remove('is-visible'); player.classList.add('is-animating'); }
     }
     const now = performance.now();
     const dt = now - drag.t;
@@ -420,6 +428,7 @@
           clearFrame();
           player.classList.remove('is-animating');
           ui.classList.add('is-visible');
+          cover(true);
         });
       }
     }
@@ -514,190 +523,46 @@
     });
   });
 
-  /* ---- after opening from the lab: land on the shelf ---------------------- */
-  const LANDING = 0.42; // chapter progress at which the shelf is settled (js/story.js)
-  function shelfY() {
+  /* ---- from the lab's monitor: down to the shelf -------------------------- */
+  // The monitor is a signpost, not a second way in: it takes the visitor to
+  // the shelf, where the game it was showing waits in front and glows once.
+  const SHELF_AT = 0.42; // chapter progress at which the shelf is settled (js/story.js)
+  let calling = null;
+  function showShelf(i = 0) {
+    if (state !== 'closed') return false;
+    const card = cards[i];
+    revealCard(i);
+    calling?.disconnect();
+    calling = null;
+    if (card && typeof IntersectionObserver !== 'undefined') {
+      calling = new IntersectionObserver(([entry]) => {
+        if (!entry.isIntersecting) return;
+        calling.disconnect();
+        calling = null;
+        setAmbient(i);
+        card.classList.remove('is-called');
+        void card.offsetWidth;
+        card.classList.add('is-called');
+        setTimeout(() => card.classList.remove('is-called'), 1600);
+      }, { threshold: 0.75 });
+      calling.observe(card);
+    }
+    // Large screens stage the chapter: the title arrives first, then the
+    // shelf settles (js/story.js), so the glide goes on to the shelf itself.
     const stage = section.querySelector('.story-stage');
-    const top = section.getBoundingClientRect().top + window.scrollY;
     if (root.classList.contains('has-story') && !compact.matches && stage) {
-      return top + LANDING * Math.max(0, section.offsetHeight - stage.clientHeight);
+      const top = section.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo({ top: top + SHELF_AT * Math.max(0, section.offsetHeight - stage.clientHeight), behavior: reduceMotion ? 'auto' : 'smooth' });
+    } else if (window.SiteDial?.go) {
+      window.SiteDial.go(4, { source: 'pointer' });
+    } else {
+      document.getElementById('work')?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
     }
-    // In page flow: the chapter's top edge, flush; its padding clears the mark.
-    return top;
-  }
-  function settleScroll() {
-    if (typeof ScrollTrigger === 'undefined') return;
-    if (window.SceneKit?.settle) { window.SceneKit.settle(); return; }
-    ScrollTrigger.update();
-    // Finish every scrubbed scene at once, rather than easing through the
-    // chapters in between underneath the player.
-    ScrollTrigger.getAll().forEach((trigger) => {
-      const scrub = trigger.getTween?.();
-      if (scrub && typeof scrub.progress === 'function') scrub.progress(1);
-    });
-  }
-  function landOnShelf() {
-    unlock();
-    window.scrollTo({ top: Math.max(0, shelfY()), behavior: 'instant' });
-    settleScroll();
-  }
-
-  /* ---- the gate at the end of the lab ------------------------------------- */
-  const labSection = document.getElementById('chapter-beyond');
-  const labScene = labSection?.querySelector('.lab-scene');
-  const hint = document.querySelector('.gate-hint');
-  hint?.querySelectorAll('.gate-hint__verb').forEach((node) => { node.textContent = verb; });
-  // Just after the monitor has been selected and its label invites a tap
-  // (js/story.js runs the lab from .46 to .9 of chapter 03).
-  const GATE_AT = 0.905;
-  let unlocked = reduceMotion;
-
-  const labReady = () => {
-    const stats = window.HiWiLab?.stats?.();
-    return !!stats && stats.drawn > 0 && stats.contextAvailable !== false;
-  };
-  function gateY() {
-    const range = labSection?._sceneRange;
-    return range && range.end > range.start ? range.start + GATE_AT * (range.end - range.start) : Infinity;
-  }
-  const gateActive = () => !unlocked && state === 'closed' && root.classList.contains('has-story') && labReady();
-
-  function unlock() {
-    if (unlocked) return;
-    unlocked = true;
-    showHint(false);
-    guard(false);
-  }
-
-  let hintShown = false;
-  function showHint(on) {
-    if (!hint || on === hintShown) return;
-    hintShown = on;
-    if (on) hint.hidden = false;
-    hint.classList.toggle('is-visible', on);
-    root.classList.toggle('is-lab-gated', on);
-  }
-
-  let lastNudge = 0;
-  const restart = (node, name) => {
-    if (!node) return;
-    node.classList.remove(name);
-    void node.offsetWidth;
-    node.classList.add(name);
-  };
-  function nudge() {
-    showHint(true);
-    const now = performance.now();
-    if (now - lastNudge < 700) return;
-    lastNudge = now;
-    restart(hint, 'is-nudge');
-    restart(document.querySelector('.lab-tag'), 'is-calling');
-    // A soft wall: the scene gives a little and springs back.
-    if (!reduceMotion) {
-      labScene?.animate?.([
-        { transform: 'translate3d(0, 0, 0)' },
-        { transform: 'translate3d(0, -14px, 0)', offset: 0.28 },
-        { transform: 'translate3d(0, 0, 0)' },
-      ], { duration: 680, easing: 'cubic-bezier(0.3, 0.7, 0.3, 1)' });
-    }
-  }
-  const holdAt = (y) => window.scrollTo({ top: y, behavior: 'instant' });
-
-  function onWheel(event) {
-    // The chapter dial (js/dial.js) turns itself; that is navigation, not scrolling.
-    if (event.defaultPrevented) return;
-    if (event.ctrlKey || !gateActive()) return;
-    const dy = event.deltaY * (event.deltaMode === 1 ? 32 : event.deltaMode === 2 ? innerHeight : 1);
-    const gate = gateY();
-    if (dy <= 0 || window.scrollY + dy <= gate) return;
-    event.preventDefault();
-    if (window.scrollY < gate - 0.5) holdAt(gate);
-    nudge();
-  }
-  let touchY = null;
-  function onTouchStart(event) {
-    touchY = event.target?.closest?.('.dial') ? null : event.touches[0]?.clientY ?? null;
-  }
-  function onTouchMove(event) {
-    if (event.target?.closest?.('.dial')) return;
-    if (touchY === null || !gateActive()) return;
-    const y = event.touches[0]?.clientY ?? touchY;
-    if (touchY - y > 0 && window.scrollY >= gateY() - 2) {
-      if (event.cancelable) event.preventDefault();
-      nudge();
-    }
-  }
-  // The non-passive listeners hold up native scrolling, so they are only
-  // attached while the visitor is near the gate.
-  let guarded = false;
-  function guard(on) {
-    if (on === guarded) return;
-    guarded = on;
-    const method = on ? 'addEventListener' : 'removeEventListener';
-    window[method]('wheel', onWheel, { passive: false });
-    window[method]('touchstart', onTouchStart, { passive: true });
-    window[method]('touchmove', onTouchMove, { passive: false });
-  }
-
-  function onScroll() {
-    if (unlocked) return;
-    const gate = gateY();
-    if (!Number.isFinite(gate)) return;
-    const y = window.scrollY;
-    if (!gateActive()) {
-      // Already past it some other way (a link, a restored position) before
-      // the lab ever drew: then it was never in the way, and isn't now.
-      if (y > gate + innerHeight) unlock();
-      guard(false);
-      showHint(false);
-      return;
-    }
-    guard(y > gate - innerHeight * 2.5);
-    if (y > gate + 1) {
-      // A jump far past the lab (the scrollbar thumb, find in page) is the
-      // visitor choosing to leave; anything nearer is held at the gate.
-      if (y > gate + innerHeight * 1.5) { unlock(); return; }
-      holdAt(gate);
-      nudge();
-      return;
-    }
-    showHint(y >= gate - innerHeight * 0.05);
-  }
-  window.addEventListener('scroll', onScroll, { passive: true });
-  window.addEventListener('resize', onScroll, { passive: true });
-  if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.addEventListener('refresh', onScroll);
-
-  document.addEventListener('keydown', (event) => {
-    if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || !gateActive()) return;
-    const space = event.key === ' ' && !event.shiftKey;
-    if (space && event.target.closest?.('button, a, input, textarea, select, [contenteditable]')) return;
-    const step = { ArrowDown: 40, PageDown: innerHeight * 0.9, End: Infinity }[event.key] ?? (space ? innerHeight * 0.9 : 0);
-    if (!step || event.target.closest?.('input, textarea, select, [contenteditable]')) return;
-    const gate = gateY();
-    if (window.scrollY + step <= gate) return;
-    event.preventDefault();
-    if (window.scrollY < gate - 0.5) holdAt(gate);
-    nudge();
-  });
-  // A link elsewhere on the page (the nav) is the visitor's own choice.
-  document.addEventListener('click', (event) => {
-    const link = event.target.closest?.('a[href^="#"]');
-    if (link && !link.hasAttribute('aria-haspopup') && !link.closest('.player')) unlock();
-  }, true);
-  hint?.addEventListener('click', () => openFromLab());
-
-  function openFromLab() {
-    let rect = null;
-    try { rect = window.HiWiLab?.screenRect?.() || null; } catch (error) { rect = null; }
-    showHint(false);
-    unlock();
-    return open(0, { rect, radius: 6, fromLab: true });
+    return true;
   }
 
   window.WorksPlayer = {
-    open: (i = 0) => open(i), openFromLab, close, go: (i) => go(i), get state() { return state; },
-    // For the chapter dial: navigation past the lab opens the gate.
-    unlock, gateY, isGated: () => gateActive(),
+    open: (i = 0) => open(i), close, go: (i) => go(i), showShelf, get state() { return state; },
   };
 
   /* ---- each poster's scene, looping while it is on screen ----------------- */

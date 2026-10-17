@@ -105,10 +105,10 @@ export async function startLab({ canvas, stage, state, pause: yieldToPage = null
   let requestInteractionFrame = () => {};
   const interaction = createInteraction({ workstation, stage,
     onChange: () => requestInteractionFrame(),
-    // The NeuroMaze preview opens chapter 04: js/works.js pops the game out of
-    // this screen into its full-screen player; without it the page goes there.
+    // The NeuroMaze preview leads on to chapter 04: js/works.js glides to the
+    // shelf with NeuroMaze in front; without it the page simply goes there.
     onOpen: () => {
-      if (window.WorksPlayer?.openFromLab?.()) return;
+      if (window.WorksPlayer?.showShelf?.(0)) return;
       const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
       document.getElementById('chapter-work')?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
     },
