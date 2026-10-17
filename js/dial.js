@@ -1215,7 +1215,7 @@
   dial.addEventListener('pointerup', onUp);
   dial.addEventListener('pointercancel', onUp);
   dial.addEventListener('contextmenu', (event) => event.preventDefault());
-  // Scene listeners on window (smoke, stars, the hero's tilt) never see a turn.
+  // Scene listeners on window (smoke, stars, the hero's pointer flow) never see a turn.
   ['pointermove', 'touchstart', 'touchmove'].forEach((type) => dial.addEventListener(type, (event) => event.stopPropagation(), { passive: true }));
   // Once a thumb has grabbed the dial, the page must not pan underneath it.
   [knob, wheel].forEach((el) => el.addEventListener('touchmove', (event) => {

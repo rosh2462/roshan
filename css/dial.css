@@ -621,6 +621,8 @@ html.is-player-open .site-mark { opacity: 0 !important; visibility: hidden !impo
 }
 .dial:not(.is-ready) .dial-label { position: static; opacity: 1 !important; pointer-events: auto !important; letter-spacing: 0.08em; }
 .dial:not(.is-ready) .dial-label b { display: none; }
+/* Scripts are on and the dial is still loading: show nothing yet. */
+html.dial-pending .dial:not(.is-ready) { opacity: 0; visibility: hidden; }
 
 /* ---- preferences ---- */
 .dial.is-still *, .dial.is-still { transition-duration: 0.12s !important; }

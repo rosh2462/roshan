@@ -9,17 +9,6 @@
 #hero .stage-floor { opacity: .09; }
 #hero .hero-title { line-height: 1.12; margin: 0 0 18px; text-shadow: 0 2px 3px rgba(0, 0, 0, .3); }
 #hero .hero-inner { width: min(100%, 480px); }
-.hero-motion-toggle {
-  position: absolute; top: calc(100% + 18px); left: 50%; transform: translateX(-50%);
-  min-height: 44px; padding: 8px 12px; border: 0; background: transparent;
-  color: #929ba7; font: inherit; font-size: .75rem; letter-spacing: .04em;
-  white-space: nowrap; cursor: pointer;
-}
-.hero-motion-toggle[hidden] { display: none; }
-.hero-motion-toggle:hover { color: #d5deea; }
-.hero-motion-toggle:focus-visible { outline: 1px solid #9eafc4; outline-offset: 3px; border-radius: 4px; }
-.hero-vortex-pending .hero-motion-toggle { visibility: hidden; }
-.hero-vortex-active .hero-motion-toggle { opacity: var(--hero-copy-alpha, 0); }
 #hero .sleeping-cat { bottom: .9em; }
 #hero .hero-sub { color: rgba(210, 204, 192, .74); text-wrap: pretty; }
 #hero .hero-role { text-wrap: balance; }
@@ -84,7 +73,6 @@ html:not(.identity-fonts-ready) .dial { font-family: system-ui, -apple-system, s
   #hero .hero-role { font-size: 1.1rem; margin-bottom: 12px; }
   #hero .hero-sub { font-size: .92rem; }
   #hero .scroll-hint { bottom: 20px; }
-  .hero-motion-toggle { top: calc(100% + 2px); left: 0; transform: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .hero-particle-journey, .hero-particles, .hero-energy-darkness { display: none; }

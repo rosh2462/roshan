@@ -23,7 +23,6 @@
     attribute vec3 aBMWColor;
     uniform vec2 uViewport;
     uniform vec2 uPointer;
-    uniform vec2 uTilt;
     uniform float uInputActive;
     uniform vec4 uTitleRect;
     uniform vec4 uCopyRect;
@@ -201,11 +200,6 @@
       float motion = mix((1.0 - assembly) * 0.7 + ambientMix,
         ease(releaseAt, releaseAt + 0.03, lift) * (1.0 - max(travel, converge)) * 0.50, bridgeMix);
       point += vec2(sin(uTime * 0.50 + aSeed.w * 6.0), cos(uTime * 0.43 + aSeed.y * 5.0)) * motion * 3.3;
-      // Mobile tilt moves depth, not the finished typography or BMW targets.
-      // When sensors are absent, the field's own slow drift remains alive.
-      point += vec2(uTilt.x, -uTilt.y) * vec2(22.0, 16.0)
-        * (0.35 + foreground * 0.65) * uMobile
-        * ((1.0 - assembly) * 0.60 + ambientMix) * (1.0 - bridgeMix);
       point += vec2(uPointer.x, -uPointer.y) * vec2(5.0, 3.5)
         * (foreground - 0.5) * uInputActive * (1.0 - uMobile)
         * ambientMix * (1.0 - bridgeMix);
@@ -368,7 +362,7 @@
     let compileStarted = 0, compileMs = null;
     let lastProgress = 0, lastTransition = 0, lastHandoff = 0, lastTime = 0, lastScrollOffset = 0;
     let lastBMWProgress = 0, lastFlow = [0, 0], nativeLight = [0, 0, 0];
-    let lastTilt = [0, 0], lastInputActive = 0;
+    let lastInputActive = 0;
     let previousTick = 0, slowFrames = 0, reductions = 0, pointerX = 0, pointerY = 0;
     let titleRect = [0, 0, 1, 1], copyRect = [0, 0, 1, 1], bmwRect = [0, 0, 1, 1], textCount = 0, textCharacters = 0;
     let field, fieldSignature = '', uploads = 0;
@@ -392,7 +386,7 @@
         const detail = shaders.map(shader => gl.getShaderInfoLog(shader)).filter(Boolean).join('\n');
         throw new Error(`Hero flow link: ${gl.getProgramInfoLog(program) || detail || 'unknown shader error'}`);
       }
-      for (const name of ['uViewport', 'uPointer', 'uTilt', 'uInputActive', 'uTitleRect', 'uCopyRect', 'uBMWRect', 'uTime', 'uProgress',
+      for (const name of ['uViewport', 'uPointer', 'uInputActive', 'uTitleRect', 'uCopyRect', 'uBMWRect', 'uTime', 'uProgress',
         'uTransition', 'uHandoff', 'uBMWProgress', 'uFlow', 'uNativeLight', 'uMobile', 'uAmbientCount', 'uDpr', 'uPointBase'])
         uniforms[name] = gl.getUniformLocation(program, name);
       buffer = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buffer); gl.useProgram(program);
@@ -454,7 +448,7 @@
       shaders.forEach(shader => gl.deleteShader(shader)); reportError(problem); throw problem;
     }
     function render({ time = 0, progress = 0, transition = 0, handoff = 0, pointer = [0, 0],
-      tilt = [0, 0], inputActive = 0,
+      inputActive = 0,
       bmwProgress = 0, flow = null, nativeLight: nextLight = [0, 0, 0],
       bmwRect: nextBMW, titleRect: nextTitle, copyRect: nextCopy, scrollOffset = 0 } = {}) {
       if (disposed || lost || document.hidden) { previousTick = 0; return; }
@@ -468,7 +462,6 @@
       lastBMWProgress = clamp(bmwProgress);
       lastFlow = flow ? [clamp(flow[0]), clamp(flow[1])] : [lastBMWProgress, lastBMWProgress];
       nativeLight = [clamp(nextLight[0]), clamp(nextLight[1]), clamp(nextLight[2])];
-      lastTilt = [clamp(tilt[0], -1, 1), clamp(tilt[1], -1, 1)];
       lastInputActive = clamp(inputActive);
       lastTime = Math.max(0, Number(time) || 0); lastScrollOffset = Math.max(0, Number(scrollOffset) || 0);
       titleRect = rectValues(nextTitle, titleRect); copyRect = rectValues(nextCopy, copyRect); bmwRect = rectValues(nextBMW, bmwRect);
@@ -481,7 +474,7 @@
       pointerX += (targetX - pointerX) * follow; pointerY += (targetY - pointerY) * follow;
       gl.useProgram(program); gl.uniform2f(uniforms.uViewport, width, height);
       gl.uniform2f(uniforms.uPointer, pointerX, pointerY); gl.uniform4f(uniforms.uTitleRect, ...titleRect);
-      gl.uniform2f(uniforms.uTilt, ...lastTilt); gl.uniform1f(uniforms.uInputActive, lastInputActive);
+      gl.uniform1f(uniforms.uInputActive, lastInputActive);
       gl.uniform4f(uniforms.uCopyRect, ...copyRect);
       gl.uniform4f(uniforms.uBMWRect, ...bmwRect); gl.uniform1f(uniforms.uTime, lastTime);
       gl.uniform1f(uniforms.uProgress, lastProgress); gl.uniform1f(uniforms.uTransition, lastTransition);
@@ -519,7 +512,7 @@
     return { render, resize, dispose, stats: () => ({ width, height, dpr, particles: count, count, initialCount,
       ambient: ambientCount, drawnCount, drawCalls, gpuFrames: frames, textures: 0, buffers: ready && !disposed ? 1 : 0,
       pointer: [pointerX, pointerY], renderProgress: lastProgress, renderTransition: lastTransition, renderHandoff: lastHandoff,
-      tilt: [...lastTilt], inputActive: lastInputActive, ambientLayout: 'sparse-depth-field', copyRect: [...copyRect],
+      inputActive: lastInputActive, ambientLayout: 'sparse-depth-field', copyRect: [...copyRect],
       renderBMWProgress: lastBMWProgress, renderFlow: [...lastFlow], nativeLight: [...nativeLight],
       renderTime: lastTime, scrollOffset: lastScrollOffset, titleRect: [...titleRect], bmwRect: [...bmwRect],
       textSamples: textCount, textCharacters, carSamples: cache.count, uploads, qualityReductions: reductions,

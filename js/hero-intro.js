@@ -66,7 +66,6 @@
   let copyRect = { x: 0, y: 0, width: 1, height: 1 };
   const styleValues = new WeakMap();
   const coarsePointer = matchMedia('(pointer: coarse)');
-  const tilt = [0, 0];
   const pointer = [0, 0], targetPointer = [0, 0];
 
   function writeStyle(element, name, value) {
@@ -126,7 +125,6 @@
     hero.style.removeProperty('--hero-scroll-lift'); hero.classList.remove('is-text-pinned');
     observer?.disconnect(); clearTimeout(resizeTimer);
     renderer?.dispose(); renderer = null; layer?.remove(); darkness?.remove();
-    window.HeroMotion?.setEnabled(false);
     state.ready = false; state.particles = 0; state.drawCalls = 0; state.buffers = 0;
   }
   // A lost GPU context (a driver reset, a phone reclaiming memory in the
@@ -146,7 +144,6 @@
     renderer = null;
     root.classList.remove('hero-vortex-active');
     if (layer) writeStyle(layer, 'visibility', 'hidden');
-    window.HeroMotion?.setEnabled(false);
     canvas.addEventListener('webglcontextrestored', () => {
       suspended = false;
       if (failed) return;
@@ -279,7 +276,6 @@
     // has no layout, style or motion work until it re-enters or is resized.
     if (!inView && !wasInView && !layoutDirty && state.surface === (entering ? 'bmw-stage' : 'homepage')) return;
     layoutDirty = false;
-    window.HeroMotion?.setEnabled(inView && state.transition < .10 && !document.hidden && !failed);
     // During the entrance the points share the car's sticky stage. Mobile
     // browser chrome can move a viewport-fixed canvas independently of it.
     if (layer) {
@@ -339,13 +335,10 @@
     pointer[0] += (targetPointer[0] - pointer[0]) * follow;
     pointer[1] += (targetPointer[1] - pointer[1]) * follow;
     inputActive += (targetInputActive - inputActive) * follow;
-    const mobileMotion = window.HeroMotion?.current();
-    tilt[0] += ((mobileMotion?.active ? mobileMotion.x : 0) - tilt[0]) * follow;
-    tilt[1] += ((mobileMotion?.active ? mobileMotion.y : 0) - tilt[1]) * follow;
-    state.interaction = mobileMotion?.active ? 'tilt' : coarsePointer.matches ? 'autonomous' : 'cursor-flow';
+    state.interaction = coarsePointer.matches ? 'autonomous' : 'cursor-flow';
     try {
       renderer.render({ time, progress: intro, transition: state.transition,
-        handoff: state.handoff, pointer, tilt, inputActive, titleRect: sourceRect, copyRect, bmwRect: targetRect,
+        handoff: state.handoff, pointer, inputActive, titleRect: sourceRect, copyRect, bmwRect: targetRect,
         bmwProgress: state.bmwProgress, flow: [state.flow, state.flowFar],
         nativeLight,
         scrollOffset: 0 });
@@ -428,7 +421,7 @@
   document.addEventListener('pointerleave', release, { passive: true });
   window.addEventListener('blur', release);
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { release(); window.HeroMotion?.setEnabled(false); stop(); }
+    if (document.hidden) { release(); stop(); }
     else onScroll();
   });
   motion.addEventListener('change', () => { if (motion.matches) fallback('reduced-motion'); });
