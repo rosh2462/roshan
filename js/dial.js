@@ -110,7 +110,8 @@
   function rangeY(sectionId, p) {
     const range = document.getElementById(sectionId)?._sceneRange;
     if (!range || !Number.isFinite(range.start) || !Number.isFinite(range.end) || range.end <= range.start) return null;
-    return range.start + p * (range.end - range.start);
+    // LAND_P is a point of the chapter's timeline; a held scene maps it back.
+    return range.start + (range._unmap ? range._unmap(p) : p) * (range.end - range.start);
   }
   function landings() {
     if (!landDirty) return L;

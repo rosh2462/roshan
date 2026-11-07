@@ -55,11 +55,17 @@
       // The room is built in pieces, each in a pause — or at once when the
       // visitor is already in the chapter.
       const idle = window.SceneIdle;
-      // Far from the chapter, work waits for real pauses; once the visitor is
-      // near, the short gaps between scroll steps are used, so preparation
-      // still finishes before the lab is on screen.
+      // Far from the chapter, work waits for real pauses. Once the visitor is
+      // near (within two screens, or in the chapter: state.soon from
+      // js/story.js) it stops waiting for scrolling to stop: each piece takes
+      // the next gap between frames. Waiting for a pause there only ever
+      // ran out its 250 ms limit, ~20 times over, for someone scrolling on,
+      // and the lab then compiled on arrival behind a spinner.
+      // One piece per frame, run just after it is painted. (An idle callback
+      // never comes while the page scrolls, so each one ran out its timeout.)
+      const nextGap = () => new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
       const pause = (ms = 200, limit = 900) => (!idle || state.visible ? Promise.resolve()
-        : near ? idle.quiet(Math.min(ms, 90), Math.min(limit, 250)) : idle.quiet(ms, limit));
+        : near || state.soon ? nextGap() : idle.quiet(ms, limit));
       try {
         window.HiWiLab = await window.HiWiLabBundle.startLab({ canvas, stage, state, pause });
         // Hold the background queue until its shaders are prepared.

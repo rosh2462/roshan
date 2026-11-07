@@ -19,6 +19,51 @@
   const { slateBeats, trackTransitions, driveSharedScene } = window.SceneKit;
 
   document.documentElement.classList.add('has-story');
+  // Chapter 03's headset clip (js/headset.js) gets its own stretch of scroll.
+  document.documentElement.classList.add('has-headset');
+
+  /* The headset hold. Chapter 03 is the old chapter plus `--headset-hold`
+   * screens of scroll (css/style.css). Over that extra stretch the timeline
+   * stands still on the dark beat between the portrait and the lab
+   * (HOLD_AT) while the clip plays; before it nothing has moved, after it
+   * the lab runs exactly as before. The clip itself runs a little longer,
+   * from as the portrait's light goes down (CLIP_FROM) to while the lab
+   * fades up over its last frame (CLIP_TO). Its progress is published as
+   * section._headsetProgress. */
+  const HOLD_AT = 0.446;
+  const CLIP_FROM = 0.418;
+  const CLIP_TO = 0.49;
+  function holdScene(section, stage, range) {
+    let hold = 0;
+    const measure = () => {
+      hold = (parseFloat(getComputedStyle(section).getPropertyValue('--headset-hold')) || 0) * stage.clientHeight;
+    };
+    measure();
+    ScrollTrigger.addEventListener('refreshInit', measure);
+    const spans = () => {
+      const all = range.end - range.start;
+      return { all, base: all - hold };
+    };
+    range._remap = (p) => {
+      const { all, base } = spans();
+      if (!(hold > 0 && base > 0)) { section._headsetProgress = 0; return p; }
+      const x = p * all;
+      const at = HOLD_AT * base;
+      const from = at - (HOLD_AT - CLIP_FROM) * base;
+      const length = hold + (CLIP_TO - CLIP_FROM) * base;
+      section._headsetProgress = Math.max(0, Math.min(1, (x - from) / length));
+      return x < at ? x / base : x < at + hold ? HOLD_AT : (x - hold) / base;
+    };
+    range._unmap = (t) => {
+      const { all, base } = spans();
+      if (!(hold > 0 && base > 0)) return t;
+      return (t <= HOLD_AT ? t * base : t * base + hold) / all;
+    };
+    return () => {
+      ScrollTrigger.removeEventListener('refreshInit', measure);
+      range._remap = range._unmap = null;
+    };
+  }
 
   function setupStory(scene, compact = false) {
     const section = document.getElementById(scene.id);
@@ -76,16 +121,21 @@
         const p = section._sceneProgress;
         // Drawing starts just before the lab fades up, so its first frame exists.
         HiWiLabState.visible = p > 0.435 && (compact || p < 1);
+        // In the chapter, the lab is next: finish preparing it without
+        // waiting for the visitor to pause (js/lab/boot.js).
+        HiWiLabState.soon = p > 0.12;
       }
       section.dispatchEvent(new Event('sceneprogress'));
     };
     tl.eventCallback('onUpdate', render);
     ScrollTrigger.addEventListener('refresh', render);
     render();
+    const stopHold = shared ? holdScene(section, stage, range) : null;
     const stopShared = shared ? driveSharedScene(section, tl, range) : null;
     // Keep refresh listeners from accumulating when responsive layouts change.
     return () => {
       stopShared?.();
+      stopHold?.();
       if (section._sceneRange === range) section._sceneRange = null;
       ScrollTrigger.removeEventListener('refreshInit', measure);
       ScrollTrigger.removeEventListener('refresh', render);
@@ -193,7 +243,8 @@
       // The console fills the same stage as Scene A underneath it; it stays
       // hidden until Scene A dims, and hidden also tells the 3D to stop drawing.
       gsap.set(consoleRoot, { autoAlpha: 0 });
-      tl.to(consoleRoot, { autoAlpha: 1, duration: 0.04, ease: 'sine.inOut' }, 0.44);
+      // From the headset hold (HOLD_AT): the lab fades up over the clip's last frame.
+      tl.to(consoleRoot, { autoAlpha: 1, duration: 0.034, ease: 'sine.inOut' }, HOLD_AT);
 
       tl.fromTo(lab, { progress: 0 }, { progress: 1, duration: LAB_TO - LAB_FROM, ease: 'none', immediateRender: false }, LAB_FROM);
 

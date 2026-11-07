@@ -123,8 +123,10 @@
   // any is, the page is marked so the cursor glow can sit it out.
   const transitioning = new Set();
   function trackTransitions(scene, self) {
+    // Windows are timeline points; a held scene (chapter 03) maps scroll to them.
+    const progress = self._remap ? self._remap(self.progress) : self.progress;
     const inside = self.isActive
-      && scene.transitions.some(([from, to]) => self.progress >= from && self.progress <= to);
+      && scene.transitions.some(([from, to]) => progress >= from && progress <= to);
     if (inside) transitioning.add(scene.id);
     else transitioning.delete(scene.id);
     document.documentElement.classList.toggle('is-scene-transition', transitioning.size > 0);
@@ -140,7 +142,11 @@
   function renderSharedScenes() {
     for (const { timeline, range } of sharedScenes) {
       const span = range.end - range.start;
-      if (span > 0) timeline.progress(Math.max(0, Math.min(1, (sharedScroll.y - range.start) / span)));
+      if (span <= 0) continue;
+      const p = Math.max(0, Math.min(1, (sharedScroll.y - range.start) / span));
+      // A scene may hold its timeline still over part of its scroll (chapter
+      // 03 holds on the dark beat while the headset clip plays; js/story.js).
+      timeline.progress(range._remap ? range._remap(p) : p);
     }
     // Cross-chapter overlays read one completed pose, after both photo scenes.
     window.dispatchEvent(new Event('sceneclock'));
