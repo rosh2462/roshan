@@ -20,7 +20,7 @@
   const section = document.getElementById('chapter-beyond');
   if (!canvas || !stage || !section) return;
 
-  const bundleUrl = new URL('lab.bundle.js?v=40', document.currentScript.src).href;
+  const bundleUrl = new URL('lab.bundle.js?v=41', document.currentScript.src).href;
   const state = (window.HiWiLabState = window.HiWiLabState || { progress: 0 });
   state.noAdapt = true;
 
@@ -64,8 +64,18 @@
       // One piece per frame, run just after it is painted. (An idle callback
       // never comes while the page scrolls, so each one ran out its timeout.)
       const nextGap = () => new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
-      const pause = (ms = 200, limit = 900) => (!idle || state.visible ? Promise.resolve()
-        : near || state.soon ? nextGap() : idle.quiet(ms, limit));
+      // A piece that can't be made smaller asks to wait for the scrolling to
+      // stop (`still`): it waits for that, for the visitor to reach the
+      // chapter, or for `limit`, whichever comes first.
+      const stillOr = (ms, limit) => new Promise((resolve) => {
+        let poll = 0;
+        const done = () => { clearInterval(poll); resolve(); };
+        poll = setInterval(() => { if (state.visible || state.soon) done(); }, 100);
+        idle.quiet(ms, limit).then(done);
+      });
+      const pause = (ms = 200, limit = 900, still = false) => (!idle || state.visible ? Promise.resolve()
+        : still && !state.soon ? stillOr(ms, limit)
+          : near || state.soon ? nextGap() : idle.quiet(ms, limit));
       try {
         window.HiWiLab = await window.HiWiLabBundle.startLab({ canvas, stage, state, pause });
         // Hold the background queue until its shaders are prepared.

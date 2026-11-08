@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 import { PALETTE, SCHEDULE } from './config.js';
 import { seg, smooth } from './timeline.js';
-import { createMaterials, createEnvironment } from './materials.js';
+import { createMaterials, createEnvironment, applyEnvironment, paintTexture, paintAll } from './materials.js';
 import { createLighting } from './lighting.js';
 import { createCameraRig } from './camera-rig.js';
 import { createPost } from './post.js';
@@ -16,6 +16,8 @@ import { createWorkstation } from './components/workstation.js';
 import { createProps } from './components/props.js';
 import { createInteraction } from './components/interaction.js';
 import { createAtmosphere } from './components/atmosphere.js';
+import { releaseRoundedBoxes } from './kit.js';
+import { releaseChair } from './shapes.js';
 
 /* The HiWi laboratory: a real-time three.js scene, drawn only while it is
  * on screen, whose entire state is a function of `state.progress` (0 → 1).
@@ -79,9 +81,22 @@ export async function startLab({ canvas, stage, state, pause: yieldToPage = null
   const idle = window.SceneIdle;
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   if (!yieldToPage) yieldToPage = (ms = 200, limit = 900) => (idle ? idle.quiet(ms, limit) : wait(ms));
-  await yieldToPage();
-  const materials = createMaterials(createEnvironment(renderer));
-  await yieldToPage();
+  // Each piece's main-thread time, for tuning (state.buildLog).
+  const buildLog = (state.buildLog = []);
+  let pieceAt = performance.now();
+  const piece = async (name) => {
+    buildLog.push({ step: name, ms: Math.round(performance.now() - pieceAt) });
+    await yieldToPage();
+    pieceAt = performance.now();
+  };
+  // Size the drawing buffer now, while nothing is queued on the GPU. Sized
+  // after the environment below, the canvas had to wait for that render to
+  // finish first: a quarter-second stall on the main thread.
+  renderer.setDrawingBufferSize(Math.max(1, stage.clientWidth), Math.max(1, stage.clientHeight),
+    Math.min(window.devicePixelRatio || 1, quality.maxDpr));
+  await piece('renderer');
+  // The reflection map is made later, in a pause of its own (see below).
+  const materials = createMaterials();
   const cameraRig = createCameraRig();
   const { camera } = cameraRig;
   const lighting = createLighting(scene, quality);
@@ -92,16 +107,23 @@ export async function startLab({ canvas, stage, state, pause: yieldToPage = null
 
   const grid = createGrid();
   const floor = createFloor({ materials });
+  await piece('grid+floor');
   const walls = createWalls({ materials });
-  await yieldToPage();
+  await piece('walls');
   const desks = createDesks({ materials });
+  await piece('desks');
   const storage = createStorage({ materials });
+  await piece('storage');
   const island = createIsland({ materials });
-  await yieldToPage();
+  await piece('island');
   const workstation = createWorkstation({ materials });
+  await piece('workstation');
   const props = createProps({ materials });
+  await piece('props');
   const atmosphere = createAtmosphere({ quality });
-  await yieldToPage();
+  releaseRoundedBoxes();
+  releaseChair();
+  await piece('atmosphere');
   let requestInteractionFrame = () => {};
   const interaction = createInteraction({ workstation, stage,
     onChange: () => requestInteractionFrame(),
@@ -123,6 +145,15 @@ export async function startLab({ canvas, stage, state, pause: yieldToPage = null
   const bulbs = [...desks.bulbs, workstation.bulb];
   // Post-processing (bloom on the lit parts, FXAA) on capable devices;
   // phones draw straight to the screen.
+  await piece('assemble');
+  // The reflection map: its shaders compile while it renders, the one piece
+  // that can't be cut smaller, so it waits a moment for a pause in the
+  // scrolling (at most 0.8 s: waiting longer left the lab still compiling
+  // as the visitor arrived), or goes at once if the visitor gets there first.
+  await yieldToPage(250, 800, true);
+  pieceAt = performance.now();
+  applyEnvironment(scene, createEnvironment(renderer));
+  await piece('environment');
   const post = quality.bloom ? createPost(renderer, scene, camera) : null;
   let bloomOn = !!post;
 
@@ -130,6 +161,13 @@ export async function startLab({ canvas, stage, state, pause: yieldToPage = null
   let dpr = Math.min(window.devicePixelRatio || 1, quality.maxDpr);
   const size = { w: 0, h: 0, x: 0, y: 0 };
   let poseRevision = 0;
+  // Whether the drawing buffer needs resizing (resizing it, even to the same
+  // size, makes the canvas wait for the GPU).
+  const drawingBuffer = new THREE.Vector2();
+  const bufferSize = (w, h) => {
+    renderer.getDrawingBufferSize(drawingBuffer);
+    return drawingBuffer.x !== Math.floor(w * dpr) || drawingBuffer.y !== Math.floor(h * dpr);
+  };
   function resize() {
     if (disposed) return;
     const w = Math.max(1, stage.clientWidth);
@@ -142,7 +180,7 @@ export async function startLab({ canvas, stage, state, pause: yieldToPage = null
     size.y = stage.offsetTop;
     // setPixelRatio() also resizes the bitmap. Update both together once.
     if (ratioChanged) renderer.setDrawingBufferSize(w, h, dpr);
-    else renderer.setSize(w, h, false);
+    else if (bufferSize(w, h)) renderer.setSize(w, h, false);
     post?.setSize(w, h, dpr);
     cameraRig.resize(w, h);
     poseRevision++;
@@ -228,6 +266,7 @@ export async function startLab({ canvas, stage, state, pause: yieldToPage = null
   }
   function render(reveal = true) {
     if (disposed || !contextAvailable) return;
+    paintAll(); // (normally done already, while the lab prepared)
     checkShadowInputs();
     const updateShadow = renderer.shadowMap.enabled && renderer.shadowMap.needsUpdate;
     if (post) post.render();
@@ -430,6 +469,7 @@ export async function startLab({ canvas, stage, state, pause: yieldToPage = null
   canvas.addEventListener('webglcontextrestored', contextRestored);
 
   resize();
+  buildLog.push({ step: 'post+size', ms: Math.round(performance.now() - pieceAt) });
 
   /* Compile every shader ahead of the visitor. A material's program is
    * compiled the first time it is drawn — on some drivers a 100–400 ms stall,
@@ -506,7 +546,8 @@ export async function startLab({ canvas, stage, state, pause: yieldToPage = null
     scene.traverse((o) => {
       const list = !o.material ? [] : Array.isArray(o.material) ? o.material : [o.material];
       for (const m of list) {
-        for (const value of Object.values(m)) if (value?.isTexture && !value.isRenderTargetTexture) textures.add(value);
+        const values = [...Object.values(m), ...Object.values(m.uniforms || {}).map((u) => u?.value)];
+        for (const value of values) if (value?.isTexture && !value.isRenderTargetTexture) textures.add(value);
       }
     });
     return [...textures];
@@ -516,17 +557,27 @@ export async function startLab({ canvas, stage, state, pause: yieldToPage = null
     if (preparation) return preparation;
     const generation = contextGeneration;
     preparation = (async () => {
+      // The room is handed to the driver one part at a time (with the room's
+      // lights), each in its own pause, so no single hand-over holds the page;
+      // the parts then compile side by side, as one batch would.
       const steps = [
+        ...scene.children.filter((o) => !o.isLight).map((o, i) => [`room${i}`, () => compileFor(o, !post, scene), true]),
         ['room', () => compileFor(scene, !post)],
         ['shadows', () => compileFor(shadowStandIns(), false, scene)],
         post && ['post', () => compileFor(postStandIns(false), false).then(() => compileFor(postStandIns(true), true))],
       ].filter(Boolean);
-      for (const [name, step] of steps) {
+      const handed = [];
+      const started = performance.now();
+      for (const [name, step, alongside] of steps) {
         await pause(300);
         if (disposed || generation !== contextGeneration) return false;
         const t0 = performance.now();
-        await step();
-        prepareLog.push({ step: name, ms: Math.round(performance.now() - t0), programs: renderer.info.programs?.length });
+        const done = step();
+        prepareLog.push({ step: name, sync: Math.round(performance.now() - t0) });
+        if (alongside) { handed.push(done); continue; }
+        await Promise.all(handed.splice(0));
+        await done;
+        prepareLog.push({ step: name, ms: Math.round(performance.now() - started), programs: renderer.info.programs?.length });
       }
       // Without parallel compilation the driver links in its own time; give
       // it a pause before anything needs the result.
@@ -534,12 +585,17 @@ export async function startLab({ canvas, stage, state, pause: yieldToPage = null
       for (const objects of [scene, ...standIns]) {
         await pause(150, 1500);
         if (disposed || generation !== contextGeneration) return false;
+        const t0 = performance.now();
         firstUse(objects);
+        prepareLog.push({ step: 'firstUse', ms: Math.round(performance.now() - t0) });
       }
       for (const texture of sceneTextures()) {
         await pause(150, 1500);
         if (disposed || generation !== contextGeneration) return false;
+        const t0 = performance.now();
+        paintTexture(texture);
         renderer.initTexture(texture);
+        prepareLog.push({ step: 'texture', ms: Math.round(performance.now() - t0) });
       }
       prepareLog.push({ step: 'textures', programs: renderer.info.programs?.length });
       return true;

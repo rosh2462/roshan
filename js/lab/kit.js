@@ -4,6 +4,20 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { PALETTE } from './config.js';
 import { seg, smooth, easeOutCubic, easeOutQuart, easeOutBack } from './timeline.js';
 
+/* A rounded box is costly to build (every bevel vertex is computed) and the
+ * lab repeats the same few sizes many times over: chairs, legs, drawers.
+ * Each distinct one is built once; callers get their own copy. */
+const roundedBoxes = new Map();
+export function roundedBox(w, h, d, segments, radius) {
+  const key = `${w},${h},${d},${segments},${radius}`;
+  let geo = roundedBoxes.get(key);
+  if (!geo) roundedBoxes.set(key, (geo = new RoundedBoxGeometry(w, h, d, segments, radius)));
+  // (Not geo.clone(): that would build a default rounded box first.)
+  return new THREE.BufferGeometry().copy(geo);
+}
+// Once the room is built the originals are not needed again (phone memory).
+export function releaseRoundedBoxes() { roundedBoxes.clear(); }
+
 /* The one idea every physical object in the lab shares.
  *
  * A Part is modelled the way the story says it was: first it exists as an
@@ -47,7 +61,7 @@ export function part({
   let geo = geometry;
   if (!geo) {
     const r = Math.max(0.004, Math.min(radius, Math.min(w, h, d) / 2 - 0.002));
-    geo = new RoundedBoxGeometry(w, h, d, r > 0.03 ? 3 : 2, r);
+    geo = roundedBox(w, h, d, r > 0.03 ? 3 : 2, r);
     geo.translate(0, h / 2, 0);
   }
 

@@ -6,14 +6,15 @@ import { PALETTE } from './config.js';
  * steel, dark plastic, fabric. Colour comes from the materials; light comes
  * from the lamps and windows. The one warm accent the site is built on
  * survives as brass trim, not as glow. */
-export function createMaterials(env) {
+export function createMaterials(env = null) {
   // Matte things — plaster, fabric, wood, paper — have no highlights worth
   // paying a PBR shader for: they get the cheaper diffuse-only material. Only
   // the glossy ones (metal, plastic, brass, glass) are PBR, and only they carry
   // the reflection map. It is a lot of pixels shaded on a close-up.
   const lam = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, ...extra });
   const std = (color, roughness = 0.6, metalness = 0.05, extra = {}) =>
-    new THREE.MeshStandardMaterial({ color, roughness, metalness, envMap: env, envMapIntensity: 0.55, ...extra });
+    new THREE.MeshStandardMaterial({ color, roughness, metalness, envMap: env, envMapIntensity: 0.55,
+      userData: { reflects: true }, ...extra });
 
   return {
     // architecture
@@ -91,25 +92,57 @@ export function createEnvironment(renderer) {
   return rt.texture;
 }
 
-/* Draw once into a canvas and use it as a texture. `redraw` re-runs the draw
- * once the site's fonts have loaded, so lettering lands in the right face. */
+/* The reflection map, once it exists (it is made late in the build, in a
+ * pause of its own): every reflective material, copies included, takes it. */
+export function applyEnvironment(scene, env) {
+  scene.traverse((o) => {
+    const list = !o.material ? [] : Array.isArray(o.material) ? o.material : [o.material];
+    for (const m of list) {
+      if (!m.userData.reflects || m.envMap === env) continue;
+      m.envMap = env;
+      m.needsUpdate = true;
+    }
+  });
+}
+
+/* Draw into a canvas and use it as a texture. The drawing (lettering, mostly:
+ * the slowest part of building the room) is done when the texture is first
+ * needed — paintTexture(), one per pause while the lab prepares — not while
+ * the furniture is built. `redraw` paints again once the site's fonts have
+ * loaded, so lettering lands in the right face. */
+const unpainted = new Set();
 export function drawTexture(draw, w = 512, h = 512, { anisotropy = 4, redraw = false } = {}) {
   const c = document.createElement('canvas');
   c.width = w;
   c.height = h;
   const g = c.getContext('2d');
-  draw(g, w, h);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = anisotropy;
+  tex.needsUpdate = false;
+  let painted = false;
+  tex.userData.paint = () => {
+    if (painted) return;
+    painted = true;
+    unpainted.delete(tex);
+    draw(g, w, h);
+    tex.needsUpdate = true;
+  };
+  unpainted.add(tex);
   if (redraw && document.fonts) {
     document.fonts.ready.then(() => {
+      if (!painted) return;
       g.clearRect(0, 0, w, h);
       draw(g, w, h);
       tex.needsUpdate = true;
     });
   }
   return tex;
+}
+export const paintTexture = (tex) => tex.userData.paint?.();
+// Anything still unpainted, before a frame is drawn.
+export function paintAll() {
+  for (const tex of [...unpainted]) tex.userData.paint();
 }
 
 // A lit material carrying a painted texture (locker doors, drawer fronts…).

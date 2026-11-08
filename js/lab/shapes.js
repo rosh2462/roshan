@@ -1,6 +1,5 @@
 import * as THREE from 'three';
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { merge } from './kit.js';
+import { merge, roundedBox } from './kit.js';
 
 /* Small geometry builders for the lab's furniture and props. Everything is
  * built standing on the floor with its origin at the bottom centre, then
@@ -11,7 +10,7 @@ import { merge } from './kit.js';
 export function box(w, h, d, at = [0, 0, 0], r = 0.012, rot = null) {
   const rr = Math.max(0.003, Math.min(r, Math.min(w, h, d) / 2 - 0.001));
   // Fewer bevel segments on small radii: it is a lot of small objects.
-  const g = new RoundedBoxGeometry(w, h, d, rr > 0.03 ? 3 : rr > 0.012 ? 2 : 1, rr).translate(0, h / 2, 0);
+  const g = roundedBox(w, h, d, rr > 0.03 ? 3 : rr > 0.012 ? 2 : 1, rr).translate(0, h / 2, 0);
   if (rot) {
     if (rot[0]) g.rotateX(rot[0]);
     if (rot[1]) g.rotateY(rot[1]);
@@ -53,7 +52,15 @@ export function screenPlane(info, x, y, z, ry = 0) {
 }
 
 /* ---- office chair (faces +z; seat top at 0.49) ------------------------- */
+// Every chair in the room is the same chair: built once, copied.
+let chair = null;
 export function officeChair() {
+  chair ||= buildOfficeChair();
+  return { base: chair.base.clone(), fabric: chair.fabric.clone() };
+}
+// Once the room is built the originals are not needed again.
+export function releaseChair() { chair = null; }
+function buildOfficeChair() {
   // The star base: five arms, each with a caster at its tip.
   const star = [];
   for (let i = 0; i < 5; i++) {
