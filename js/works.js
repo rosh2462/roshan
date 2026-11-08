@@ -320,6 +320,10 @@
     player.setAttribute('aria-hidden', 'true');
     pauseLoops();
     lockPage(false);
+    // The card the player opened from was lifted off the shelf; after a
+    // swipe to another game it is not the one being landed on, so every
+    // card goes back on the shelf here.
+    cards.forEach((c) => { if (c !== card) c.classList.remove('is-lifted'); });
     if (card) {
       card.classList.remove('is-lifted');
       card.classList.add('is-landing');
