@@ -2349,7 +2349,7 @@ a:focus-visible, button:focus-visible {
   position: absolute;
   inset: -3%;
   overflow: hidden;
-  background: url('../assets/neuromaze-capture.webp') center / cover no-repeat;
+  background: url('../assets/neuromaze-capture.webp?v=3') center / cover no-repeat;
 }
 /* A game's gameplay loop, over its still: fades in once it is playing. */
 .poster-video {
