@@ -384,9 +384,6 @@ html.is-player-covered body > :not(.player, .court) { visibility: hidden; }
 .has-works .player .poster-chrome { top: 84px; left: clamp(24px, 6vw, 96px); right: clamp(24px, 6vw, 96px); }
 .has-works .player .poster-hud { top: clamp(100px, 15vh, 136px); right: clamp(24px, 6vw, 96px); }
 .has-works .player .loop-hud { right: auto; left: clamp(24px, 6vw, 96px); }
-/* Low and right, clear of the moons, like a game's own HUD. */
-.has-works .player .apoc-hud { top: auto; bottom: clamp(64px, 10vh, 104px); }
-.has-works .player .apoc-warning { top: auto; bottom: calc(clamp(64px, 10vh, 104px) + 92px); right: clamp(24px, 6vw, 96px); }
 /* The capture already carries this line as the game's own subtitle. */
 .has-works .player .poster-quote { display: none; }
 .has-works .player .poster--neuromaze.is-active .poster-capture { animation: works-capture-drift 18s ease-in-out infinite alternate; }
@@ -394,6 +391,15 @@ html.is-player-covered body > :not(.player, .court) { visibility: hidden; }
   from { transform: scale(1) translate3d(0, 0, 0); }
   to { transform: scale(1.07) translate3d(-1.4%, -0.9%, 0); }
 }
+/* Escape Quest's feed cuts between two rooms every six seconds. */
+.has-works .player .poster--escapequest.is-active .eq-feed--living { animation: works-capture-drift 18s ease-in-out infinite alternate; }
+.has-works .player .poster--escapequest.is-active .eq-feed--library { animation: eq-on 12s linear infinite, works-capture-drift 18s ease-in-out infinite alternate; }
+.has-works .player .poster--escapequest.is-active .eq-room--library { animation: eq-on 12s linear infinite; }
+.has-works .player .poster--escapequest.is-active .eq-room--living { animation: eq-off 12s linear infinite; }
+.has-works .player .poster--escapequest.is-active .eq-cut { animation: eq-cut 6s linear infinite; }
+@keyframes eq-on { 0%, 49.9% { opacity: 0; } 50%, 99.9% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes eq-off { 0%, 49.9% { opacity: 1; } 50%, 99.9% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes eq-cut { 0% { opacity: 0.55; } 4% { opacity: 0; } 100% { opacity: 0; } }
 
 /* The card's own art, over the window as it leaves or returns to a card. */
 .player__ghost {
@@ -565,14 +571,14 @@ html.is-player-covered body > :not(.player, .court) { visibility: hidden; }
   /* A tall screen crops the wide scenes to their middle: lift each subject
      clear of the copy, and keep the capture's own subtitle off the screen. */
   .has-works .player .poster--neuromaze .poster-capture { background-size: auto 122%; background-position: 50% 0; }
-  .has-works .player .poster--apocalypse .poster-scene {
-    height: 66%;
-    -webkit-mask-image: linear-gradient(to bottom, #000 78%, transparent);
-    mask-image: linear-gradient(to bottom, #000 78%, transparent);
+  .has-works .player .poster--escapequest .eq-feed {
+    background-size: auto 62%;
+    background-position: 60% 7%;
+    -webkit-mask-image: linear-gradient(to bottom, #000 52%, transparent 70%);
+    mask-image: linear-gradient(to bottom, #000 52%, transparent 70%);
   }
   .has-works .player .poster-hud { top: 92px; bottom: auto; right: 22px; }
   .has-works .player .loop-hud { right: auto; left: 22px; }
-  .has-works .player .apoc-warning { top: 176px; bottom: auto; right: 22px; }
 }
 @media (max-height: 600px) {
   .has-works .player .project-facts, .has-works .player .poster-tags { display: none; }
@@ -592,7 +598,8 @@ html.is-player-covered body > :not(.player, .court) { visibility: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .game-card__tilt, .game-card__art { transform: none !important; transition: none; }
   .shelf-hint::before, .game-card__play::after, .game-card.is-called .game-card__tilt,
-  .has-works .player .poster--neuromaze.is-active .poster-capture { animation: none; }
+  .has-works .player .poster--neuromaze.is-active .poster-capture,
+  .has-works .player .poster--escapequest.is-active :is(.eq-feed, .eq-cut, .eq-room b) { animation: none; }
   .has-works .player .poster-content > *,
   .has-works .player .poster :is(.poster-chrome, .poster-quote, .poster-hud) { transition: none; }
 }

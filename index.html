@@ -59,11 +59,11 @@
   }
 </script>
 <link id="portfolioFonts" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="css/style.css?v=137" />
+<link rel="stylesheet" href="css/style.css?v=138" />
 <link rel="stylesheet" href="css/portrait-mask.css?v=7" />
 <link rel="stylesheet" href="css/bmw-bridge.css?v=5" />
 <link rel="stylesheet" href="css/hero-particles.css?v=16" />
-<link rel="stylesheet" href="css/works.css?v=4" />
+<link rel="stylesheet" href="css/works.css?v=5" />
 <link rel="stylesheet" href="css/dial.css?v=5" />
 <link rel="stylesheet" href="css/court.css?v=1" />
 <style>#hero .stage-text { opacity: 1; }</style>
@@ -533,14 +533,14 @@
             </a>
           </li>
           <li>
-            <a class="game-card game-card--apocalypse" href="#play-apocalypse" data-work="1" aria-haspopup="dialog" style="--card-glow: 255, 168, 96;">
+            <a class="game-card game-card--escapequest" href="#play-escapequest" data-work="1" aria-haspopup="dialog" style="--card-glow: 240, 110, 90;">
               <span class="game-card__tilt">
-                <span class="game-card__art" aria-hidden="true" style="background-image: url('assets/works/apocalypse-card.webp');"></span>
+                <span class="game-card__art" aria-hidden="true" style="background-image: url('assets/works/escapequest-card.webp');"></span>
                 <span class="game-card__shine" aria-hidden="true"></span>
                 <span class="game-card__meta">
                   <span class="game-card__index">02</span>
-                  <span class="game-card__title">The Apocalypse</span>
-                  <span class="game-card__genre">2D Game · Survival</span>
+                  <span class="game-card__title">Escape Quest</span>
+                  <span class="game-card__genre">2D · Point &amp; Click Horror</span>
                 </span>
                 <span class="game-card__play" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5.5v13l10.5-6.5z"/></svg></span>
               </span>
@@ -599,137 +599,30 @@
           <p class="poster-quote">&ldquo;Nooo, now these monsters are gone&hellip; I almost died last time.&rdquo;</p>
         </article>
 
-                  <!-- 02 · The Apocalypse: a wide, cinematic alien horizon — the
-             astronaut is the central character, running full-figure
-             through the middle of the frame, an oxygen gauge glowing on
-             the pack itself as it drains. -->
-        <article class="poster poster--apocalypse" id="play-apocalypse" data-work="1">
+        <!-- 02 · Escape Quest: the game's own hand-drawn rooms, seen
+             through its camcorder viewfinder, the feed cutting between two
+             rooms of the mansion. Roshan co-developed it with Pooja Prasad
+             (puddleofspace.itch.io/escape-quest). -->
+        <article class="poster poster--escapequest" id="play-escapequest" data-work="1">
           <div class="poster-bg">
-            <svg class="poster-scene" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
-              <defs>
-                <radialGradient id="apocSky" cx="38%" cy="78%" r="95%">
-                  <stop offset="0%" stop-color="#4a2030"></stop>
-                  <stop offset="45%" stop-color="#241429"></stop>
-                  <stop offset="100%" stop-color="#08090f"></stop>
-                </radialGradient>
-                <radialGradient id="apocMoon" cx="36%" cy="34%" r="65%">
-                  <stop offset="0%" stop-color="#fff6e8"></stop>
-                  <stop offset="55%" stop-color="#ffd19a"></stop>
-                  <stop offset="100%" stop-color="#c96a3f"></stop>
-                </radialGradient>
-                <linearGradient id="apocGround" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#5c2a24"></stop>
-                  <stop offset="100%" stop-color="#140a0b"></stop>
-                </linearGradient>
-                <radialGradient id="apocVisor" cx="35%" cy="30%" r="80%">
-                  <stop offset="0%" stop-color="#bfe6ff"></stop>
-                  <stop offset="45%" stop-color="#4f7aa8"></stop>
-                  <stop offset="100%" stop-color="#182a3c"></stop>
-                </radialGradient>
-                <linearGradient id="apocSuit" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#eef2f5"></stop>
-                  <stop offset="100%" stop-color="#a7b0ba"></stop>
-                </linearGradient>
-                <linearGradient id="apocSuitShade" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#c7ced5"></stop>
-                  <stop offset="100%" stop-color="#7f8892"></stop>
-                </linearGradient>
-                <linearGradient id="apocTank" x1="0" y1="1" x2="0" y2="0">
-                  <stop offset="0%" stop-color="#ff8a4c"></stop>
-                  <stop offset="100%" stop-color="#ffd7a8"></stop>
-                </linearGradient>
-                <filter id="apocGlow" x="-80%" y="-80%" width="260%" height="260%">
-                  <feGaussianBlur stdDeviation="6" result="b"></feGaussianBlur>
-                  <feMerge><feMergeNode in="b"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
-                </filter>
-              </defs>
-              <rect x="0" y="0" width="1600" height="900" fill="url(#apocSky)"></rect>
-              <g class="apoc-stars"></g>
-              <circle class="apoc-moon apoc-moon--far" cx="1180" cy="220" r="30" fill="#8a5a7a" opacity="0.55"></circle>
-              <circle class="apoc-moon apoc-moon--near" cx="1330" cy="170" r="88" fill="url(#apocMoon)"></circle>
-              <g class="apoc-ridge apoc-ridge--back" fill="#241422">
-                <path d="M-40 560l150-100 160 66 190-110 200 100 190-88 220 96 260-58 300 44v612H-40Z"></path>
-              </g>
-              <g class="apoc-ridge apoc-ridge--mid" fill="#3a1f2c">
-                <path d="M-40 660l190-100 200 76 230-104 250 90 260-70 300 60v588H-40Z"></path>
-              </g>
-              <path class="apoc-ground" fill="url(#apocGround)" d="M-40 740l220-42 260 30 290-46 300 34 320-40 260 24v680H-40Z"></path>
-              <path class="apoc-crack" d="M220 780l58-46-16-52M1180 758l-34-52 24-56" stroke="#1a0c0d" stroke-width="3" fill="none"></path>
-
-              <!-- The astronaut: large, centred, mid-stride — the frame's
-                   one character, not a detail in it. Built at 2× the
-                   scale of the earlier pass and moved clear of the text
-                   scrim, so the whole figure — helmet, tank, stride — is
-                   always plainly legible. -->
-              <g class="apoc-runner" transform="translate(740 360)">
-                <path class="apoc-motion-line" d="M-40 40h100M-64 86h96M-36 132h84" stroke="rgba(255,180,120,0.3)" stroke-width="6" stroke-linecap="round" fill="none"></path>
-
-                <ellipse cx="60" cy="330" rx="72" ry="20" fill="rgba(0,0,0,0.4)"></ellipse>
-
-                <!-- Back leg, trailing. -->
-                <g class="apoc-leg apoc-leg--back">
-                  <path d="M46 210 L18 268 L34 316 L58 314 L46 262 Z" fill="url(#apocSuitShade)"></path>
-                  <path d="M22 306 L48 302 L58 322 L18 326 Z" fill="#3a3f46"></path>
-                </g>
-
-                <!-- Front leg, driving forward. -->
-                <g class="apoc-leg apoc-leg--front">
-                  <path d="M78 214 L108 258 L100 318 L74 320 L68 264 Z" fill="url(#apocSuit)"></path>
-                  <path d="M74 310 L102 308 L110 330 L70 332 Z" fill="#454a52"></path>
-                </g>
-
-                <!-- Backpack, the tank's glow set into it. -->
-                <g class="apoc-pack">
-                  <rect x="18" y="96" width="60" height="104" rx="14" fill="#7d848d"></rect>
-                  <rect x="26" y="106" width="44" height="10" rx="3" fill="#565c63"></rect>
-                  <rect class="apoc-tank-track" x="30" y="122" width="12" height="66" rx="5" fill="rgba(0,0,0,0.35)"></rect>
-                  <rect class="apoc-tank-level" x="30" y="122" width="12" height="66" rx="5" fill="url(#apocTank)" filter="url(#apocGlow)"></rect>
-                  <rect x="50" y="122" width="12" height="66" rx="5" fill="#565c63"></rect>
-                </g>
-
-                <!-- Torso, arms swinging. -->
-                <path d="M32 108 Q60 92 88 108 L94 216 Q60 236 26 216 Z" fill="url(#apocSuit)"></path>
-                <rect class="apoc-chest-light" x="48" y="140" width="24" height="16" rx="3"></rect>
-
-                <g class="apoc-arm apoc-arm--back">
-                  <path d="M36 118 Q6 140 4 190" stroke="url(#apocSuitShade)" stroke-width="22" stroke-linecap="round" fill="none"></path>
-                  <circle cx="4" cy="192" r="12" fill="#c7ced5"></circle>
-                </g>
-                <g class="apoc-arm apoc-arm--front">
-                  <path d="M84 118 Q118 132 128 176" stroke="url(#apocSuit)" stroke-width="22" stroke-linecap="round" fill="none"></path>
-                  <circle cx="130" cy="178" r="12" fill="#eef2f5"></circle>
-                </g>
-
-                <!-- Helmet, the visor catching a highlight. -->
-                <circle cx="60" cy="56" r="52" fill="#e4e9ee"></circle>
-                <circle cx="64" cy="58" r="40" fill="url(#apocVisor)"></circle>
-                <path d="M40 40a34 34 0 0 1 52-10" stroke="rgba(255,255,255,0.6)" stroke-width="6" fill="none" stroke-linecap="round"></path>
-                <path d="M28 30l-14 -18M92 30l14 -18" stroke="#c3ccd6" stroke-width="6" stroke-linecap="round"></path>
-              </g>
-
-              <!-- The oxygen it's played against, glowing on the pack. -->
-              <text class="apoc-tank-label" x="806" y="454">O₂</text>
-            </svg>
+            <div class="eq-feed eq-feed--living"></div>
+            <div class="eq-feed eq-feed--library"></div>
+            <div class="eq-cut" aria-hidden="true"></div>
+            <div class="poster-grade" aria-hidden="true"></div>
           </div>
           <div class="poster-scrim" aria-hidden="true"></div>
-          <div class="poster-content">
-            <p class="poster-eyebrow"><span>02 / 03</span>2D Game</p>
-            <h3 class="poster-title">The Apocalypse</h3>
-            <p class="poster-desc">An astronaut runs across a dying alien world, far from home. The oxygen gauge on the backpack counts down the only resource that matters.</p>
-            <dl class="project-facts">
-              <div><dt>Project scope</dt><dd>2D endless runner with hand-drawn sprites.</dd></div>
-              <div><dt>Design focus</dt><dd>An oxygen gauge carried on the astronaut's pack.</dd></div>
-              <div><dt>Experience</dt><dd>Survival driven by a dwindling oxygen supply.</dd></div>
-            </dl>
-            <p class="poster-tags">Hand-drawn Sprites · 2D · Survival</p>
+          <div class="poster-chrome" aria-hidden="true">
+            <span class="poster-rec"><i></i>REC</span>
+            <span class="eq-room"><b class="eq-room--living">Cam 1 · Living room</b><b class="eq-room--library">Cam 2 · Library</b></span>
           </div>
-          <svg class="poster-hud apoc-hud" viewBox="0 0 120 120" aria-hidden="true">
-            <circle class="apoc-hud-track" cx="60" cy="60" r="46"></circle>
-            <circle class="apoc-hud-level" cx="60" cy="60" r="46" pathLength="1" stroke-dasharray="1" stroke-dashoffset="0"></circle>
-            <text class="apoc-hud-label" x="60" y="56">O₂</text>
-            <text class="apoc-hud-pct" x="60" y="76">100%</text>
-          </svg>
-          <p class="apoc-warning">O₂ CRITICAL</p>
+          <div class="poster-content">
+            <p class="poster-eyebrow"><span>02 / 03</span>2D · Point &amp; Click Horror</p>
+            <h3 class="poster-title poster-title--escapequest">Escape Quest</h3>
+            <p class="poster-desc">Five teenagers black out at a party and wake inside a mysterious mansion. Explore its rooms and solve its puzzles to find a way out, but some choices are deadly. Play again after everyone dies, and the mansion reveals new dialogue and secrets.</p>
+            <p class="poster-tags">Point &amp; Click · Horror · Puzzle · Yarn Spinner</p>
+            <a class="poster-cta magnetic" href="https://puddleofspace.itch.io/escape-quest" target="_blank" rel="noopener noreferrer">Play on itch.io <i aria-hidden="true">→</i></a>
+          </div>
+          <p class="poster-quote">&ldquo;This is not someone's living room.&rdquo;</p>
         </article>
 
                   <!-- 03 · LoopShoot VR: a first-person view inside the headset —
@@ -862,7 +755,7 @@
             </button>
             <div class="player__dots">
               <button class="player__dot" type="button" data-work="0"><span>NeuroMaze</span><i></i></button>
-              <button class="player__dot" type="button" data-work="1"><span>The Apocalypse</span><i></i></button>
+              <button class="player__dot" type="button" data-work="1"><span>Escape Quest</span><i></i></button>
               <button class="player__dot" type="button" data-work="2"><span>LoopShoot VR</span><i></i></button>
             </div>
             <p class="player__swipe" aria-hidden="true">Swipe for more games · down to close</p>
@@ -989,7 +882,7 @@
   <script src="js/chapters.js?v=80" defer></script>
   <script src="js/story.js?v=55" defer></script>
   <script src="js/headset.js?v=1" defer></script>
-  <script src="js/works.js?v=5" defer></script>
+  <script src="js/works.js?v=6" defer></script>
   <script src="js/dial-feel.js?v=3" defer></script>
   <script src="js/court.js?v=1" defer></script>
   <script src="js/dial.js?v=6" defer></script>

@@ -577,65 +577,11 @@
   };
 
   /* ---- each poster's scene, looping while it is on screen ----------------- */
-  const seeded = (seed) => () => {
-    seed = (seed * 1664525 + 1013904223) % 4294967296;
-    return seed / 4294967296;
-  };
   const drawn = (v) => ({ attr: { 'stroke-dashoffset': v } });
 
   function buildLoop(poster) {
-    if (poster.classList.contains('poster--apocalypse')) return apocalypse(poster);
     if (poster.classList.contains('poster--loopshoot')) return loopShoot(poster);
-    return null; // NeuroMaze moves in CSS: the capture drifts, the pulse beats.
-  }
-
-  // 02 · The Apocalypse: the astronaut runs on while the horizon drifts at
-  // three depths and the oxygen drains, warns, and is topped up again.
-  function apocalypse(poster) {
-    const $ = (sel) => poster.querySelector(sel);
-    const stars = $('.apoc-stars');
-    if (stars && !stars.childElementCount) {
-      const rand = seeded(1969);
-      const ns = 'http://www.w3.org/2000/svg';
-      for (let i = 0; i < 60; i += 1) {
-        const star = document.createElementNS(ns, 'circle');
-        star.setAttribute('cx', (rand() * 1600).toFixed(1));
-        star.setAttribute('cy', (rand() * 380).toFixed(1));
-        star.setAttribute('r', (0.7 + rand() * 1.3).toFixed(2));
-        star.setAttribute('opacity', (0.25 + rand() * 0.6).toFixed(2));
-        stars.appendChild(star);
-      }
-    }
-    const pct = $('.apoc-hud-pct');
-    const level = $('.apoc-hud-level');
-    const tank = $('.apoc-tank-level');
-    const warning = $('.apoc-warning');
-    const tl = gsap.timeline({ paused: true });
-    const stride = { duration: 0.42, repeat: -1, yoyo: true, ease: 'sine.inOut' };
-    tl.fromTo([$('.apoc-leg--back'), $('.apoc-arm--back')], { rotation: -10 }, { rotation: 25, svgOrigin: '46 210', ...stride }, 0)
-      .fromTo([$('.apoc-leg--front'), $('.apoc-arm--front')], { rotation: 10 }, { rotation: -21, svgOrigin: '78 214', ...stride }, 0)
-      .fromTo(poster.querySelectorAll('.apoc-motion-line'), { opacity: 0.1, x: 10 }, { opacity: 0.55, x: -8, duration: 0.42, repeat: -1, yoyo: true, ease: 'sine.inOut' }, 0)
-      .fromTo($('.apoc-ridge--back'), { x: 0 }, { x: -16, duration: 7, repeat: -1, yoyo: true, ease: 'sine.inOut' }, 0)
-      .fromTo($('.apoc-ridge--mid'), { x: 0 }, { x: -34, duration: 7, repeat: -1, yoyo: true, ease: 'sine.inOut' }, 0)
-      .fromTo($('.apoc-ground'), { x: 0 }, { x: -58, duration: 7, repeat: -1, yoyo: true, ease: 'sine.inOut' }, 0);
-    const oxygen = { v: 100 };
-    const show = () => {
-      pct.textContent = `${Math.round(oxygen.v)}%`;
-      level.setAttribute('stroke-dashoffset', ((100 - oxygen.v) / 100).toFixed(3));
-      gsap.set(tank, { scaleY: Math.max(0.04, oxygen.v / 100) });
-    };
-    const cycle = gsap.timeline({ repeat: -1 });
-    cycle.set(warning, { opacity: 0 }, 0)
-      .set(level, { stroke: '' }, 0)
-      .fromTo(oxygen, { v: 100 }, { v: 14, duration: 7, ease: 'power1.in', onUpdate: show }, 0)
-      .set(level, { stroke: '#ff5a4e' }, 5.6)
-      .fromTo(warning, { opacity: 0 }, { opacity: 1, duration: 0.25, repeat: 5, yoyo: true, ease: 'none' }, 5.6)
-      .to(oxygen, { v: 100, duration: 0.9, ease: 'power2.out', onUpdate: show }, 7.6)
-      .set(level, { stroke: '' }, 7.9)
-      .to(warning, { opacity: 0, duration: 0.2 }, 7.6)
-      .to({}, { duration: 0.6 }, 8.5);
-    tl.add(cycle, 0);
-    return tl;
+    return null; // NeuroMaze and Escape Quest move in CSS (js-free captures).
   }
 
   // 03 · LoopShoot VR: release, arc, swish, the combo climbing — and the
