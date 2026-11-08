@@ -40,14 +40,20 @@
   let wanted = false;
   let primed = false;
   const source = () => (wide.matches ? video.dataset.wide : video.dataset.tall);
+  // The element stays rendered (visibility) for as long as it holds the clip;
+  // drawing it in and out is done with opacity alone. iPhone Safari stops
+  // repainting a paused video that was hidden outright, so on the way back
+  // up from the lab the clip stayed frozen on its last frame.
   function attach() {
     const src = source();
+    host.style.visibility = 'visible';
     if (video.getAttribute('src') === src) return;
     primed = false;
     video.src = src;
     video.load();
   }
   function release() {
+    host.style.visibility = 'hidden';
     if (!video.getAttribute('src')) return;
     video.removeAttribute('src');
     video.load(); // frees the decoder and its buffers (iPhone memory)
@@ -81,13 +87,25 @@
 
   /* ---------- scrubbing ---------- */
   // One seek at a time; while one is decoding, only the latest target waits.
+  // A seek that never reports back (Safari drops some) is given up on after
+  // a moment, so the clip can't freeze. `fresh` asks for a new frame even at
+  // the same time, for when the clip comes back into view. Each time is
+  // asked for once: a browser may land a frame short of it (the last frame),
+  // and asking again would only loop.
   let target = 0;
-  function seek() {
-    if (!video.getAttribute('src') || video.readyState < 1 || video.seeking) return;
-    if (Math.abs(video.currentTime - target) < FRAME * 0.5) return;
-    video.currentTime = target;
+  let seekAt = 0;
+  let asked = -1;
+  function seek(fresh = false) {
+    if (!video.getAttribute('src') || video.readyState < 1) return;
+    if (video.seeking && performance.now() - seekAt < 1500) return;
+    const near = Math.abs(video.currentTime - target) < FRAME * 0.5;
+    if (!fresh && (near || target === asked)) return;
+    asked = near ? Math.max(0, target - FRAME) : target;
+    seekAt = performance.now();
+    video.currentTime = asked;
   }
-  video.addEventListener('seeked', seek);
+  video.addEventListener('seeked', () => seek());
+  video.addEventListener('emptied', () => { asked = -1; });
 
   /* ---------- drawing ---------- */
   let shown = false;
@@ -101,9 +119,12 @@
     // Off before the clip; and once the lab is up over its last frame, off
     // again (the lab's canvas is opaque) unless the lab never came.
     const show = v > 0 && (v < 1 || !live);
+    let back = false;
     if (show !== shown) {
       shown = show;
-      host.style.visibility = show ? 'visible' : 'hidden';
+      back = show;
+      if (!show) host.style.opacity = '0';
+      last = -1;
     }
 
     // The lab: build and compile now, draw one frame behind the clip, then
@@ -124,8 +145,8 @@
     // Light comes up out of the portrait's darkness, and the clip runs over
     // the middle of the stretch: its head and tail are holds.
     host.style.opacity = smooth(0, 0.1, v).toFixed(3);
-    target = Math.min(DURATION - FRAME, Math.max(0, (v - 0.05) / 0.8) * DURATION);
-    seek();
+    target = Math.min(DURATION - 2 * FRAME, Math.max(0, (v - 0.05) / 0.8) * DURATION);
+    seek(back);
 
     // On a landscape screen the headset starts as an object in the dark —
     // smaller than the frame, its cut edges feathered away — and the push
@@ -139,5 +160,5 @@
   }
   window.addEventListener('sceneclock', draw);
   section.addEventListener('sceneprogress', draw);
-  host.style.visibility = 'hidden';
+  if (!wanted) host.style.visibility = 'hidden';
 })();

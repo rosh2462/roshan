@@ -386,20 +386,12 @@ html.is-player-covered body > :not(.player, .court) { visibility: hidden; }
 .has-works .player .loop-hud { right: auto; left: clamp(24px, 6vw, 96px); }
 /* The capture already carries this line as the game's own subtitle. */
 .has-works .player .poster-quote { display: none; }
-.has-works .player .poster--neuromaze.is-active .poster-capture { animation: works-capture-drift 18s ease-in-out infinite alternate; }
+.has-works .player :is(.poster--neuromaze .poster-capture, .poster--escapequest .eq-feed) { animation: works-capture-drift 18s ease-in-out infinite alternate; animation-play-state: paused; }
+.has-works .player .poster.is-active :is(.poster-capture, .eq-feed) { animation-play-state: running; }
 @keyframes works-capture-drift {
   from { transform: scale(1) translate3d(0, 0, 0); }
   to { transform: scale(1.07) translate3d(-1.4%, -0.9%, 0); }
 }
-/* Escape Quest's feed cuts between two rooms every six seconds. */
-.has-works .player .poster--escapequest.is-active .eq-feed--living { animation: works-capture-drift 18s ease-in-out infinite alternate; }
-.has-works .player .poster--escapequest.is-active .eq-feed--library { animation: eq-on 12s linear infinite, works-capture-drift 18s ease-in-out infinite alternate; }
-.has-works .player .poster--escapequest.is-active .eq-room--library { animation: eq-on 12s linear infinite; }
-.has-works .player .poster--escapequest.is-active .eq-room--living { animation: eq-off 12s linear infinite; }
-.has-works .player .poster--escapequest.is-active .eq-cut { animation: eq-cut 6s linear infinite; }
-@keyframes eq-on { 0%, 49.9% { opacity: 0; } 50%, 99.9% { opacity: 1; } 100% { opacity: 0; } }
-@keyframes eq-off { 0%, 49.9% { opacity: 1; } 50%, 99.9% { opacity: 0; } 100% { opacity: 1; } }
-@keyframes eq-cut { 0% { opacity: 0.55; } 4% { opacity: 0; } 100% { opacity: 0; } }
 
 /* The card's own art, over the window as it leaves or returns to a card. */
 .player__ghost {
@@ -571,11 +563,17 @@ html.is-player-covered body > :not(.player, .court) { visibility: hidden; }
   /* A tall screen crops the wide scenes to their middle: lift each subject
      clear of the copy, and keep the capture's own subtitle off the screen. */
   .has-works .player .poster--neuromaze .poster-capture { background-size: auto 122%; background-position: 50% 0; }
+  .has-works .player .poster--neuromaze .poster-video { object-position: 50% 30%; }
+  /* A phone shows the room whole, at the top, fading into the copy. */
   .has-works .player .poster--escapequest .eq-feed {
-    background-size: auto 62%;
-    background-position: 60% 7%;
-    -webkit-mask-image: linear-gradient(to bottom, #000 52%, transparent 70%);
-    mask-image: linear-gradient(to bottom, #000 52%, transparent 70%);
+    inset: auto;
+    top: 7%;
+    left: 50%;
+    height: 40%;
+    aspect-ratio: 16 / 9;
+    translate: -52% 0;
+    -webkit-mask-image: linear-gradient(to bottom, #000 66%, transparent 92%);
+    mask-image: linear-gradient(to bottom, #000 66%, transparent 92%);
   }
   .has-works .player .poster-hud { top: 92px; bottom: auto; right: 22px; }
   .has-works .player .loop-hud { right: auto; left: 22px; }
@@ -599,7 +597,7 @@ html.is-player-covered body > :not(.player, .court) { visibility: hidden; }
   .game-card__tilt, .game-card__art { transform: none !important; transition: none; }
   .shelf-hint::before, .game-card__play::after, .game-card.is-called .game-card__tilt,
   .has-works .player .poster--neuromaze.is-active .poster-capture,
-  .has-works .player .poster--escapequest.is-active :is(.eq-feed, .eq-cut, .eq-room b) { animation: none; }
+  .has-works .player .poster--escapequest.is-active .eq-feed { animation: none; }
   .has-works .player .poster-content > *,
   .has-works .player .poster :is(.poster-chrome, .poster-quote, .poster-hud) { transition: none; }
 }

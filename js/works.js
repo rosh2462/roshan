@@ -165,12 +165,44 @@
   }
 
   const loops = [];
+  // Gameplay loops (NeuroMaze, Escape Quest): fetched when their game is
+  // shown, played only while it is, and let go when the player closes, so a
+  // phone holds no video it isn't showing. Until one plays, its still shows.
+  const clips = posters.map((poster) => poster.querySelector('.poster-video'));
+  clips.forEach((clip) => clip?.addEventListener('playing', () => clip.classList.add('is-playing')));
+  function playClip(i) {
+    clips.forEach((clip, j) => {
+      if (!clip) return;
+      if (j !== i || reduceMotion) { clip.pause(); return; }
+      if (!clip.getAttribute('src')) clip.src = clip.dataset.src;
+      clip.play()?.catch?.(() => {});
+    });
+  }
+  function releaseClips() {
+    clips.forEach((clip) => {
+      if (!clip?.getAttribute('src')) return;
+      clip.pause();
+      clip.classList.remove('is-playing');
+      clip.removeAttribute('src');
+      clip.load();
+    });
+  }
+  // Escape Quest's feed shows four rooms, about six seconds each.
+  const eqClip = document.querySelector('.poster--escapequest .poster-video');
+  const eqRoom = document.querySelector('.poster--escapequest .eq-room');
+  const ROOMS = ['Cam 1 · Greenhouse', 'Cam 2 · Library', 'Cam 3 · Ritual room', 'Cam 4 · Laboratory'];
+  eqClip?.addEventListener('timeupdate', () => {
+    const room = ROOMS[Math.min(ROOMS.length - 1, Math.floor(eqClip.currentTime / 6.133))];
+    if (eqRoom && eqRoom.textContent !== room) eqRoom.textContent = room;
+  });
+
   function activate(i) {
     posters.forEach((poster, j) => {
       poster.classList.toggle('is-active', j === i);
       poster.inert = j !== i;
       poster.setAttribute('aria-hidden', String(j !== i));
     });
+    playClip(i);
     if (reduceMotion || typeof gsap === 'undefined') return;
     if (!loops[i]) loops[i] = buildLoop(posters[i]);
     loops.forEach((loop, j) => { if (loop && j !== i) loop.pause(); });
@@ -319,6 +351,7 @@
     player.inert = true;
     player.setAttribute('aria-hidden', 'true');
     pauseLoops();
+    releaseClips();
     lockPage(false);
     // The card the player opened from was lifted off the shelf; after a
     // swipe to another game it is not the one being landed on, so every
